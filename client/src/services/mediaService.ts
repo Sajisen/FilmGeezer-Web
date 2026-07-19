@@ -1,4 +1,8 @@
-import type { MediaItem, SearchScope } from "../types/media";
+import type {
+  MediaDetails,
+  MediaItem,
+  SearchScope,
+} from '../types/media'
 
 import type { SearchFilterValues } from "../types/search";
 
@@ -31,8 +35,8 @@ interface SearchApiResponse {
 }
 
 interface MediaDetailsApiResponse {
-  status: string;
-  result: MediaItem;
+  status: string
+  result: MediaDetails
 }
 
 interface ApiErrorResponse {
@@ -106,7 +110,7 @@ export async function getMediaByTmdbId(
   mediaType: string | undefined,
   tmdbId: string | undefined,
   signal?: AbortSignal,
-): Promise<MediaItem | null> {
+): Promise<MediaDetails | null> {
   if (!mediaType || !tmdbId) {
     return null;
   }

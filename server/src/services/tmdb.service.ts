@@ -1,9 +1,11 @@
 import type {
   BrowseCategory,
+  MediaDetails,
   MediaItem,
   MediaType,
+  MediaVideo,
   SearchScope,
-} from "../types/media.js";
+} from '../types/media.js'
 
 import type {
   TmdbErrorResponse,
@@ -361,46 +363,293 @@ function buildBrowsePath(
   return `/${mediaType}/${category}?language=en-US&page=${page}`;
 }
 
-function mapMovieDetails(movie: TmdbMovieDetails): MediaItem {
+function mapDetailsVideos(
+  videos:
+    | TmdbMovieDetails['videos']
+    | TmdbTvDetails['videos'],
+) {
+  const mappedVideos: MediaVideo[] =
+    (videos?.results ?? [])
+      .filter(
+        (video) =>
+          video.site === 'YouTube' &&
+          (video.type === 'Trailer' ||
+            video.type === 'Teaser'),
+      )
+      .map((video) => ({
+        id: video.id,
+        key: video.key,
+        name: video.name,
+
+        site: 'YouTube' as const,
+
+        type: video.type as
+          | 'Trailer'
+          | 'Teaser',
+
+        official: video.official,
+
+        language:
+          video.iso_639_1
+            ?.toUpperCase() ||
+          'Unknown',
+
+        publishedAt:
+          video.published_at ?? '',
+      }))
+      .sort(
+        (
+          firstVideo,
+          secondVideo,
+        ) => {
+          const firstScore =
+            (firstVideo.type ===
+            'Trailer'
+              ? 4
+              : 0) +
+            (firstVideo.official
+              ? 2
+              : 0) +
+            (firstVideo.language ===
+            'EN'
+              ? 1
+              : 0)
+
+          const secondScore =
+            (secondVideo.type ===
+            'Trailer'
+              ? 4
+              : 0) +
+            (secondVideo.official
+              ? 2
+              : 0) +
+            (secondVideo.language ===
+            'EN'
+              ? 1
+              : 0)
+
+          if (
+            secondScore !== firstScore
+          ) {
+            return (
+              secondScore -
+              firstScore
+            )
+          }
+
+          return secondVideo.publishedAt.localeCompare(
+            firstVideo.publishedAt,
+          )
+        },
+      )
+
+  return mappedVideos.slice(0, 3)
+}
+
+function mapMovieDetails(
+  movie: TmdbMovieDetails,
+): MediaDetails {
+  const videos = mapDetailsVideos(
+    movie.videos,
+  )
+
   return {
     tmdbId: movie.id,
     title: movie.title,
-    mediaType: "movie",
-    year: getYear(movie.release_date),
-    rating: formatRating(movie.vote_average),
-    posterUrl: buildImageUrl(movie.poster_path, "w500", POSTER_FALLBACK_URL),
+
+    originalTitle:
+      movie.original_title ||
+      movie.title,
+
+    mediaType: 'movie',
+
+    year: getYear(
+      movie.release_date,
+    ),
+
+    fullReleaseDate:
+      movie.release_date || '',
+
+    rating: formatRating(
+      movie.vote_average,
+    ),
+
+    voteCount:
+      movie.vote_count ?? 0,
+
+    posterUrl: buildImageUrl(
+      movie.poster_path,
+      'w500',
+      POSTER_FALLBACK_URL,
+    ),
+
     backdropUrl: buildImageUrl(
       movie.backdrop_path,
-      "original",
+      'original',
       BACKDROP_FALLBACK_URL,
     ),
-    overview: movie.overview || "No overview is currently available.",
-    genres: movie.genres.map((genre) => genre.name),
-    durationLabel: formatRuntime(movie.runtime),
-    status: movie.status || "Unknown",
-    language: movie.original_language?.toUpperCase() || "Unknown",
-  };
+
+    overview:
+      movie.overview ||
+      'No overview is currently available.',
+
+    genres: movie.genres.map(
+      (genre) => genre.name,
+    ),
+
+    durationLabel:
+      formatRuntime(movie.runtime),
+
+    runtimeMinutes: movie.runtime,
+
+    numberOfSeasons: null,
+    numberOfEpisodes: null,
+    seasons: [],
+
+    status:
+      movie.status || 'Unknown',
+
+    language:
+      movie.original_language
+        ?.toUpperCase() ||
+      'Unknown',
+
+    tagline: movie.tagline || '',
+
+    homepageUrl:
+      movie.homepage || '',
+
+    imdbId:
+      movie.external_ids?.imdb_id ||
+      '',
+
+    videos,
+
+    primaryTrailer:
+      videos[0] ?? null,
+  }
 }
 
-function mapTvDetails(show: TmdbTvDetails): MediaItem {
+function mapTvDetails(
+  show: TmdbTvDetails,
+): MediaDetails {
+  const videos = mapDetailsVideos(
+    show.videos,
+  )
+
+  const runtimeMinutes =
+    show.episode_run_time?.find(
+      (runtime) => runtime > 0,
+    ) ?? null
+
   return {
     tmdbId: show.id,
     title: show.name,
-    mediaType: "tv",
-    year: getYear(show.first_air_date),
-    rating: formatRating(show.vote_average),
-    posterUrl: buildImageUrl(show.poster_path, "w500", POSTER_FALLBACK_URL),
+
+    originalTitle:
+      show.original_name ||
+      show.name,
+
+    mediaType: 'tv',
+
+    year: getYear(
+      show.first_air_date,
+    ),
+
+    fullReleaseDate:
+      show.first_air_date || '',
+
+    rating: formatRating(
+      show.vote_average,
+    ),
+
+    voteCount:
+      show.vote_count ?? 0,
+
+    posterUrl: buildImageUrl(
+      show.poster_path,
+      'w500',
+      POSTER_FALLBACK_URL,
+    ),
+
     backdropUrl: buildImageUrl(
       show.backdrop_path,
-      "original",
+      'original',
       BACKDROP_FALLBACK_URL,
     ),
-    overview: show.overview || "No overview is currently available.",
-    genres: show.genres.map((genre) => genre.name),
-    durationLabel: formatSeasonCount(show.number_of_seasons),
-    status: show.status || "Unknown",
-    language: show.original_language?.toUpperCase() || "Unknown",
-  };
+
+    overview:
+      show.overview ||
+      'No overview is currently available.',
+
+    genres: show.genres.map(
+      (genre) => genre.name,
+    ),
+
+    durationLabel:
+      formatSeasonCount(
+        show.number_of_seasons,
+      ),
+
+    runtimeMinutes,
+
+    numberOfSeasons:
+      show.number_of_seasons,
+
+    numberOfEpisodes:
+      show.number_of_episodes,
+
+    seasons: show.seasons
+      .filter(
+        (season) =>
+          season.season_number > 0,
+      )
+      .map((season) => ({
+        tmdbSeasonId: season.id,
+
+        seasonNumber:
+          season.season_number,
+
+        name: season.name,
+
+        episodeCount:
+          season.episode_count,
+
+        airDate:
+          season.air_date || '',
+
+        overview:
+          season.overview || '',
+
+        posterUrl: buildImageUrl(
+          season.poster_path,
+          'w500',
+          POSTER_FALLBACK_URL,
+        ),
+      })),
+
+    status:
+      show.status || 'Unknown',
+
+    language:
+      show.original_language
+        ?.toUpperCase() ||
+      'Unknown',
+
+    tagline: show.tagline || '',
+
+    homepageUrl:
+      show.homepage || '',
+
+    imdbId:
+      show.external_ids?.imdb_id ||
+      '',
+
+    videos,
+
+    primaryTrailer:
+      videos[0] ?? null,
+  }
 }
 
 function mapCategorySearchCandidate(
@@ -2043,7 +2292,7 @@ export async function getTmdbKDramaPrimarySources(): Promise<TmdbKDramaPrimarySo
 export async function getTmdbMediaDetails(
   mediaType: MediaType,
   tmdbId: number,
-): Promise<MediaItem> {
+): Promise<MediaDetails> {
   if (mediaType === "movie") {
     const movie = await tmdbFetch<TmdbMovieDetails>(
       `/movie/${tmdbId}?language=en-US`,

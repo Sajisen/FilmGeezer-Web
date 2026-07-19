@@ -17,3 +17,42 @@ export interface MediaItem {
   status: string;
   language: string;
 }
+
+export interface MediaVideo {
+  id: string
+  key: string
+  name: string
+  site: 'YouTube'
+  type: 'Trailer' | 'Teaser'
+  official: boolean
+  language: string
+  publishedAt: string
+}
+
+export interface MediaSeasonSummary {
+  tmdbSeasonId: number
+  seasonNumber: number
+  name: string
+  episodeCount: number
+  airDate: string
+  overview: string
+  posterUrl: string
+}
+
+export interface MediaDetails
+  extends MediaItem {
+  originalTitle: string
+  tagline: string
+  fullReleaseDate: string
+  voteCount: number
+  homepageUrl: string
+  imdbId: string
+
+  runtimeMinutes: number | null
+  numberOfSeasons: number | null
+  numberOfEpisodes: number | null
+
+  seasons: MediaSeasonSummary[]
+  videos: MediaVideo[]
+  primaryTrailer: MediaVideo | null
+}
