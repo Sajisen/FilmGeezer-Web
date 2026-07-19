@@ -4,7 +4,7 @@ import MediaRow from "../components/MediaRow";
 import PageBanner from "../components/PageBanner";
 import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
-import LoadingState from "../components/states/LoadingState";
+import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useHomeCollections } from "../hooks/useHomeCollections";
 import homeBanner from "../assets/images/home-banner2.png";
 
@@ -35,14 +35,10 @@ function HomePage() {
       </PageBanner>
 
       {isLoading && (
-        <section className="py-8">
-          <ContentContainer>
-            <LoadingState
-              title="Loading trending titles"
-              message="Please wait while we prepare movies, TV series, anime, and K-dramas."
-            />
-          </ContentContainer>
-        </section>
+        <CollectionRowsSkeleton
+          rowCount={4}
+          label="Loading trending movies, TV series, Anime, and K-Dramas"
+        />
       )}
 
       {!isLoading && errorMessage && (

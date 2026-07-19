@@ -4,7 +4,7 @@ import MediaRow from "../components/MediaRow";
 import PageBanner from "../components/PageBanner";
 import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
-import LoadingState from "../components/states/LoadingState";
+import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useMovieCollections } from "../hooks/useMovieCollections";
 import moviesBanner from "../assets/images/movies-banner.png";
 
@@ -37,14 +37,10 @@ function MoviesPage() {
       </PageBanner>
 
       {isLoading && (
-        <section className="py-8">
-          <ContentContainer>
-            <LoadingState
-              title="Loading movie collections"
-              message="Please wait while FilmGeezer prepares current, essential, and genre-based movies."
-            />
-          </ContentContainer>
-        </section>
+        <CollectionRowsSkeleton
+          rowCount={4}
+          label="Loading curated Movie collections"
+        />
       )}
 
       {!isLoading && errorMessage && (

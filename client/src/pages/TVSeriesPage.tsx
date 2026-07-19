@@ -4,7 +4,7 @@ import MediaRow from "../components/MediaRow";
 import PageBanner from "../components/PageBanner";
 import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
-import LoadingState from "../components/states/LoadingState";
+import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useTvCollections } from "../hooks/useTvCollections";
 import tvSeriesBanner from "../assets/images/tvseries-banner.png";
 
@@ -36,14 +36,10 @@ function TVSeriesPage() {
       </PageBanner>
 
       {isLoading && (
-        <section className="py-8">
-          <ContentContainer>
-            <LoadingState
-              title="Loading TV collections"
-              message="Please wait while FilmGeezer prepares current, essential, and genre-based TV series."
-            />
-          </ContentContainer>
-        </section>
+        <CollectionRowsSkeleton
+          rowCount={4}
+          label="Loading curated TV Series collections"
+        />
       )}
 
       {!isLoading && errorMessage && (

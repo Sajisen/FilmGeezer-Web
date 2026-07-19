@@ -4,7 +4,7 @@ import MediaRow from "../components/MediaRow";
 import PageBanner from "../components/PageBanner";
 import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
-import LoadingState from "../components/states/LoadingState";
+import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useAnimeCollections } from "../hooks/useAnimeCollections";
 
 import animeBanner from "../assets/images/anime-banner.png";
@@ -38,14 +38,10 @@ function AnimePage() {
       </PageBanner>
 
       {isLoading && (
-        <section className="py-8">
-          <ContentContainer>
-            <LoadingState
-              title="Loading Anime collections"
-              message="Please wait while FilmGeezer prepares trending, essential, and genre-based Anime."
-            />
-          </ContentContainer>
-        </section>
+        <CollectionRowsSkeleton
+          rowCount={4}
+          label="Loading curated Anime collections"
+        />
       )}
 
       {!isLoading && errorMessage && (
