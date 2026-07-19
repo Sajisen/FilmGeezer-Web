@@ -12,10 +12,12 @@ import ApiTestPage from "./pages/ApiTestPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import AnimePage from "./pages/AnimePage";
 import KDramaPage from "./pages/KDramaPage";
+import ScrollToTop from './components/navigation/ScrollToTop'
 
 function App() {
   return (
     <BrowserRouter>
+    <ScrollToTop />
       <Navbar />
 
       <Routes>

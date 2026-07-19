@@ -2294,15 +2294,19 @@ export async function getTmdbMediaDetails(
   tmdbId: number,
 ): Promise<MediaDetails> {
   if (mediaType === "movie") {
-    const movie = await tmdbFetch<TmdbMovieDetails>(
-      `/movie/${tmdbId}?language=en-US`,
-    );
+    const movie =
+  await tmdbFetch<TmdbMovieDetails>(
+    `/movie/${tmdbId}?language=en-US&append_to_response=videos,external_ids`,
+  )
 
     return mapMovieDetails(movie);
   }
 
-  const show = await tmdbFetch<TmdbTvDetails>(`/tv/${tmdbId}?language=en-US`);
-
+  const show =
+  await tmdbFetch<TmdbTvDetails>(
+    `/tv/${tmdbId}?language=en-US&append_to_response=videos,external_ids`,
+  )
+  
   return mapTvDetails(show);
 }
 
