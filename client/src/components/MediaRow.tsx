@@ -20,11 +20,11 @@ function MediaRow({ title, description, items }: MediaRowProps) {
           )}
         </div>
 
-        <div className="flex gap-5 overflow-x-auto pb-2">
+        <div className="flex gap-3 overflow-x-auto pb-2 sm:gap-4 lg:gap-5">
           {items.map((item) => (
             <div
               key={`${item.mediaType}-${item.tmdbId}`}
-              className="w-[240px] min-w-[240px] flex-shrink-0"
+              className="w-[154px] min-w-[154px] flex-shrink-0 sm:w-[176px] sm:min-w-[176px] lg:w-[196px] lg:min-w-[196px]"
             >
               <MediaCard item={item} />
             </div>
