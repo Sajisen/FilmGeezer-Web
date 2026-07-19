@@ -4,7 +4,7 @@ import MediaRow from "../components/MediaRow";
 import PageBanner from "../components/PageBanner";
 import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
-import LoadingState from "../components/states/LoadingState";
+import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useKDramaCollections } from "../hooks/useKDramaCollections";
 import kdramaBanner from "../assets/images/kdrama-banner.png";
 
@@ -37,16 +37,11 @@ function KDramaPage() {
       </PageBanner>
 
       {isLoading && (
-        <section className="py-8">
-          <ContentContainer>
-            <LoadingState
-              title="Loading K-Drama collections"
-              message="Please wait while FilmGeezer prepares trending, essential, and genre-based Korean movies and series."
-            />
-          </ContentContainer>
-        </section>
+        <CollectionRowsSkeleton
+          rowCount={4}
+          label="Loading curated K-Drama collections"
+        />
       )}
-
       {!isLoading && errorMessage && (
         <section className="py-8">
           <ContentContainer>
