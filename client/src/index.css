@@ -35,3 +35,35 @@ body {
     scroll-behavior: auto;
   }
 }
+
+.media-row-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.media-row-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.media-row-desktop-fade,
+.media-row-desktop-control {
+  display: none;
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .media-row-desktop-fade {
+    display: block;
+  }
+
+  .media-row-desktop-control {
+    display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-row-scrollbar {
+    scroll-behavior: auto;
+  }
+}
