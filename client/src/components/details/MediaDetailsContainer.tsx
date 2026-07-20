@@ -1,24 +1,22 @@
-import type { ReactNode } from 'react'
-import ContentContainer from '../layout/ContentContainer'
+import type { ReactNode } from "react";
+import ContentContainer from "../layout/ContentContainer";
 
 interface MediaDetailsContainerProps {
-  children: ReactNode
-  className?: string
+  children: ReactNode;
+  className?: string;
 }
 
 function MediaDetailsContainer({
   children,
-  className = '',
+  className = "",
 }: MediaDetailsContainerProps) {
   return (
     <ContentContainer>
-      <div
-        className={`mx-auto w-full max-w-[1180px] ${className}`}
-      >
+      <div className={`mx-auto w-full max-w-[1180px] ${className}`}>
         {children}
       </div>
     </ContentContainer>
-  )
+  );
 }
 
-export default MediaDetailsContainer
+export default MediaDetailsContainer;

@@ -162,3 +162,30 @@ export interface TmdbKeywordSearchResponse {
   total_pages: number;
   total_results: number;
 }
+
+export interface TmdbWatchProvider {
+  display_priority: number
+  logo_path: string | null
+  provider_id: number
+  provider_name: string
+}
+
+export interface TmdbWatchProviderRegion {
+  link?: string
+
+  flatrate?: TmdbWatchProvider[]
+  free?: TmdbWatchProvider[]
+  ads?: TmdbWatchProvider[]
+
+  rent?: TmdbWatchProvider[]
+  buy?: TmdbWatchProvider[]
+}
+
+export interface TmdbWatchProvidersResponse {
+  id: number
+
+  results: Record<
+    string,
+    TmdbWatchProviderRegion
+  >
+}

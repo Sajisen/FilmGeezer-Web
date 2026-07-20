@@ -17,6 +17,8 @@ import type {
   TmdbMultiSearchResponse,
   TmdbSearchResult,
   TmdbTvDetails,
+  TmdbWatchProvider,
+  TmdbWatchProvidersResponse,
 } from "../types/tmdb.js";
 
 import {
@@ -24,6 +26,11 @@ import {
   isSuitableForPublicKDrama,
   type CategoryMediaCandidate,
 } from "../utils/categoryMedia.js";
+
+import type {
+  WatchAvailability,
+  WatchProviderItem,
+} from '../types/watchAvailability.js'
 
 export interface TmdbBrowseResult {
   page: number;
@@ -2287,6 +2294,109 @@ export async function getTmdbKDramaPrimarySources(): Promise<TmdbKDramaPrimarySo
 
     feelGoodKeywordTv: mapTvCandidates(feelGoodKeywordTvData),
   };
+}
+
+function mapWatchProviders(
+  groups: Array<
+    TmdbWatchProvider[] | undefined
+  >,
+): WatchProviderItem[] {
+  const providerMap =
+    new Map<
+      number,
+      TmdbWatchProvider
+    >()
+
+  for (const group of groups) {
+    for (const provider of group ?? []) {
+      const existingProvider =
+        providerMap.get(
+          provider.provider_id,
+        )
+
+      if (
+        !existingProvider ||
+        provider.display_priority <
+          existingProvider.display_priority
+      ) {
+        providerMap.set(
+          provider.provider_id,
+          provider,
+        )
+      }
+    }
+  }
+
+  return [...providerMap.values()]
+    .sort(
+      (
+        firstProvider,
+        secondProvider,
+      ) =>
+        firstProvider.display_priority -
+        secondProvider.display_priority,
+    )
+    .map((provider) => ({
+      providerId:
+        provider.provider_id,
+
+      name:
+        provider.provider_name,
+
+      logoUrl: provider.logo_path
+        ? `https://image.tmdb.org/t/p/w92${provider.logo_path}`
+        : '',
+    }))
+}
+
+export async function getTmdbWatchAvailability(
+  mediaType: MediaType,
+  tmdbId: number,
+  region: string,
+): Promise<WatchAvailability> {
+  const normalizedRegion =
+    region.toUpperCase()
+
+  const data =
+    await tmdbFetch<TmdbWatchProvidersResponse>(
+      `/${mediaType}/${tmdbId}/watch/providers`,
+    )
+
+  const regionalData =
+    data.results[
+      normalizedRegion
+    ]
+
+  if (!regionalData) {
+    return {
+      region: normalizedRegion,
+      link: '',
+      stream: [],
+      rent: [],
+      buy: [],
+    }
+  }
+
+  return {
+    region: normalizedRegion,
+
+    link:
+      regionalData.link ?? '',
+
+    stream: mapWatchProviders([
+      regionalData.flatrate,
+      regionalData.free,
+      regionalData.ads,
+    ]),
+
+    rent: mapWatchProviders([
+      regionalData.rent,
+    ]),
+
+    buy: mapWatchProviders([
+      regionalData.buy,
+    ]),
+  }
 }
 
 export async function getTmdbMediaDetails(
