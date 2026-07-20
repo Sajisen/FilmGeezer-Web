@@ -110,3 +110,31 @@ body {
     animation: none;
   }
 }
+
+.trailer-video-list {
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgb(56 189 248 / 55%)
+    rgb(15 23 42 / 45%);
+}
+
+.trailer-video-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.trailer-video-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background:
+    rgb(15 23 42 / 45%);
+}
+
+.trailer-video-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background:
+    rgb(56 189 248 / 55%);
+}
+
+.trailer-video-list::-webkit-scrollbar-thumb:hover {
+  background:
+    rgb(56 189 248 / 75%);
+}

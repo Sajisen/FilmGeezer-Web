@@ -443,7 +443,7 @@ function mapDetailsVideos(
         },
       )
 
-  return mappedVideos.slice(0, 3)
+  return mappedVideos.slice(0, 10)
 }
 
 function mapMovieDetails(

@@ -93,31 +93,6 @@ function MediaDetailsSkeleton() {
           ))}
         </div>
 
-        <div className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6">
-          <div className="skeleton-placeholder h-6 w-40 rounded-md" />
-
-          <div className="skeleton-placeholder mt-3 h-4 w-72 max-w-full rounded-md" />
-
-          <div className="mt-6 space-y-3">
-            {Array.from({
-              length: 2,
-            }).map((_, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4"
-              >
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="skeleton-placeholder h-4 w-40 max-w-full rounded-md" />
-
-                  <div className="skeleton-placeholder h-3 w-28 rounded-md" />
-                </div>
-
-                <div className="skeleton-placeholder h-10 w-20 rounded-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div className="mt-12 rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
           <div className="skeleton-placeholder h-3 w-20 rounded-md" />
 
@@ -160,6 +135,31 @@ function MediaDetailsSkeleton() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="skeleton-placeholder h-6 w-40 rounded-md" />
+
+          <div className="skeleton-placeholder mt-3 h-4 w-72 max-w-full rounded-md" />
+
+          <div className="mt-6 space-y-3">
+            {Array.from({
+              length: 2,
+            }).map((_, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4"
+              >
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="skeleton-placeholder h-4 w-40 max-w-full rounded-md" />
+
+                  <div className="skeleton-placeholder h-3 w-28 rounded-md" />
+                </div>
+
+                <div className="skeleton-placeholder h-10 w-20 rounded-full" />
+              </div>
+            ))}
           </div>
         </div>
       </MediaDetailsContainer>

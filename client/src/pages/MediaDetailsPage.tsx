@@ -488,21 +488,24 @@ function MediaDetailsPage() {
                     href="#trailer"
                     className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.05] px-5 font-semibold text-white transition hover:border-sky-300/50 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      className="mr-2 h-5 w-5"
-                      fill="none"
-                    >
-                      <path d="m9 7 8 5-8 5V7Z" fill="currentColor" />
-                    </svg>
                     Watch trailer
+                  </a>
+                )}
+
+                {imdbUrl && (
+                  <a
+                    href={imdbUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 bg-slate-950/50 px-5 font-semibold text-white backdrop-blur-md transition hover:border-white/30 hover:bg-white/10"
+                  >
+                    View on IMDb ↗
                   </a>
                 )}
 
                 <a
                   href="#provider-links"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400"
                 >
                   Available links
                 </a>
@@ -587,18 +590,18 @@ function MediaDetailsPage() {
         </MediaDetailsContainer>
       </section>
 
-      <ProviderLinksSection
-        links={providerLinks}
-        isLoading={isProviderLinksLoading}
-        errorMessage={providerErrorMessage}
-        onRetry={retryProviderLinks}
-      />
-
       <MediaTrailerSection
         itemTitle={selectedMedia.title}
         backdropUrl={selectedMedia.backdropUrl}
         videos={selectedMedia.videos}
         primaryTrailer={selectedMedia.primaryTrailer}
+      />
+
+      <ProviderLinksSection
+        links={providerLinks}
+        isLoading={isProviderLinksLoading}
+        errorMessage={providerErrorMessage}
+        onRetry={retryProviderLinks}
       />
     </main>
   );
