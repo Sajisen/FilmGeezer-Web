@@ -2,69 +2,68 @@ import {
   useCallback,
   useEffect,
   useState,
-} from "react";
-import { getSeasonDetails } from "../services/seasonDetailsService";
-import type {
-  SeasonDetails,
-} from "../types/season";
+} from 'react'
+import { getSeasonDetails } from '../services/seasonDetailsService'
+import type { SeasonDetails } from '../types/season'
 
 interface SeasonRequestState {
-  requestKey: string;
-  season: SeasonDetails | null;
-  errorMessage: string;
+  requestKey: string
+  season: SeasonDetails | null
+  errorMessage: string
 }
 
-const initialState:
-  SeasonRequestState = {
-    requestKey: "",
-    season: null,
-    errorMessage: "",
-  };
+const initialState: SeasonRequestState = {
+  requestKey: '',
+  season: null,
+  errorMessage: '',
+}
 
 const seasonDetailsCache =
-  new Map<
-    string,
-    SeasonDetails
-  >();
+  new Map<string, SeasonDetails>()
 
 export function useSeasonDetails(
   tmdbId: number,
   seasonNumber: number,
+  enabled = true,
 ) {
   const [reloadKey, setReloadKey] =
-    useState(0);
+    useState(0)
 
   const [state, setState] =
     useState<SeasonRequestState>(
       initialState,
-    );
+    )
 
   const cacheKey =
-    `${tmdbId}:${seasonNumber}`;
+    `${tmdbId}:${seasonNumber}`
 
   const requestKey =
-    `${cacheKey}:${reloadKey}`;
+    `${cacheKey}:${reloadKey}`
 
   useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
     const cachedSeason =
       reloadKey === 0
         ? seasonDetailsCache.get(
             cacheKey,
           )
-        : null;
+        : null
 
     if (cachedSeason) {
       setState({
         requestKey,
         season: cachedSeason,
-        errorMessage: "",
-      });
+        errorMessage: '',
+      })
 
-      return;
+      return
     }
 
     const controller =
-      new AbortController();
+      new AbortController()
 
     async function loadSeason() {
       try {
@@ -73,29 +72,29 @@ export function useSeasonDetails(
             tmdbId,
             seasonNumber,
             controller.signal,
-          );
+          )
 
         if (
           controller.signal.aborted
         ) {
-          return;
+          return
         }
 
         seasonDetailsCache.set(
           cacheKey,
           season,
-        );
+        )
 
         setState({
           requestKey,
           season,
-          errorMessage: "",
-        });
+          errorMessage: '',
+        })
       } catch (error: unknown) {
         if (
           controller.signal.aborted
         ) {
-          return;
+          return
         }
 
         setState({
@@ -105,52 +104,53 @@ export function useSeasonDetails(
           errorMessage:
             error instanceof Error
               ? error.message
-              : "The selected season could not be loaded.",
-        });
+              : 'The selected season could not be loaded.',
+        })
       }
     }
 
-    void loadSeason();
+    void loadSeason()
 
     return () => {
-      controller.abort();
-    };
+      controller.abort()
+    }
   }, [
+    enabled,
     tmdbId,
     seasonNumber,
     cacheKey,
     reloadKey,
     requestKey,
-  ]);
+  ])
 
   const retry = useCallback(() => {
     seasonDetailsCache.delete(
       cacheKey,
-    );
+    )
 
     setReloadKey(
       (currentKey) =>
         currentKey + 1,
-    );
-  }, [cacheKey]);
+    )
+  }, [cacheKey])
 
   const isLoading =
-    state.requestKey !==
-    requestKey;
+    enabled &&
+    state.requestKey !== requestKey
 
   return {
     season:
-      isLoading
+      !enabled || isLoading
         ? null
         : state.season,
 
     isLoading,
 
     errorMessage:
-      isLoading
-        ? ""
+      !enabled || isLoading
+        ? ''
         : state.errorMessage,
 
     retry,
-  };
+  }
 }
