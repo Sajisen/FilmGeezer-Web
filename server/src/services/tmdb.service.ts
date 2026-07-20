@@ -5,7 +5,7 @@ import type {
   MediaType,
   MediaVideo,
   SearchScope,
-} from '../types/media.js'
+} from "../types/media.js";
 
 import type {
   TmdbErrorResponse,
@@ -20,7 +20,8 @@ import type {
   TmdbWatchProvider,
   TmdbWatchProvidersResponse,
   TmdbMovieCreditsResponse,
-TmdbTvAggregateCreditsResponse,
+  TmdbTvAggregateCreditsResponse,
+  TmdbTvSeasonDetails,
 } from "../types/tmdb.js";
 export interface TmdbFeaturedCreditCandidate {
   personId: number;
@@ -40,7 +41,11 @@ import {
 import type {
   WatchAvailability,
   WatchProviderItem,
-} from '../types/watchAvailability.js'
+} from "../types/watchAvailability.js";
+
+import type {
+  SeasonDetails,
+} from "../types/season.js";
 
 export interface TmdbBrowseResult {
   page: number;
@@ -221,7 +226,7 @@ function findGenreIdByName(
 
 function buildImageUrl(
   filePath: string | null,
-  size: "w500" | "original",
+  size: "w500" | "w780" | "original",
   fallbackUrl: string,
 ) {
   if (!filePath) {
@@ -381,141 +386,82 @@ function buildBrowsePath(
 }
 
 function mapDetailsVideos(
-  videos:
-    | TmdbMovieDetails['videos']
-    | TmdbTvDetails['videos'],
+  videos: TmdbMovieDetails["videos"] | TmdbTvDetails["videos"],
 ) {
-  const mappedVideos: MediaVideo[] =
-    (videos?.results ?? [])
-      .filter(
-        (video) =>
-          video.site === 'YouTube' &&
-          (video.type === 'Trailer' ||
-            video.type === 'Teaser'),
-      )
-      .map((video) => ({
-        id: video.id,
-        key: video.key,
-        name: video.name,
+  const mappedVideos: MediaVideo[] = (videos?.results ?? [])
+    .filter(
+      (video) =>
+        video.site === "YouTube" &&
+        (video.type === "Trailer" || video.type === "Teaser"),
+    )
+    .map((video) => ({
+      id: video.id,
+      key: video.key,
+      name: video.name,
 
-        site: 'YouTube' as const,
+      site: "YouTube" as const,
 
-        type: video.type as
-          | 'Trailer'
-          | 'Teaser',
+      type: video.type as "Trailer" | "Teaser",
 
-        official: video.official,
+      official: video.official,
 
-        language:
-          video.iso_639_1
-            ?.toUpperCase() ||
-          'Unknown',
+      language: video.iso_639_1?.toUpperCase() || "Unknown",
 
-        publishedAt:
-          video.published_at ?? '',
-      }))
-      .sort(
-        (
-          firstVideo,
-          secondVideo,
-        ) => {
-          const firstScore =
-            (firstVideo.type ===
-            'Trailer'
-              ? 4
-              : 0) +
-            (firstVideo.official
-              ? 2
-              : 0) +
-            (firstVideo.language ===
-            'EN'
-              ? 1
-              : 0)
+      publishedAt: video.published_at ?? "",
+    }))
+    .sort((firstVideo, secondVideo) => {
+      const firstScore =
+        (firstVideo.type === "Trailer" ? 4 : 0) +
+        (firstVideo.official ? 2 : 0) +
+        (firstVideo.language === "EN" ? 1 : 0);
 
-          const secondScore =
-            (secondVideo.type ===
-            'Trailer'
-              ? 4
-              : 0) +
-            (secondVideo.official
-              ? 2
-              : 0) +
-            (secondVideo.language ===
-            'EN'
-              ? 1
-              : 0)
+      const secondScore =
+        (secondVideo.type === "Trailer" ? 4 : 0) +
+        (secondVideo.official ? 2 : 0) +
+        (secondVideo.language === "EN" ? 1 : 0);
 
-          if (
-            secondScore !== firstScore
-          ) {
-            return (
-              secondScore -
-              firstScore
-            )
-          }
+      if (secondScore !== firstScore) {
+        return secondScore - firstScore;
+      }
 
-          return secondVideo.publishedAt.localeCompare(
-            firstVideo.publishedAt,
-          )
-        },
-      )
+      return secondVideo.publishedAt.localeCompare(firstVideo.publishedAt);
+    });
 
-  return mappedVideos.slice(0, 10)
+  return mappedVideos.slice(0, 10);
 }
 
-function mapMovieDetails(
-  movie: TmdbMovieDetails,
-): MediaDetails {
-  const videos = mapDetailsVideos(
-    movie.videos,
-  )
+function mapMovieDetails(movie: TmdbMovieDetails): MediaDetails {
+  const videos = mapDetailsVideos(movie.videos);
 
   return {
     tmdbId: movie.id,
     title: movie.title,
 
-    originalTitle:
-      movie.original_title ||
-      movie.title,
+    originalTitle: movie.original_title || movie.title,
 
-    mediaType: 'movie',
+    mediaType: "movie",
 
-    year: getYear(
-      movie.release_date,
-    ),
+    year: getYear(movie.release_date),
 
-    fullReleaseDate:
-      movie.release_date || '',
+    fullReleaseDate: movie.release_date || "",
 
-    rating: formatRating(
-      movie.vote_average,
-    ),
+    rating: formatRating(movie.vote_average),
 
-    voteCount:
-      movie.vote_count ?? 0,
+    voteCount: movie.vote_count ?? 0,
 
-    posterUrl: buildImageUrl(
-      movie.poster_path,
-      'w500',
-      POSTER_FALLBACK_URL,
-    ),
+    posterUrl: buildImageUrl(movie.poster_path, "w500", POSTER_FALLBACK_URL),
 
     backdropUrl: buildImageUrl(
       movie.backdrop_path,
-      'original',
+      "original",
       BACKDROP_FALLBACK_URL,
     ),
 
-    overview:
-      movie.overview ||
-      'No overview is currently available.',
+    overview: movie.overview || "No overview is currently available.",
 
-    genres: movie.genres.map(
-      (genre) => genre.name,
-    ),
+    genres: movie.genres.map((genre) => genre.name),
 
-    durationLabel:
-      formatRuntime(movie.runtime),
+    durationLabel: formatRuntime(movie.runtime),
 
     runtimeMinutes: movie.runtime,
 
@@ -523,150 +469,100 @@ function mapMovieDetails(
     numberOfEpisodes: null,
     seasons: [],
 
-    status:
-      movie.status || 'Unknown',
+    status: movie.status || "Unknown",
 
-    language:
-      movie.original_language
-        ?.toUpperCase() ||
-      'Unknown',
+    language: movie.original_language?.toUpperCase() || "Unknown",
 
-    tagline: movie.tagline || '',
+    tagline: movie.tagline || "",
 
-    homepageUrl:
-      movie.homepage || '',
+    homepageUrl: movie.homepage || "",
 
-    imdbId:
-      movie.external_ids?.imdb_id ||
-      '',
+    imdbId: movie.external_ids?.imdb_id || "",
 
     videos,
 
-    primaryTrailer:
-      videos[0] ?? null,
-  }
+    primaryTrailer: videos[0] ?? null,
+  };
 }
 
-function mapTvDetails(
-  show: TmdbTvDetails,
-): MediaDetails {
-  const videos = mapDetailsVideos(
-    show.videos,
-  )
+function mapTvDetails(show: TmdbTvDetails): MediaDetails {
+  const videos = mapDetailsVideos(show.videos);
 
   const runtimeMinutes =
-    show.episode_run_time?.find(
-      (runtime) => runtime > 0,
-    ) ?? null
+    show.episode_run_time?.find((runtime) => runtime > 0) ?? null;
 
   return {
     tmdbId: show.id,
     title: show.name,
 
-    originalTitle:
-      show.original_name ||
-      show.name,
+    originalTitle: show.original_name || show.name,
 
-    mediaType: 'tv',
+    mediaType: "tv",
 
-    year: getYear(
-      show.first_air_date,
-    ),
+    year: getYear(show.first_air_date),
 
-    fullReleaseDate:
-      show.first_air_date || '',
+    fullReleaseDate: show.first_air_date || "",
 
-    rating: formatRating(
-      show.vote_average,
-    ),
+    rating: formatRating(show.vote_average),
 
-    voteCount:
-      show.vote_count ?? 0,
+    voteCount: show.vote_count ?? 0,
 
-    posterUrl: buildImageUrl(
-      show.poster_path,
-      'w500',
-      POSTER_FALLBACK_URL,
-    ),
+    posterUrl: buildImageUrl(show.poster_path, "w500", POSTER_FALLBACK_URL),
 
     backdropUrl: buildImageUrl(
       show.backdrop_path,
-      'original',
+      "original",
       BACKDROP_FALLBACK_URL,
     ),
 
-    overview:
-      show.overview ||
-      'No overview is currently available.',
+    overview: show.overview || "No overview is currently available.",
 
-    genres: show.genres.map(
-      (genre) => genre.name,
-    ),
+    genres: show.genres.map((genre) => genre.name),
 
-    durationLabel:
-      formatSeasonCount(
-        show.number_of_seasons,
-      ),
+    durationLabel: formatSeasonCount(show.number_of_seasons),
 
     runtimeMinutes,
 
-    numberOfSeasons:
-      show.number_of_seasons,
+    numberOfSeasons: show.number_of_seasons,
 
-    numberOfEpisodes:
-      show.number_of_episodes,
+    numberOfEpisodes: show.number_of_episodes,
 
     seasons: show.seasons
-      .filter(
-        (season) =>
-          season.season_number > 0,
-      )
+      .filter((season) => season.season_number > 0)
       .map((season) => ({
         tmdbSeasonId: season.id,
 
-        seasonNumber:
-          season.season_number,
+        seasonNumber: season.season_number,
 
         name: season.name,
 
-        episodeCount:
-          season.episode_count,
+        episodeCount: season.episode_count,
 
-        airDate:
-          season.air_date || '',
+        airDate: season.air_date || "",
 
-        overview:
-          season.overview || '',
+        overview: season.overview || "",
 
         posterUrl: buildImageUrl(
           season.poster_path,
-          'w500',
+          "w500",
           POSTER_FALLBACK_URL,
         ),
       })),
 
-    status:
-      show.status || 'Unknown',
+    status: show.status || "Unknown",
 
-    language:
-      show.original_language
-        ?.toUpperCase() ||
-      'Unknown',
+    language: show.original_language?.toUpperCase() || "Unknown",
 
-    tagline: show.tagline || '',
+    tagline: show.tagline || "",
 
-    homepageUrl:
-      show.homepage || '',
+    homepageUrl: show.homepage || "",
 
-    imdbId:
-      show.external_ids?.imdb_id ||
-      '',
+    imdbId: show.external_ids?.imdb_id || "",
 
     videos,
 
-    primaryTrailer:
-      videos[0] ?? null,
-  }
+    primaryTrailer: videos[0] ?? null,
+  };
 }
 
 function mapCategorySearchCandidate(
@@ -2307,56 +2203,37 @@ export async function getTmdbKDramaPrimarySources(): Promise<TmdbKDramaPrimarySo
 }
 
 function mapWatchProviders(
-  groups: Array<
-    TmdbWatchProvider[] | undefined
-  >,
+  groups: Array<TmdbWatchProvider[] | undefined>,
 ): WatchProviderItem[] {
-  const providerMap =
-    new Map<
-      number,
-      TmdbWatchProvider
-    >()
+  const providerMap = new Map<number, TmdbWatchProvider>();
 
   for (const group of groups) {
     for (const provider of group ?? []) {
-      const existingProvider =
-        providerMap.get(
-          provider.provider_id,
-        )
+      const existingProvider = providerMap.get(provider.provider_id);
 
       if (
         !existingProvider ||
-        provider.display_priority <
-          existingProvider.display_priority
+        provider.display_priority < existingProvider.display_priority
       ) {
-        providerMap.set(
-          provider.provider_id,
-          provider,
-        )
+        providerMap.set(provider.provider_id, provider);
       }
     }
   }
 
   return [...providerMap.values()]
     .sort(
-      (
-        firstProvider,
-        secondProvider,
-      ) =>
-        firstProvider.display_priority -
-        secondProvider.display_priority,
+      (firstProvider, secondProvider) =>
+        firstProvider.display_priority - secondProvider.display_priority,
     )
     .map((provider) => ({
-      providerId:
-        provider.provider_id,
+      providerId: provider.provider_id,
 
-      name:
-        provider.provider_name,
+      name: provider.provider_name,
 
       logoUrl: provider.logo_path
         ? `https://image.tmdb.org/t/p/w92${provider.logo_path}`
-        : '',
-    }))
+        : "",
+    }));
 }
 
 export async function getTmdbWatchAvailability(
@@ -2364,34 +2241,28 @@ export async function getTmdbWatchAvailability(
   tmdbId: number,
   region: string,
 ): Promise<WatchAvailability> {
-  const normalizedRegion =
-    region.toUpperCase()
+  const normalizedRegion = region.toUpperCase();
 
-  const data =
-    await tmdbFetch<TmdbWatchProvidersResponse>(
-      `/${mediaType}/${tmdbId}/watch/providers`,
-    )
+  const data = await tmdbFetch<TmdbWatchProvidersResponse>(
+    `/${mediaType}/${tmdbId}/watch/providers`,
+  );
 
-  const regionalData =
-    data.results[
-      normalizedRegion
-    ]
+  const regionalData = data.results[normalizedRegion];
 
   if (!regionalData) {
     return {
       region: normalizedRegion,
-      link: '',
+      link: "",
       stream: [],
       rent: [],
       buy: [],
-    }
+    };
   }
 
   return {
     region: normalizedRegion,
 
-    link:
-      regionalData.link ?? '',
+    link: regionalData.link ?? "",
 
     stream: mapWatchProviders([
       regionalData.flatrate,
@@ -2399,102 +2270,62 @@ export async function getTmdbWatchAvailability(
       regionalData.ads,
     ]),
 
-    rent: mapWatchProviders([
-      regionalData.rent,
-    ]),
+    rent: mapWatchProviders([regionalData.rent]),
 
-    buy: mapWatchProviders([
-      regionalData.buy,
-    ]),
-  }
+    buy: mapWatchProviders([regionalData.buy]),
+  };
 }
 
-function normalizeCharacterName(
-  characterName: string,
-) {
-  return characterName
-    .replace(/\s+/g, " ")
-    .trim();
+function normalizeCharacterName(characterName: string) {
+  return characterName.replace(/\s+/g, " ").trim();
 }
 
-function isUsableCharacterName(
-  characterName: string,
-) {
-  const normalizedName =
-    characterName
-      .trim()
-      .toLocaleLowerCase();
+function isUsableCharacterName(characterName: string) {
+  const normalizedName = characterName.trim().toLocaleLowerCase();
 
   if (!normalizedName) {
     return false;
   }
 
-  return ![
-    "self",
-    "himself",
-    "herself",
-    "themselves",
-  ].includes(normalizedName);
+  return !["self", "himself", "herself", "themselves"].includes(normalizedName);
 }
 
-function buildCharacterProfileUrl(
-  profilePath: string | null,
-) {
-  return profilePath
-    ? `https://image.tmdb.org/t/p/w342${profilePath}`
-    : "";
+function buildCharacterProfileUrl(profilePath: string | null) {
+  return profilePath ? `https://image.tmdb.org/t/p/w342${profilePath}` : "";
 }
 
 export async function getTmdbFeaturedCreditCandidates(
   mediaType: MediaType,
   tmdbId: number,
-): Promise<
-  TmdbFeaturedCreditCandidate[]
-> {
+): Promise<TmdbFeaturedCreditCandidate[]> {
   if (mediaType === "movie") {
-    const data =
-      await tmdbFetch<TmdbMovieCreditsResponse>(
-        `/movie/${tmdbId}/credits?language=en-US`,
-      );
+    const data = await tmdbFetch<TmdbMovieCreditsResponse>(
+      `/movie/${tmdbId}/credits?language=en-US`,
+    );
 
     return data.cast
       .map((member) => {
-        const characterName =
-          normalizeCharacterName(
-            member.character,
-          );
+        const characterName = normalizeCharacterName(member.character);
 
         return {
           personId: member.id,
           performerName: member.name,
           characterName,
-          profileUrl:
-            buildCharacterProfileUrl(
-              member.profile_path,
-            ),
+          profileUrl: buildCharacterProfileUrl(member.profile_path),
           order: member.order,
           episodeCount: 0,
         };
       })
-      .filter((candidate) =>
-        isUsableCharacterName(
-          candidate.characterName,
-        ),
-      )
+      .filter((candidate) => isUsableCharacterName(candidate.characterName))
       .sort(
-        (
-          firstCandidate,
-          secondCandidate,
-        ) =>
-          firstCandidate.order -
-          secondCandidate.order,
+        (firstCandidate, secondCandidate) =>
+          firstCandidate.order - secondCandidate.order,
       );
   }
 
-  const data =
-    await tmdbFetch<TmdbTvAggregateCreditsResponse>(
-      `/tv/${tmdbId}/aggregate_credits?language=en-US`,
-    );
+  const data = await tmdbFetch<TmdbTvAggregateCreditsResponse>(
+    `/tv/${tmdbId}/aggregate_credits?language=en-US`,
+  );
 
   return data.cast
     .map((member) => {
@@ -2502,21 +2333,11 @@ export async function getTmdbFeaturedCreditCandidates(
         ...new Set(
           [...member.roles]
             .sort(
-              (
-                firstRole,
-                secondRole,
-              ) =>
-                secondRole.episode_count -
-                firstRole.episode_count,
+              (firstRole, secondRole) =>
+                secondRole.episode_count - firstRole.episode_count,
             )
-            .map((role) =>
-              normalizeCharacterName(
-                role.character,
-              ),
-            )
-            .filter(
-              isUsableCharacterName,
-            ),
+            .map((role) => normalizeCharacterName(role.character))
+            .filter(isUsableCharacterName),
         ),
       ];
 
@@ -2524,49 +2345,139 @@ export async function getTmdbFeaturedCreditCandidates(
         personId: member.id,
         performerName: member.name,
 
-        characterName:
-          characterNames
-            .slice(0, 2)
-            .join(" / "),
+        characterName: characterNames.slice(0, 2).join(" / "),
 
-        profileUrl:
-          buildCharacterProfileUrl(
-            member.profile_path,
-          ),
+        profileUrl: buildCharacterProfileUrl(member.profile_path),
 
         order: member.order,
 
-        episodeCount:
-          member.total_episode_count ??
-          0,
+        episodeCount: member.total_episode_count ?? 0,
       };
     })
-    .filter((candidate) =>
-      isUsableCharacterName(
-        candidate.characterName,
+    .filter((candidate) => isUsableCharacterName(candidate.characterName))
+    .sort((firstCandidate, secondCandidate) => {
+      if (firstCandidate.order !== secondCandidate.order) {
+        return firstCandidate.order - secondCandidate.order;
+      }
+
+      return secondCandidate.episodeCount - firstCandidate.episodeCount;
+    });
+}
+
+export async function getTmdbSeasonDetails(
+  tmdbId: number,
+  seasonNumber: number,
+): Promise<SeasonDetails> {
+  const season =
+    await tmdbFetch<TmdbTvSeasonDetails>(
+      `/tv/${tmdbId}/season/${seasonNumber}?language=en-US`,
+    );
+
+  const episodes = (
+    season.episodes ?? []
+  )
+    .map((episode) => ({
+      tmdbEpisodeId: episode.id,
+
+      episodeNumber:
+        episode.episode_number,
+
+      name:
+        episode.name ||
+        `Episode ${episode.episode_number}`,
+
+      overview:
+        episode.overview || "",
+
+      airDate:
+        episode.air_date || "",
+
+      runtimeMinutes:
+        episode.runtime &&
+        episode.runtime > 0
+          ? episode.runtime
+          : null,
+
+      stillUrl: buildImageUrl(
+        episode.still_path,
+        "w780",
+        BACKDROP_FALLBACK_URL,
       ),
-    )
+
+      rating: formatRating(
+        episode.vote_average ?? 0,
+      ),
+
+      voteCount:
+        episode.vote_count ?? 0,
+    }))
     .sort(
       (
-        firstCandidate,
-        secondCandidate,
-      ) => {
-        if (
-          firstCandidate.order !==
-          secondCandidate.order
-        ) {
-          return (
-            firstCandidate.order -
-            secondCandidate.order
-          );
-        }
-
-        return (
-          secondCandidate.episodeCount -
-          firstCandidate.episodeCount
-        );
-      },
+        firstEpisode,
+        secondEpisode,
+      ) =>
+        firstEpisode.episodeNumber -
+        secondEpisode.episodeNumber,
     );
+
+  const ratedEpisodes =
+    episodes.filter(
+      (episode) =>
+        episode.rating > 0 &&
+        episode.voteCount > 0,
+    );
+
+  const averageRating =
+    ratedEpisodes.length > 0
+      ? Number(
+          (
+            ratedEpisodes.reduce(
+              (
+                currentTotal,
+                episode,
+              ) =>
+                currentTotal +
+                episode.rating,
+
+              0,
+            ) /
+            ratedEpisodes.length
+          ).toFixed(1),
+        )
+      : 0;
+
+  return {
+    tmdbSeasonId: season.id,
+
+    seasonNumber:
+      season.season_number,
+
+    name:
+      season.name ||
+      `Season ${season.season_number}`,
+
+    overview:
+      season.overview || "",
+
+    airDate:
+      season.air_date || "",
+
+    posterUrl: buildImageUrl(
+      season.poster_path,
+      "w500",
+      POSTER_FALLBACK_URL,
+    ),
+
+    episodeCount:
+      episodes.length,
+
+    averageRating,
+
+    ratedEpisodeCount:
+      ratedEpisodes.length,
+
+    episodes,
+  };
 }
 
 export async function getTmdbMediaDetails(
@@ -2574,19 +2485,17 @@ export async function getTmdbMediaDetails(
   tmdbId: number,
 ): Promise<MediaDetails> {
   if (mediaType === "movie") {
-    const movie =
-  await tmdbFetch<TmdbMovieDetails>(
-    `/movie/${tmdbId}?language=en-US&append_to_response=videos,external_ids`,
-  )
+    const movie = await tmdbFetch<TmdbMovieDetails>(
+      `/movie/${tmdbId}?language=en-US&append_to_response=videos,external_ids`,
+    );
 
     return mapMovieDetails(movie);
   }
 
-  const show =
-  await tmdbFetch<TmdbTvDetails>(
+  const show = await tmdbFetch<TmdbTvDetails>(
     `/tv/${tmdbId}?language=en-US&append_to_response=videos,external_ids`,
-  )
-  
+  );
+
   return mapTvDetails(show);
 }
 

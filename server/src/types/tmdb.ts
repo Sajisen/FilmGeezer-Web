@@ -224,3 +224,29 @@ export interface TmdbTvAggregateCreditsResponse {
   id: number;
   cast: TmdbTvAggregateCastMember[];
 }
+
+export interface TmdbTvSeasonEpisode {
+  id: number;
+  episode_number: number;
+  name: string;
+  overview: string;
+
+  air_date: string | null;
+  runtime: number | null;
+  still_path: string | null;
+
+  vote_average: number;
+  vote_count: number;
+}
+
+export interface TmdbTvSeasonDetails {
+  id: number;
+  season_number: number;
+  name: string;
+  overview: string;
+
+  air_date: string | null;
+  poster_path: string | null;
+
+  episodes: TmdbTvSeasonEpisode[];
+}

@@ -436,42 +436,40 @@ function WatchAvailabilitySection({
                 >
                   {combinedProviders.map((provider) => (
                     <article
-                      key={`${provider.providerId}-${provider.name}`}
-                      className="flex min-h-[5.25rem] w-[164px] min-w-[164px] snap-start items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/55 p-3 transition hover:-translate-y-0.5 hover:border-sky-400/25 sm:w-[180px] sm:min-w-[180px] lg:w-[196px] lg:min-w-[196px]"
-                    >
-                      {provider.logoUrl ? (
-                        <img
-                          src={provider.logoUrl}
-                          alt=""
-                          aria-hidden="true"
-                          loading="lazy"
-                          className="h-11 w-11 shrink-0 rounded-xl object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sm font-bold text-sky-200">
-                          {provider.name.charAt(0)}
-                        </span>
-                      )}
+  key={`${provider.providerId}-${provider.name}`}
+  className="grid h-[6rem] w-[164px] min-w-[164px] snap-start grid-cols-[2.75rem_minmax(0,1fr)] grid-rows-[2.5rem_1fr] gap-x-3 rounded-2xl border border-white/10 bg-slate-950/55 p-3 transition hover:-translate-y-0.5 hover:border-sky-400/25 sm:w-[180px] sm:min-w-[180px] lg:w-[196px] lg:min-w-[196px]"
+>
+  {provider.logoUrl ? (
+    <img
+      src={provider.logoUrl}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      className="row-span-2 h-11 w-11 self-start rounded-xl object-cover"
+    />
+  ) : (
+    <span className="row-span-2 flex h-11 w-11 self-start items-center justify-center rounded-xl bg-sky-500/15 text-sm font-bold text-sky-200">
+      {provider.name.charAt(0)}
+    </span>
+  )}
 
-                      <div className="min-w-0">
-                        <h4 className="line-clamp-2 text-sm font-semibold leading-5 text-white">
-                          {provider.name}
-                        </h4>
+  <h4 className="h-10 line-clamp-2 self-start text-sm font-semibold leading-5 text-white">
+    {provider.name}
+  </h4>
 
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {provider.availabilityTypes.map(
-                            (availabilityType) => (
-                              <span
-                                key={availabilityType}
-                                className="rounded-full border border-sky-300/15 bg-sky-500/10 px-2 py-0.5 text-[0.65rem] font-semibold text-sky-200"
-                              >
-                                {availabilityType}
-                              </span>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    </article>
+  <div className="flex min-h-5 flex-wrap content-end items-end gap-1 self-end">
+    {provider.availabilityTypes.map(
+      (availabilityType) => (
+        <span
+          key={availabilityType}
+          className="rounded-full border border-sky-300/15 bg-sky-500/10 px-2 py-0.5 text-[0.65rem] font-semibold text-sky-200"
+        >
+          {availabilityType}
+        </span>
+      ),
+    )}
+  </div>
+</article>
                   ))}
                 </div>
               </div>
