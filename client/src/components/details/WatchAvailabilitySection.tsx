@@ -25,13 +25,27 @@ interface CombinedProvider extends WatchProviderItem {
   order: number;
 }
 
+interface ProviderRailArrowIconProps {
+  direction: "left" | "right";
+}
+
+function ProviderRailArrowIcon({ direction }: ProviderRailArrowIconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6" fill="none">
+      <path
+        d={direction === "left" ? "m14.5 6-6 6 6 6" : "m9.5 6 6 6-6 6"}
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const REGION_STORAGE_KEY = "filmgeezer-watch-region";
 
 const regionOptions = [
-  {
-    value: "LK",
-    label: "Sri Lanka",
-  },
   {
     value: "US",
     label: "United States",
@@ -82,7 +96,7 @@ function getInitialRegion() {
     // Use the project default below.
   }
 
-  return "LK";
+  return "US";
 }
 
 function normalizeProviderName(providerName: string) {
@@ -360,7 +374,8 @@ function WatchAvailabilitySection({
       {!isLoading && !errorMessage && combinedProviders.length === 0 && (
         <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-slate-950/40 p-4">
           <p className="text-sm leading-6 text-slate-400">
-            No official availability is currently listed for this region.
+            TMDB and JustWatch do not currently list provider information for
+            this title in the selected region.
           </p>
         </div>
       )}
@@ -423,35 +438,27 @@ function WatchAvailabilitySection({
             </div>
 
             {canScrollLeft && (
-              <>
-                <div className="media-row-desktop-fade pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
-
-                <button
-                  type="button"
-                  aria-label="Scroll official providers left"
-                  aria-controls={railId}
-                  onClick={() => scrollByPage("left")}
-                  className="media-row-desktop-control absolute left-2 top-1/2 z-20 min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-slate-950/90 text-xl text-white shadow-xl shadow-black/40 transition hover:border-sky-300/60 hover:bg-sky-500"
-                >
-                  ‹
-                </button>
-              </>
+              <button
+                type="button"
+                aria-label="Scroll official providers left"
+                aria-controls={railId}
+                onClick={() => scrollByPage("left")}
+                className="media-row-desktop-control absolute left-1 top-1/2 z-20 h-16 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/95 p-0 text-white backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
+                <ProviderRailArrowIcon direction="left" />
+              </button>
             )}
 
             {canScrollRight && (
-              <>
-                <div className="media-row-desktop-fade pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-slate-950 via-slate-950/80 to-transparent" />
-
-                <button
-                  type="button"
-                  aria-label="Scroll official providers right"
-                  aria-controls={railId}
-                  onClick={() => scrollByPage("right")}
-                  className="media-row-desktop-control absolute right-2 top-1/2 z-20 min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-slate-950/90 text-xl text-white shadow-xl shadow-black/40 transition hover:border-sky-300/60 hover:bg-sky-500"
-                >
-                  ›
-                </button>
-              </>
+              <button
+                type="button"
+                aria-label="Scroll official providers right"
+                aria-controls={railId}
+                onClick={() => scrollByPage("right")}
+                className="media-row-desktop-control absolute right-1 top-1/2 z-20 h-16 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/95 p-0 text-white backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
+                <ProviderRailArrowIcon direction="right" />
+              </button>
             )}
           </div>
 
