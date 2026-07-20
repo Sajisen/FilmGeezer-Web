@@ -13,6 +13,7 @@ import { getLanguageName } from "../utils/language";
 import MediaDetailsContainer from "../components/details/MediaDetailsContainer";
 import MediaTrailerSection from "../components/details/MediaTrailerSection";
 import WatchAvailabilitySection from "../components/details/WatchAvailabilitySection";
+import FeaturedCharactersSection from "../components/details/FeaturedCharactersSection";
 
 interface MediaDetailsRequestState {
   mediaType: string | null;
@@ -549,59 +550,97 @@ function MediaDetailsPage() {
               ))}
             </dl>
 
-            {(selectedMedia.homepageUrl || imdbUrl) && (
-              <div className="mt-6 flex flex-wrap gap-3">
-                {selectedMedia.homepageUrl && (
-                  <a
-                    href={selectedMedia.homepageUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm font-semibold text-sky-300 transition hover:text-sky-200"
-                  >
-                    Official homepage ↗
-                  </a>
-                )}
+            {(selectedMedia.homepageUrl ||
+  imdbUrl) && (
+  <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/10 pt-5">
+    {selectedMedia.homepageUrl && (
+      <a
+        href={
+          selectedMedia.homepageUrl
+        }
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm font-semibold text-sky-300 transition hover:text-sky-200"
+      >
+        Official homepage ↗
+      </a>
+    )}
 
-                {selectedMedia.homepageUrl && imdbUrl && (
-                  <span aria-hidden="true" className="text-slate-600">
-                    •
-                  </span>
-                )}
+    {selectedMedia.homepageUrl &&
+      imdbUrl && (
+        <span
+          aria-hidden="true"
+          className="text-slate-600"
+        >
+          •
+        </span>
+      )}
 
-                {imdbUrl && (
-                  <a
-                    href={imdbUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm font-semibold text-sky-300 transition hover:text-sky-200"
-                  >
-                    IMDb title page ↗
-                  </a>
-                )}
-              </div>
-            )}
+    {imdbUrl && (
+      <a
+        href={imdbUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm font-semibold text-sky-300 transition hover:text-sky-200"
+      >
+        IMDb title page ↗
+      </a>
+    )}
+  </div>
+)}
 
-            <WatchAvailabilitySection
-              mediaType={selectedMedia.mediaType}
-              tmdbId={selectedMedia.tmdbId}
-            />
+            
           </div>
         </MediaDetailsContainer>
       </section>
 
       <MediaTrailerSection
-        itemTitle={selectedMedia.title}
-        backdropUrl={selectedMedia.backdropUrl}
-        videos={selectedMedia.videos}
-        primaryTrailer={selectedMedia.primaryTrailer}
-      />
+  itemTitle={
+    selectedMedia.title
+  }
+  backdropUrl={
+    selectedMedia.backdropUrl
+  }
+  videos={
+    selectedMedia.videos
+  }
+  primaryTrailer={
+    selectedMedia.primaryTrailer
+  }
+/>
 
-      <ProviderLinksSection
-        links={providerLinks}
-        isLoading={isProviderLinksLoading}
-        errorMessage={providerErrorMessage}
-        onRetry={retryProviderLinks}
-      />
+<WatchAvailabilitySection
+  mediaType={
+    selectedMedia.mediaType
+  }
+  tmdbId={
+    selectedMedia.tmdbId
+  }
+/>
+
+{/* Episode Explorer will be inserted here for TV titles. */}
+
+<FeaturedCharactersSection
+  mediaType={
+    selectedMedia.mediaType
+  }
+  tmdbId={
+    selectedMedia.tmdbId
+  }
+/>
+
+<ProviderLinksSection
+  links={providerLinks}
+  isLoading={
+    isProviderLinksLoading
+  }
+  errorMessage={
+    providerErrorMessage
+  }
+  onRetry={
+    retryProviderLinks
+  }
+/>
     </main>
   );
 }

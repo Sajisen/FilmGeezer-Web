@@ -12,6 +12,7 @@ import tvCollectionsRoutes from "./routes/tvCollections.routes.js";
 import animeCollectionsRoutes from "./routes/animeCollections.routes.js";
 import kDramaCollectionsRoutes from "./routes/kDramaCollections.routes.js";
 import watchAvailabilityRoutes from "./routes/watchAvailability.routes.js";
+import featuredCharactersRoutes from "./routes/featuredCharacters.routes.js";
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use("/api", tvCollectionsRoutes);
 app.use("/api", animeCollectionsRoutes);
 app.use("/api", kDramaCollectionsRoutes);
 app.use("/api", watchAvailabilityRoutes);
+app.use("/api", featuredCharactersRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

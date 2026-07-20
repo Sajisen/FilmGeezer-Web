@@ -19,7 +19,17 @@ import type {
   TmdbTvDetails,
   TmdbWatchProvider,
   TmdbWatchProvidersResponse,
+  TmdbMovieCreditsResponse,
+TmdbTvAggregateCreditsResponse,
 } from "../types/tmdb.js";
+export interface TmdbFeaturedCreditCandidate {
+  personId: number;
+  performerName: string;
+  characterName: string;
+  profileUrl: string;
+  order: number;
+  episodeCount: number;
+}
 
 import {
   isSuitableForPublicAnime,
@@ -2397,6 +2407,166 @@ export async function getTmdbWatchAvailability(
       regionalData.buy,
     ]),
   }
+}
+
+function normalizeCharacterName(
+  characterName: string,
+) {
+  return characterName
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isUsableCharacterName(
+  characterName: string,
+) {
+  const normalizedName =
+    characterName
+      .trim()
+      .toLocaleLowerCase();
+
+  if (!normalizedName) {
+    return false;
+  }
+
+  return ![
+    "self",
+    "himself",
+    "herself",
+    "themselves",
+  ].includes(normalizedName);
+}
+
+function buildCharacterProfileUrl(
+  profilePath: string | null,
+) {
+  return profilePath
+    ? `https://image.tmdb.org/t/p/w342${profilePath}`
+    : "";
+}
+
+export async function getTmdbFeaturedCreditCandidates(
+  mediaType: MediaType,
+  tmdbId: number,
+): Promise<
+  TmdbFeaturedCreditCandidate[]
+> {
+  if (mediaType === "movie") {
+    const data =
+      await tmdbFetch<TmdbMovieCreditsResponse>(
+        `/movie/${tmdbId}/credits?language=en-US`,
+      );
+
+    return data.cast
+      .map((member) => {
+        const characterName =
+          normalizeCharacterName(
+            member.character,
+          );
+
+        return {
+          personId: member.id,
+          performerName: member.name,
+          characterName,
+          profileUrl:
+            buildCharacterProfileUrl(
+              member.profile_path,
+            ),
+          order: member.order,
+          episodeCount: 0,
+        };
+      })
+      .filter((candidate) =>
+        isUsableCharacterName(
+          candidate.characterName,
+        ),
+      )
+      .sort(
+        (
+          firstCandidate,
+          secondCandidate,
+        ) =>
+          firstCandidate.order -
+          secondCandidate.order,
+      );
+  }
+
+  const data =
+    await tmdbFetch<TmdbTvAggregateCreditsResponse>(
+      `/tv/${tmdbId}/aggregate_credits?language=en-US`,
+    );
+
+  return data.cast
+    .map((member) => {
+      const characterNames = [
+        ...new Set(
+          [...member.roles]
+            .sort(
+              (
+                firstRole,
+                secondRole,
+              ) =>
+                secondRole.episode_count -
+                firstRole.episode_count,
+            )
+            .map((role) =>
+              normalizeCharacterName(
+                role.character,
+              ),
+            )
+            .filter(
+              isUsableCharacterName,
+            ),
+        ),
+      ];
+
+      return {
+        personId: member.id,
+        performerName: member.name,
+
+        characterName:
+          characterNames
+            .slice(0, 2)
+            .join(" / "),
+
+        profileUrl:
+          buildCharacterProfileUrl(
+            member.profile_path,
+          ),
+
+        order: member.order,
+
+        episodeCount:
+          member.total_episode_count ??
+          0,
+      };
+    })
+    .filter((candidate) =>
+      isUsableCharacterName(
+        candidate.characterName,
+      ),
+    )
+    .sort(
+      (
+        firstCandidate,
+        secondCandidate,
+      ) => {
+        if (
+          firstCandidate.order !==
+          secondCandidate.order
+        ) {
+          return (
+            firstCandidate.order -
+            secondCandidate.order
+          );
+        }
+
+        return (
+          secondCandidate.episodeCount -
+          firstCandidate.episodeCount
+        );
+      },
+    );
 }
 
 export async function getTmdbMediaDetails(

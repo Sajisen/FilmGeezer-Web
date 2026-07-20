@@ -189,3 +189,38 @@ export interface TmdbWatchProvidersResponse {
     TmdbWatchProviderRegion
   >
 }
+
+export interface TmdbMovieCastMember {
+  id: number;
+  name: string;
+  character: string;
+  order: number;
+  popularity?: number;
+  profile_path: string | null;
+}
+
+export interface TmdbMovieCreditsResponse {
+  id: number;
+  cast: TmdbMovieCastMember[];
+}
+
+export interface TmdbTvAggregateRole {
+  credit_id: string;
+  character: string;
+  episode_count: number;
+}
+
+export interface TmdbTvAggregateCastMember {
+  id: number;
+  name: string;
+  order: number;
+  popularity?: number;
+  profile_path: string | null;
+  total_episode_count: number;
+  roles: TmdbTvAggregateRole[];
+}
+
+export interface TmdbTvAggregateCreditsResponse {
+  id: number;
+  cast: TmdbTvAggregateCastMember[];
+}
