@@ -111,30 +111,60 @@ body {
   }
 }
 
-.trailer-video-list {
-  scrollbar-width: thin;
-  scrollbar-color:
-    rgb(56 189 248 / 55%)
-    rgb(15 23 42 / 45%);
+.episode-rating-grid {
+  --episode-grid-cell-size: 2rem;
+  --episode-grid-season-width: 2.25rem;
+  --episode-grid-header-height: 1.35rem;
+  --episode-grid-gap: 0.1875rem;
 }
 
-.trailer-video-list::-webkit-scrollbar {
-  width: 7px;
+@media (min-width: 640px) {
+  .episode-rating-grid {
+    --episode-grid-cell-size: 2.25rem;
+    --episode-grid-season-width: 2.5rem;
+    --episode-grid-header-height: 1.5rem;
+    --episode-grid-gap: 0.25rem;
+  }
 }
 
-.trailer-video-list::-webkit-scrollbar-track {
-  border-radius: 999px;
-  background:
-    rgb(15 23 42 / 45%);
+@media (min-width: 1024px) {
+  .episode-rating-grid {
+    --episode-grid-cell-size: 2.5rem;
+    --episode-grid-season-width: 2.75rem;
+  }
 }
 
-.trailer-video-list::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background:
-    rgb(56 189 248 / 55%);
+.trailer-video-scroll {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.trailer-video-list::-webkit-scrollbar-thumb:hover {
-  background:
-    rgb(56 189 248 / 75%);
+.trailer-video-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .trailer-video-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(56 189 248 / 55%) rgb(15 23 42 / 45%);
+  }
+
+  .trailer-video-scroll::-webkit-scrollbar {
+    display: block;
+    width: 7px;
+  }
+
+  .trailer-video-scroll::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgb(15 23 42 / 45%);
+  }
+
+  .trailer-video-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgb(56 189 248 / 55%);
+  }
+
+  .trailer-video-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgb(56 189 248 / 75%);
+  }
 }

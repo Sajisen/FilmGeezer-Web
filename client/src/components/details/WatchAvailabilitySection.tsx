@@ -192,6 +192,9 @@ function WatchAvailabilitySection({
 
   const combinedProviders = combineProviders(availability);
 
+  const selectedRegionLabel =
+    regionOptions.find((option) => option.value === region)?.label ?? region;
+
   const providerSignature = combinedProviders
     .map(
       (provider) =>
@@ -312,8 +315,8 @@ function WatchAvailabilitySection({
               </h2>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Official availability for the selected region. Prices are not
-                shown.
+                Official streaming, rental, and purchase options can vary by
+                region and may change over time.
               </p>
             </div>
 
@@ -409,9 +412,14 @@ function WatchAvailabilitySection({
 
           {!isLoading && !errorMessage && combinedProviders.length === 0 && (
             <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-slate-950/40 p-4">
-              <p className="text-sm leading-6 text-slate-400">
-                TMDB and JustWatch do not currently list provider information
-                for this title in the selected region.
+              <h3 className="font-semibold text-white">
+                No official options found
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                We could not find streaming, rental, or purchase options for
+                this title in {selectedRegionLabel}. Try another region or
+                check again later.
               </p>
             </div>
           )}
@@ -436,46 +444,50 @@ function WatchAvailabilitySection({
                 >
                   {combinedProviders.map((provider) => (
                     <article
-  key={`${provider.providerId}-${provider.name}`}
-  className="grid h-[6rem] w-[164px] min-w-[164px] snap-start grid-cols-[2.75rem_minmax(0,1fr)] grid-rows-[2.5rem_1fr] gap-x-3 rounded-2xl border border-white/10 bg-slate-950/55 p-3 transition hover:-translate-y-0.5 hover:border-sky-400/25 sm:w-[180px] sm:min-w-[180px] lg:w-[196px] lg:min-w-[196px]"
->
-  {provider.logoUrl ? (
-    <img
-      src={provider.logoUrl}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      className="row-span-2 h-11 w-11 self-start rounded-xl object-cover"
-    />
-  ) : (
-    <span className="row-span-2 flex h-11 w-11 self-start items-center justify-center rounded-xl bg-sky-500/15 text-sm font-bold text-sky-200">
-      {provider.name.charAt(0)}
-    </span>
-  )}
+                      key={`${provider.providerId}-${provider.name}`}
+                      className="flex min-h-[5.75rem] w-[176px] min-w-[176px] snap-start items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/55 p-3 transition hover:-translate-y-0.5 hover:border-sky-400/25 sm:w-[192px] sm:min-w-[192px] lg:w-[208px] lg:min-w-[208px]"
+                    >
+                      {provider.logoUrl ? (
+                        <img
+                          src={provider.logoUrl}
+                          alt=""
+                          aria-hidden="true"
+                          loading="lazy"
+                          className="h-11 w-11 shrink-0 rounded-xl object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sm font-bold text-sky-200">
+                          {provider.name.charAt(0)}
+                        </span>
+                      )}
 
-  <h4 className="h-10 line-clamp-2 self-start text-sm font-semibold leading-5 text-white">
-    {provider.name}
-  </h4>
+                      <div className="flex min-w-0 flex-1 flex-col justify-center">
+                        <div className="flex min-h-10 items-center">
+                          <h4 className="line-clamp-2 text-sm font-semibold leading-5 text-white">
+                            {provider.name}
+                          </h4>
+                        </div>
 
-  <div className="flex min-h-5 flex-wrap content-end items-end gap-1 self-end">
-    {provider.availabilityTypes.map(
-      (availabilityType) => (
-        <span
-          key={availabilityType}
-          className="rounded-full border border-sky-300/15 bg-sky-500/10 px-2 py-0.5 text-[0.65rem] font-semibold text-sky-200"
-        >
-          {availabilityType}
-        </span>
-      ),
-    )}
-  </div>
-</article>
+                        <div className="mt-1.5 flex min-h-5 flex-wrap items-center gap-1">
+                          {provider.availabilityTypes.map(
+                            (availabilityType) => (
+                              <span
+                                key={availabilityType}
+                                className="rounded-full border border-sky-300/15 bg-sky-500/10 px-2 py-0.5 text-[0.65rem] font-semibold text-sky-200"
+                              >
+                                {availabilityType}
+                              </span>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    </article>
                   ))}
                 </div>
               </div>
 
               <div className="mt-5 flex flex-col gap-2 border-t border-white/10 pt-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-                <p>Availability data provided by JustWatch.</p>
+                <p>Provider information supplied by JustWatch.</p>
 
                 {availability?.link && (
                   <a

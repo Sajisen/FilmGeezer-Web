@@ -371,8 +371,9 @@ function FeaturedCharactersSection({
 
   return (
     <section
+      id="featured-characters"
       aria-labelledby={headingId}
-      className="py-10 sm:py-12"
+      className="scroll-mt-24 py-10 sm:py-12"
     >
       <MediaDetailsContainer>
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
@@ -539,24 +540,9 @@ function FeaturedCharactersSection({
               </div>
 
               <p className="mt-4 text-xs leading-5 text-slate-500">
-                {
-                  featuredCharacters.sourceNote
-                }
-
-                {featuredCharacters.source ===
-                  "AniList" &&
-                  featuredCharacters.matchedTitle && (
-                    <>
-                      {" "}
-                      Matched to{" "}
-                      <span className="text-slate-400">
-                        {
-                          featuredCharacters.matchedTitle
-                        }
-                      </span>
-                      .
-                    </>
-                  )}
+                {featuredCharacters.source === "AniList"
+                  ? "Character names and artwork from AniList."
+                  : "Character information from TMDB."}
               </p>
             </>
           )}

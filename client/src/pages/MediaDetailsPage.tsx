@@ -15,6 +15,7 @@ import MediaTrailerSection from "../components/details/MediaTrailerSection";
 import WatchAvailabilitySection from "../components/details/WatchAvailabilitySection";
 import FeaturedCharactersSection from "../components/details/FeaturedCharactersSection";
 import EpisodeExplorerSection from "../components/details/EpisodeExplorerSection";
+import MediaDetailsQuickNav from "../components/details/MediaDetailsQuickNav";
 
 interface MediaDetailsRequestState {
   mediaType: string | null;
@@ -376,8 +377,11 @@ function MediaDetailsPage() {
     },
   ];
 
+  const hasTrailer =
+    selectedMedia.videos.length > 0 || Boolean(selectedMedia.primaryTrailer);
+
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <main className="min-h-screen overflow-x-clip bg-slate-950 text-white">
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0">
           <img
@@ -480,48 +484,35 @@ function MediaDetailsPage() {
                 </p>
               </div>
 
-              <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
-                <WatchlistButton
-                  itemTitle={selectedMedia.title}
-                  variant="labeled"
-                />
-
-                {selectedMedia.videos.length > 0 && (
+              <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row lg:mx-0 lg:justify-start">
+                {hasTrailer && (
                   <a
                     href="#trailer"
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.05] px-5 font-semibold text-white transition hover:border-sky-300/50 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-auto"
                   >
                     Watch trailer
                   </a>
                 )}
 
-                {imdbUrl && (
-                  <a
-                    href={imdbUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 bg-slate-950/50 px-5 font-semibold text-white backdrop-blur-md transition hover:border-white/30 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  >
-                    View on IMDb
-                    <span aria-hidden="true" className="ml-2">
-                      ↗
-                    </span>
-                  </a>
-                )}
-
-                <a
-                  href="#provider-links"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                >
-                  Available links
-                </a>
+                <WatchlistButton
+                  itemTitle={selectedMedia.title}
+                  variant="labeled"
+                  className="w-full sm:w-auto"
+                />
               </div>
             </div>
           </div>
         </MediaDetailsContainer>
       </section>
 
-      <section className="py-10 sm:py-12">
+      <MediaDetailsQuickNav
+        hasTrailer={hasTrailer}
+        hasEpisodes={
+          selectedMedia.mediaType === "tv" && selectedMedia.seasons.length > 0
+        }
+      />
+
+      <section id="at-a-glance" className="scroll-mt-24 py-10 sm:py-12">
         <MediaDetailsContainer>
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
             <header>
@@ -534,17 +525,17 @@ function MediaDetailsPage() {
               </h2>
             </header>
 
-            <dl className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:auto-cols-fr xl:grid-flow-col">
+            <dl className="mt-6 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4 xl:auto-cols-fr xl:grid-flow-col">
               {primaryFacts.map((fact) => (
                 <div
                   key={fact.label}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-5"
+                  className="last:col-span-2 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 sm:last:col-span-1 sm:p-5"
                 >
-                  <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <dt className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
                     {fact.label}
                   </dt>
 
-                  <dd className="mt-2 font-semibold text-white">
+                  <dd className="mt-1.5 text-sm font-semibold text-white sm:mt-2 sm:text-base">
                     {fact.value}
                   </dd>
                 </div>
@@ -604,8 +595,10 @@ function MediaDetailsPage() {
           seasons={selectedMedia.seasons}
         />
       )}
-
-      {/* FeaturedCharactersSection belongs here when present. */}
+      <FeaturedCharactersSection
+        mediaType={selectedMedia.mediaType}
+        tmdbId={selectedMedia.tmdbId}
+      />
 
       <ProviderLinksSection
         links={providerLinks}

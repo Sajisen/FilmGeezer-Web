@@ -11,8 +11,8 @@ function MediaDetailsContainer({
   className = "",
 }: MediaDetailsContainerProps) {
   return (
-    <ContentContainer>
-      <div className={`mx-auto w-full max-w-[1180px] ${className}`}>
+    <ContentContainer className="min-w-0">
+      <div className={`mx-auto min-w-0 w-full max-w-[1180px] ${className}`}>
         {children}
       </div>
     </ContentContainer>
