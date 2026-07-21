@@ -5,7 +5,7 @@ import ContentContainer from "../layout/ContentContainer";
 import MediaRowSkeleton from "../skeletons/MediaRowSkeleton";
 import EmptyState from "../states/EmptyState";
 import ErrorState from "../states/ErrorState";
-import MediaDetailsContainer from "./MediaDetailsContainer";
+
 
 const DETAILS_CONTENT_CLASS =
   "mx-auto w-full max-w-[1180px]";

@@ -14,6 +14,7 @@ import kDramaCollectionsRoutes from "./routes/kDramaCollections.routes.js";
 import watchAvailabilityRoutes from "./routes/watchAvailability.routes.js";
 import featuredCharactersRoutes from "./routes/featuredCharacters.routes.js";
 import seasonDetailsRoutes from "./routes/seasonDetails.routes.js";
+import moreLikeThisRoutes from "./routes/moreLikeThis.routes.js";
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api", kDramaCollectionsRoutes);
 app.use("/api", watchAvailabilityRoutes);
 app.use("/api", featuredCharactersRoutes);
 app.use("/api", seasonDetailsRoutes);
+app.use("/api", moreLikeThisRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

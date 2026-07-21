@@ -217,7 +217,7 @@ function MediaRow({
       className="py-7 sm:py-8"
     >
       <ContentContainer>
-        <div className={contentClassName}></div>
+        <div className={contentClassName}>
         <header className="mb-4 sm:mb-5">
           <h2
             id={headingId}

@@ -23,6 +23,13 @@ import type {
   TmdbTvAggregateCreditsResponse,
   TmdbTvSeasonDetails,
 } from "../types/tmdb.js";
+
+import {
+  isSuitableForPublicAnime,
+  isSuitableForPublicKDrama,
+  type CategoryMediaCandidate,
+} from "../utils/categoryMedia.js";
+
 export interface TmdbFeaturedCreditCandidate {
   personId: number;
   performerName: string;
@@ -32,11 +39,16 @@ export interface TmdbFeaturedCreditCandidate {
   episodeCount: number;
 }
 
-import {
-  isSuitableForPublicAnime,
-  isSuitableForPublicKDrama,
-  type CategoryMediaCandidate,
-} from "../utils/categoryMedia.js";
+export type TmdbRelatedMediaSource = "recommendations" | "similar";
+
+export interface TmdbRelatedMediaCandidate extends CategoryMediaCandidate {
+  popularity: number;
+  voteAverage: number;
+  voteCount: number;
+  hasBackdrop: boolean;
+  source: TmdbRelatedMediaSource;
+  sourceOrder: number;
+}
 
 import type {
   WatchAvailability,
@@ -2631,3 +2643,106 @@ export async function getTmdbCatalog(
     ),
   };
 }
+
+function mapRelatedMediaCandidate(
+  result: TmdbListResult,
+  mediaType: MediaType,
+  genreMap: Map<number, string>,
+  source: TmdbRelatedMediaSource,
+  sourceOrder: number,
+): TmdbRelatedMediaCandidate {
+  return {
+    item: mapListResult(result, mediaType, genreMap),
+    isAdult: result.adult === true,
+    isVideo: result.video === true,
+    hasPoster: Boolean(result.poster_path),
+    originCountries: result.origin_country ?? [],
+    popularity: result.popularity ?? 0,
+    voteAverage: result.vote_average ?? 0,
+    voteCount: result.vote_count ?? 0,
+    hasBackdrop: Boolean(result.backdrop_path),
+    source,
+    sourceOrder,
+  };
+}
+
+export async function getTmdbRelatedMediaCandidates(
+  mediaType: MediaType,
+  tmdbId: number,
+): Promise<TmdbRelatedMediaCandidate[]> {
+  const genreMap = await getGenreMap(mediaType);
+
+  const [recommendationsPageOne, similarPageOne] = await Promise.all([
+    tmdbFetch<TmdbListResponse>(
+      `/${mediaType}/${tmdbId}/recommendations?language=en-US&page=1`,
+    ),
+    tmdbFetch<TmdbListResponse>(
+      `/${mediaType}/${tmdbId}/similar?language=en-US&page=1`,
+    ),
+  ]);
+
+  const optionalPageRequests: Array<
+    Promise<{
+      source: TmdbRelatedMediaSource;
+      page: number;
+      data: TmdbListResponse;
+    }>
+  > = [];
+
+  if (recommendationsPageOne.total_pages >= 2) {
+    optionalPageRequests.push(
+      tmdbFetch<TmdbListResponse>(
+        `/${mediaType}/${tmdbId}/recommendations?language=en-US&page=2`,
+      ).then((data) => ({
+        source: "recommendations",
+        page: 2,
+        data,
+      })),
+    );
+  }
+
+  if (similarPageOne.total_pages >= 2) {
+    optionalPageRequests.push(
+      tmdbFetch<TmdbListResponse>(
+        `/${mediaType}/${tmdbId}/similar?language=en-US&page=2`,
+      ).then((data) => ({
+        source: "similar",
+        page: 2,
+        data,
+      })),
+    );
+  }
+
+  const additionalPages = await Promise.all(optionalPageRequests);
+
+  const pages: Array<{
+    source: TmdbRelatedMediaSource;
+    page: number;
+    data: TmdbListResponse;
+  }> = [
+    {
+      source: "recommendations",
+      page: 1,
+      data: recommendationsPageOne,
+    },
+    {
+      source: "similar",
+      page: 1,
+      data: similarPageOne,
+    },
+    ...additionalPages,
+  ];
+
+  return pages.flatMap(({ source, page, data }) =>
+    data.results.map((result, index) =>
+      mapRelatedMediaCandidate(
+        result,
+        mediaType,
+        genreMap,
+        source,
+        (page - 1) * 20 + index,
+      ),
+    ),
+  );
+}
+
