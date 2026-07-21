@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { MediaVideo } from "../../types/media";
 import { getLanguageName } from "../../utils/language";
+import ExternalLink from "../../features/externalNavigation/ExternalLink";
 import MediaDetailsContainer from "./MediaDetailsContainer";
 
 interface MediaTrailerSectionProps {
@@ -187,23 +188,24 @@ function MediaTrailerContent({
                   </p>
                 </div>
 
-                <a
+                <ExternalLink
                   href={youtubeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  destinationName="YouTube"
                   className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full border border-white/15 px-4 text-sm font-semibold text-white transition hover:border-sky-300/50 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-auto"
                 >
                   Open on YouTube
                   <span aria-hidden="true" className="ml-2">
                     ↗
                   </span>
-                </a>
+                </ExternalLink>
               </div>
             </div>
 
             <aside
               aria-label="Choose another video"
-              className="min-w-0 max-w-full self-start overflow-hidden rounded-2xl border border-white/10 bg-slate-950/45 p-4"
+              className={`min-w-0 max-w-full self-start overflow-hidden rounded-2xl border border-white/10 bg-slate-950/45 p-4 ${
+                availableVideos.length === 1 ? "hidden lg:block" : ""
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

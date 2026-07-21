@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import MediaDetailsSkeleton from "../components/details/MediaDetailsSkeleton";
 import ContentContainer from "../components/layout/ContentContainer";
 import ProviderLinksSection from "../components/ProviderLinksSection";
@@ -16,6 +16,7 @@ import WatchAvailabilitySection from "../components/details/WatchAvailabilitySec
 import FeaturedCharactersSection from "../components/details/FeaturedCharactersSection";
 import EpisodeExplorerSection from "../components/details/EpisodeExplorerSection";
 import MediaDetailsQuickNav from "../components/details/MediaDetailsQuickNav";
+import ExternalLink from "../features/externalNavigation/ExternalLink";
 
 interface MediaDetailsRequestState {
   mediaType: string | null;
@@ -96,8 +97,29 @@ function getMediaTypeLabel(mediaType: MediaDetails["mediaType"]) {
   return mediaType === "movie" ? "Movie" : "TV Series";
 }
 
+function getBrowseFallbackPath(media: MediaDetails) {
+  const normalizedGenres = media.genres.map((genre) =>
+    genre.toLocaleLowerCase(),
+  );
+
+  const isAnime =
+    media.language === "ja" && normalizedGenres.includes("animation");
+
+  if (isAnime) {
+    return "/anime";
+  }
+
+  if (media.language === "ko") {
+    return "/k-drama";
+  }
+
+  return media.mediaType === "movie" ? "/movies" : "/tv";
+}
+
 function MediaDetailsPage() {
   const { mediaType, tmdbId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [detailsReloadKey, setDetailsReloadKey] = useState(0);
 
@@ -380,6 +402,17 @@ function MediaDetailsPage() {
   const hasTrailer =
     selectedMedia.videos.length > 0 || Boolean(selectedMedia.primaryTrailer);
 
+  const browseFallbackPath = getBrowseFallbackPath(selectedMedia);
+
+  function returnToBrowse() {
+    if (location.key !== "default") {
+      navigate(-1);
+      return;
+    }
+
+    navigate(browseFallbackPath);
+  }
+
   return (
     <main className="min-h-screen overflow-x-clip bg-slate-950 text-white">
       <section className="relative overflow-hidden border-b border-white/10">
@@ -397,15 +430,19 @@ function MediaDetailsPage() {
         </div>
 
         <MediaDetailsContainer className="relative py-8 sm:py-10 lg:py-14">
-          <Link
-            to="/"
-            className="inline-flex min-h-11 items-center text-sm font-semibold text-sky-300 transition hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          <button
+            type="button"
+            onClick={returnToBrowse}
+            aria-label="Return to the previous browsing page"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-slate-950/55 text-sky-300 backdrop-blur-md transition hover:border-sky-300/40 hover:bg-white/[0.06] hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:h-auto sm:w-auto sm:min-h-11 sm:justify-start sm:rounded-none sm:border-0 sm:bg-transparent sm:backdrop-blur-none"
           >
-            <span aria-hidden="true" className="mr-2">
+            <span aria-hidden="true" className="text-xl sm:mr-2 sm:text-base">
               ←
             </span>
-            Back to browse
-          </Link>
+            <span className="hidden text-sm font-semibold sm:inline">
+              Back to browse
+            </span>
+          </button>
 
           <div className="mt-6 grid gap-y-6 lg:mx-auto lg:w-fit lg:grid-cols-[260px_minmax(0,620px)] lg:gap-x-10 lg:gap-y-5 xl:grid-cols-[280px_minmax(0,720px)] 2xl:grid-cols-[300px_minmax(0,820px)] 2xl:gap-x-12">
             <div className="order-1 mx-auto w-full max-w-[220px] sm:max-w-[250px] lg:col-start-1 lg:row-start-2 lg:max-w-[300px]">
@@ -485,20 +522,18 @@ function MediaDetailsPage() {
               </div>
 
               <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row lg:mx-0 lg:justify-start">
-                {hasTrailer && (
-                  <a
-                    href="#trailer"
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-auto"
-                  >
-                    Watch trailer
-                  </a>
-                )}
-
                 <WatchlistButton
                   itemTitle={selectedMedia.title}
                   variant="labeled"
                   className="w-full sm:w-auto"
                 />
+
+                <a
+                  href="#provider-links"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-auto"
+                >
+                  FilmGeezer links
+                </a>
               </div>
             </div>
           </div>
@@ -512,7 +547,7 @@ function MediaDetailsPage() {
         }
       />
 
-      <section id="at-a-glance" className="scroll-mt-24 py-10 sm:py-12">
+      <section id="key-details" className="scroll-mt-24 py-10 sm:py-12">
         <MediaDetailsContainer>
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
             <header>
@@ -521,7 +556,7 @@ function MediaDetailsPage() {
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
-                At a glance
+                Key details
               </h2>
             </header>
 
@@ -545,14 +580,13 @@ function MediaDetailsPage() {
             {(selectedMedia.homepageUrl || imdbUrl) && (
               <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/10 pt-5">
                 {selectedMedia.homepageUrl && (
-                  <a
+                  <ExternalLink
                     href={selectedMedia.homepageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    destinationName="the official website"
                     className="text-sm font-semibold text-sky-300 transition hover:text-sky-200"
                   >
                     Official homepage ↗
-                  </a>
+                  </ExternalLink>
                 )}
 
                 {selectedMedia.homepageUrl && imdbUrl && (
@@ -562,14 +596,13 @@ function MediaDetailsPage() {
                 )}
 
                 {imdbUrl && (
-                  <a
+                  <ExternalLink
                     href={imdbUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    destinationName="IMDb"
                     className="text-sm font-semibold text-sky-300 transition hover:text-sky-200"
                   >
                     IMDb title page ↗
-                  </a>
+                  </ExternalLink>
                 )}
               </div>
             )}

@@ -168,3 +168,39 @@ body {
     background: rgb(56 189 248 / 75%);
   }
 }
+
+.episode-grid-scrollbar {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.episode-grid-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .episode-grid-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(56 189 248 / 50%) rgb(15 23 42 / 45%);
+  }
+
+  .episode-grid-scrollbar::-webkit-scrollbar {
+    display: block;
+    width: 7px;
+    height: 7px;
+  }
+
+  .episode-grid-scrollbar::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgb(15 23 42 / 45%);
+  }
+
+  .episode-grid-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgb(56 189 248 / 50%);
+  }
+
+  .episode-grid-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgb(56 189 248 / 72%);
+  }
+}

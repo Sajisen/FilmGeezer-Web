@@ -1,5 +1,6 @@
 import type { ProviderLink } from "../types/providerLink";
 import { getLanguageName } from "../utils/language";
+import ExternalLink from "../features/externalNavigation/ExternalLink";
 import MediaDetailsContainer from "./details/MediaDetailsContainer";
 
 interface ProviderLinksSectionProps {
@@ -129,18 +130,17 @@ function ProviderLinksSection({
                     </p>
                   </div>
 
-                  <a
+                  <ExternalLink
                     href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`Open ${link.label} from ${link.providerName} in a new tab`}
+                    destinationName={link.providerName}
+                    aria-label={`Open ${link.label} from ${link.providerName}`}
                     className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-sky-500 px-5 text-sm font-semibold text-white transition hover:bg-sky-400"
                   >
                     Open link
                     <span aria-hidden="true" className="ml-2">
                       ↗
                     </span>
-                  </a>
+                  </ExternalLink>
                 </article>
               ))}
             </div>

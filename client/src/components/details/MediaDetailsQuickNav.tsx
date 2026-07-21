@@ -11,8 +11,8 @@ function MediaDetailsQuickNav({
 }: MediaDetailsQuickNavProps) {
   const navigationItems = [
     {
-      label: "At a glance",
-      href: "#at-a-glance",
+      label: "Key details",
+      href: "#key-details",
       visible: true,
     },
     {
