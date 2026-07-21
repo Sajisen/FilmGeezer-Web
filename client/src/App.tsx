@@ -13,6 +13,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import AnimePage from "./pages/AnimePage";
 import KDramaPage from "./pages/KDramaPage";
 import ScrollToTop from './components/navigation/ScrollToTop'
+import BackToTopButton from './components/navigation/BackToTopButton'
 
 function App() {
   return (
@@ -37,6 +38,8 @@ function App() {
       </Routes>
 
       <Footer />
+
+      <BackToTopButton />
     </BrowserRouter>
   );
 }

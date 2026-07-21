@@ -5,37 +5,44 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
-import { useWatchAvailability } from "../../hooks/useWatchAvailability";
-import type { MediaType } from "../../types/media";
-import type {
-  WatchAvailability,
-  WatchProviderItem,
-} from "../../types/watchAvailability";
 import ExternalLink from "../../features/externalNavigation/ExternalLink";
+import { useFeaturedCharacters } from "../../hooks/useFeaturedCharacters";
+import type {
+  FeaturedCharacter,
+  FeaturedCharacterPresentation,
+} from "../../types/featuredCharacter";
+import type {
+  MediaType,
+} from "../../types/media";
 import MediaDetailsContainer from "./MediaDetailsContainer";
 
-interface WatchAvailabilitySectionProps {
+interface FeaturedCharactersSectionProps {
   mediaType: MediaType;
   tmdbId: number;
 }
 
-type AvailabilityType = "Stream" | "Rent" | "Buy";
-
-interface CombinedProvider extends WatchProviderItem {
-  availabilityTypes: AvailabilityType[];
-  order: number;
-}
-
-interface ProviderRailArrowIconProps {
+interface CharacterArrowIconProps {
   direction: "left" | "right";
 }
 
-function ProviderRailArrowIcon({ direction }: ProviderRailArrowIconProps) {
+function CharacterArrowIcon({
+  direction,
+}: CharacterArrowIconProps) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6" fill="none">
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-6 w-6"
+      fill="none"
+    >
       <path
-        d={direction === "left" ? "m14.5 6-6 6 6 6" : "m9.5 6 6 6-6 6"}
+        d={
+          direction === "left"
+            ? "m14.5 6-6 6 6 6"
+            : "m9.5 6 6 6-6 6"
+        }
         stroke="currentColor"
         strokeWidth="1.9"
         strokeLinecap="round"
@@ -45,183 +52,207 @@ function ProviderRailArrowIcon({ direction }: ProviderRailArrowIconProps) {
   );
 }
 
-const REGION_STORAGE_KEY = "filmgeezer-watch-region";
-
-const regionOptions = [
-  {
-    value: "US",
-    label: "United States",
-  },
-  {
-    value: "GB",
-    label: "United Kingdom",
-  },
-  {
-    value: "IN",
-    label: "India",
-  },
-  {
-    value: "AU",
-    label: "Australia",
-  },
-  {
-    value: "CA",
-    label: "Canada",
-  },
-  {
-    value: "JP",
-    label: "Japan",
-  },
-  {
-    value: "KR",
-    label: "South Korea",
-  },
-];
-
-function getInitialRegion() {
-  const storedRegion = window.localStorage.getItem(REGION_STORAGE_KEY);
-
-  if (regionOptions.some((option) => option.value === storedRegion)) {
-    return storedRegion as string;
-  }
-
-  try {
-    const browserRegion = new Intl.Locale(navigator.language).region;
-
-    if (
-      browserRegion &&
-      regionOptions.some((option) => option.value === browserRegion)
-    ) {
-      return browserRegion;
-    }
-  } catch {
-    // Use the project default below.
-  }
-
-  return "US";
-}
-
-function normalizeProviderName(providerName: string) {
-  return providerName.trim().toLocaleLowerCase();
-}
-
-function combineProviders(availability: WatchAvailability | null) {
-  if (!availability) {
-    return [];
-  }
-
-  const providerMap = new Map<string, CombinedProvider>();
-
-  let nextOrder = 0;
-
-  function addProviderGroup(
-    providers: WatchProviderItem[],
-    availabilityType: AvailabilityType,
-  ) {
-    for (const provider of providers) {
-      const providerKey = normalizeProviderName(provider.name);
-
-      const existingProvider = providerMap.get(providerKey);
-
-      if (existingProvider) {
-        if (!existingProvider.availabilityTypes.includes(availabilityType)) {
-          existingProvider.availabilityTypes.push(availabilityType);
-        }
-
-        if (!existingProvider.logoUrl && provider.logoUrl) {
-          existingProvider.logoUrl = provider.logoUrl;
-        }
-
-        continue;
-      }
-
-      providerMap.set(providerKey, {
-        ...provider,
-
-        availabilityTypes: [availabilityType],
-
-        order: nextOrder,
-      });
-
-      nextOrder += 1;
-    }
-  }
-
-  /*
-   * Stream providers appear first,
-   * followed by providers that are
-   * available only for Rent or Buy.
-   */
-  addProviderGroup(availability.stream, "Stream");
-
-  addProviderGroup(availability.rent, "Rent");
-
-  addProviderGroup(availability.buy, "Buy");
-
-  return [...providerMap.values()].sort(
-    (firstProvider, secondProvider) =>
-      firstProvider.order - secondProvider.order,
-  );
-}
-
 function getPreferredScrollBehavior(): ScrollBehavior {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  return window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches
     ? "auto"
     : "smooth";
 }
 
-function WatchAvailabilitySection({
+function getSectionDescription(
+  presentation:
+    FeaturedCharacterPresentation,
+) {
+  if (presentation === "anime") {
+    return "Main and supporting characters from the Anime.";
+  }
+
+  if (
+    presentation === "animation"
+  ) {
+    return "Important characters from the story.";
+  }
+
+  return "Leading and recurring characters, with performers shown as secondary context.";
+}
+
+function getCharacterInitials(
+  characterName: string,
+) {
+  return characterName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((namePart) =>
+      namePart.charAt(0),
+    )
+    .join("")
+    .toUpperCase();
+}
+
+function CharacterCard({
+  character,
+}: {
+  character: FeaturedCharacter;
+}) {
+  const cardContent: ReactNode = (
+    <>
+      <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-sky-950 via-slate-900 to-blue-950">
+        {character.imageUrl ? (
+          <img
+            src={character.imageUrl}
+            alt={
+              character.performerName
+                ? `${character.performerName} as ${character.characterName}`
+                : character.characterName
+            }
+            loading="lazy"
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="flex h-full items-center justify-center"
+          >
+            <span className="text-4xl font-black text-sky-300/70">
+              {getCharacterInitials(
+                character.characterName,
+              )}
+            </span>
+          </div>
+        )}
+
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950 to-transparent" />
+
+        {character.role !==
+          "Featured" && (
+          <span className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-slate-950/80 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-sky-200 backdrop-blur-md">
+            {character.role}
+          </span>
+        )}
+      </div>
+
+      <div className="min-h-28 p-3.5">
+        <h3 className="line-clamp-2 text-sm font-bold leading-5 text-white">
+          {
+            character.characterName
+          }
+        </h3>
+
+        {character.alternateName && (
+          <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+            {
+              character.alternateName
+            }
+          </p>
+        )}
+
+        {character.performerName && (
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-400">
+            Played by{" "}
+            <span className="font-semibold text-slate-300">
+              {
+                character.performerName
+              }
+            </span>
+          </p>
+        )}
+      </div>
+    </>
+  );
+
+  const cardClassName =
+    "group block h-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55 text-left transition hover:-translate-y-1 hover:border-sky-400/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300";
+
+  if (character.sourceUrl) {
+    return (
+      <ExternalLink
+        href={character.sourceUrl}
+        destinationName="AniList"
+        aria-label={`View ${character.characterName} on AniList`}
+        className={cardClassName}
+      >
+        {cardContent}
+      </ExternalLink>
+    );
+  }
+
+  return (
+    <article
+      className={
+        cardClassName
+      }
+    >
+      {cardContent}
+    </article>
+  );
+}
+
+function FeaturedCharactersSection({
   mediaType,
   tmdbId,
-}: WatchAvailabilitySectionProps) {
-  const railRef = useRef<HTMLDivElement>(null);
+}: FeaturedCharactersSectionProps) {
+  const railRef =
+    useRef<HTMLDivElement>(null);
 
+  const headingId = useId();
   const railId = useId();
   const instructionsId = useId();
 
-  const [region, setRegion] = useState(getInitialRegion);
+  const [
+    canScrollLeft,
+    setCanScrollLeft,
+  ] = useState(false);
 
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [
+    canScrollRight,
+    setCanScrollRight,
+  ] = useState(false);
 
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const { availability, isLoading, errorMessage, retry } = useWatchAvailability(
+  const {
+    featuredCharacters,
+    isLoading,
+    errorMessage,
+    retry,
+  } = useFeaturedCharacters(
     mediaType,
     tmdbId,
-    region,
   );
 
-  const combinedProviders = combineProviders(availability);
+  const characterSignature =
+    featuredCharacters?.items
+      .map(
+        (character) =>
+          character.id,
+      )
+      .join("|") ?? "";
 
-  const selectedRegionLabel =
-    regionOptions.find((option) => option.value === region)?.label ?? region;
+  const updateScrollState =
+    useCallback(() => {
+      const rail = railRef.current;
 
-  const providerSignature = combinedProviders
-    .map(
-      (provider) =>
-        `${provider.providerId}:` + provider.availabilityTypes.join(","),
-    )
-    .join("|");
+      if (!rail) {
+        return;
+      }
 
-  useEffect(() => {
-    window.localStorage.setItem(REGION_STORAGE_KEY, region);
-  }, [region]);
+      const threshold = 4;
 
-  const updateScrollState = useCallback(() => {
-    const rail = railRef.current;
+      const maximumScrollLeft =
+        rail.scrollWidth -
+        rail.clientWidth;
 
-    if (!rail) {
-      return;
-    }
+      setCanScrollLeft(
+        rail.scrollLeft >
+          threshold,
+      );
 
-    const threshold = 4;
-
-    const maximumScrollLeft = rail.scrollWidth - rail.clientWidth;
-
-    setCanScrollLeft(rail.scrollLeft > threshold);
-
-    setCanScrollRight(maximumScrollLeft - rail.scrollLeft > threshold);
-  }, []);
+      setCanScrollRight(
+        maximumScrollLeft -
+          rail.scrollLeft >
+          threshold,
+      );
+    }, []);
 
   useEffect(() => {
     const rail = railRef.current;
@@ -232,16 +263,24 @@ function WatchAvailabilitySection({
 
     updateScrollState();
 
-    const resizeObserver = new ResizeObserver(updateScrollState);
+    const resizeObserver =
+      new ResizeObserver(
+        updateScrollState,
+      );
 
     resizeObserver.observe(rail);
 
     return () => {
       resizeObserver.disconnect();
     };
-  }, [providerSignature, updateScrollState]);
+  }, [
+    characterSignature,
+    updateScrollState,
+  ]);
 
-  function scrollByPage(direction: "left" | "right") {
+  function scrollByPage(
+    direction: "left" | "right",
+  ) {
     const rail = railRef.current;
 
     if (!rail) {
@@ -251,14 +290,19 @@ function WatchAvailabilitySection({
     rail.scrollBy({
       left:
         direction === "left"
-          ? -rail.clientWidth * 0.75
-          : rail.clientWidth * 0.75,
+          ? -rail.clientWidth *
+            0.8
+          : rail.clientWidth *
+            0.8,
 
-      behavior: getPreferredScrollBehavior(),
+      behavior:
+        getPreferredScrollBehavior(),
     });
   }
 
-  function scrollToBoundary(boundary: "start" | "end") {
+  function scrollToBoundary(
+    boundary: "start" | "end",
+  ) {
     const rail = railRef.current;
 
     if (!rail) {
@@ -266,24 +310,38 @@ function WatchAvailabilitySection({
     }
 
     rail.scrollTo({
-      left: boundary === "start" ? 0 : rail.scrollWidth,
+      left:
+        boundary === "start"
+          ? 0
+          : rail.scrollWidth,
 
-      behavior: getPreferredScrollBehavior(),
+      behavior:
+        getPreferredScrollBehavior(),
     });
   }
 
-  function handleRailKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.target !== event.currentTarget) {
+  function handleRailKeyDown(
+    event:
+      KeyboardEvent<HTMLDivElement>,
+  ) {
+    if (
+      event.target !==
+      event.currentTarget
+    ) {
       return;
     }
 
-    if (event.key === "ArrowLeft") {
+    if (
+      event.key === "ArrowLeft"
+    ) {
       event.preventDefault();
       scrollByPage("left");
       return;
     }
 
-    if (event.key === "ArrowRight") {
+    if (
+      event.key === "ArrowRight"
+    ) {
       event.preventDefault();
       scrollByPage("right");
       return;
@@ -301,105 +359,83 @@ function WatchAvailabilitySection({
     }
   }
 
+  if (
+    !isLoading &&
+    !errorMessage &&
+    (!featuredCharacters ||
+      featuredCharacters.items
+        .length === 0)
+  ) {
+    return null;
+  }
+
   return (
-    <section id="official-availability" className="scroll-mt-24 py-10 sm:py-12">
+    <section
+      id="featured-characters"
+      aria-labelledby={headingId}
+      className="scroll-mt-24 py-10 sm:py-12"
+    >
       <MediaDetailsContainer>
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
-                Official providers
-              </p>
+          <header>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
+              Characters
+            </p>
 
-              <h2 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
-                Where to stream, rent, or buy
-              </h2>
+            <h2
+              id={headingId}
+              className="mt-2 text-2xl font-bold text-white sm:text-3xl"
+            >
+              Featured characters
+            </h2>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Official streaming, rental, and purchase options can vary by
-                region and may change over time.
-              </p>
-            </div>
-
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end lg:w-auto">
-              <label className="w-full sm:w-52">
-                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  Region
-                </span>
-
-                <select
-                  value={region}
-                  onChange={(event) => setRegion(event.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none focus:border-sky-400/60"
-                >
-                  {regionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {!isLoading && !errorMessage && combinedProviders.length > 0 && (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    aria-label="Scroll official providers left"
-                    aria-controls={railId}
-                    disabled={!canScrollLeft}
-                    onClick={() => scrollByPage("left")}
-                    className="media-row-desktop-control h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/80 text-white transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-default disabled:border-white/5 disabled:bg-slate-950/35 disabled:text-slate-700"
-                  >
-                    <ProviderRailArrowIcon direction="left" />
-                  </button>
-
-                  <button
-                    type="button"
-                    aria-label="Scroll official providers right"
-                    aria-controls={railId}
-                    disabled={!canScrollRight}
-                    onClick={() => scrollByPage("right")}
-                    className="media-row-desktop-control h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/80 text-white transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-default disabled:border-white/5 disabled:bg-slate-950/35 disabled:text-slate-700"
-                  >
-                    <ProviderRailArrowIcon direction="right" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+              {featuredCharacters
+                ? getSectionDescription(
+                    featuredCharacters.presentation,
+                  )
+                : "Loading the important characters from this title."}
+            </p>
+          </header>
 
           {isLoading && (
-            <div role="status" className="mt-6">
-              <span className="sr-only">Loading official availability</span>
+            <div
+              role="status"
+              className="mt-6 flex gap-3 overflow-hidden sm:gap-4"
+            >
+              <span className="sr-only">
+                Loading featured characters
+              </span>
 
-              <div className="flex gap-3 overflow-hidden">
-                {Array.from({
-                  length: 5,
-                }).map((_, index) => (
-                  <div
-                    key={index}
-                    aria-hidden="true"
-                    className="flex min-h-24 w-[172px] min-w-[172px] items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/55 p-3 sm:w-[190px] sm:min-w-[190px]"
-                  >
-                    <div className="skeleton-placeholder h-11 w-11 shrink-0 rounded-xl" />
+              {Array.from({
+                length: 6,
+              }).map((_, index) => (
+                <div
+                  key={index}
+                  aria-hidden="true"
+                  className="w-[146px] min-w-[146px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55 sm:w-[164px] sm:min-w-[164px] lg:w-[176px] lg:min-w-[176px]"
+                >
+                  <div className="skeleton-placeholder aspect-[3/4]" />
 
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="skeleton-placeholder h-4 w-full rounded-md" />
+                  <div className="space-y-2 p-3.5">
+                    <div className="skeleton-placeholder h-4 w-full rounded-md" />
 
-                      <div className="skeleton-placeholder h-3 w-3/4 rounded-md" />
-                    </div>
+                    <div className="skeleton-placeholder h-3 w-3/4 rounded-md" />
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           )}
 
-          {!isLoading && errorMessage && (
+          {!isLoading &&
+            errorMessage && (
             <div
               role="alert"
               className="mt-6 rounded-2xl border border-red-400/20 bg-red-500/10 p-4"
             >
-              <p className="text-sm text-red-100">{errorMessage}</p>
+              <p className="text-sm text-red-100">
+                {errorMessage}
+              </p>
 
               <button
                 type="button"
@@ -411,95 +447,103 @@ function WatchAvailabilitySection({
             </div>
           )}
 
-          {!isLoading && !errorMessage && combinedProviders.length === 0 && (
-            <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-slate-950/40 p-4">
-              <h3 className="font-semibold text-white">
-                No official options found
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                We could not find streaming, rental, or purchase options for
-                this title in {selectedRegionLabel}. Try another region or
-                check again later.
-              </p>
-            </div>
-          )}
-
-          {!isLoading && !errorMessage && combinedProviders.length > 0 && (
+          {!isLoading &&
+            !errorMessage &&
+            featuredCharacters &&
+            featuredCharacters.items
+              .length > 0 && (
             <>
-              <p id={instructionsId} className="sr-only">
-                Use the left and right arrow keys to browse official providers
+              <p
+                id={instructionsId}
+                className="sr-only"
+              >
+                Use the left and right
+                arrow keys to browse
+                featured characters
                 when the row is focused.
               </p>
 
-              <div className="mt-6">
+              <div className="relative mt-6">
                 <div
                   id={railId}
                   ref={railRef}
                   tabIndex={0}
-                  aria-label="Official watch providers"
-                  aria-describedby={instructionsId}
-                  onScroll={updateScrollState}
-                  onKeyDown={handleRailKeyDown}
+                  aria-label="Featured characters"
+                  aria-describedby={
+                    instructionsId
+                  }
+                  onScroll={
+                    updateScrollState
+                  }
+                  onKeyDown={
+                    handleRailKeyDown
+                  }
                   className="media-row-scrollbar flex snap-x snap-proximity gap-3 overflow-x-auto overscroll-x-contain pb-2 pr-4 focus-visible:rounded-2xl sm:gap-4 sm:pr-6"
                 >
-                  {combinedProviders.map((provider) => (
-                    <article
-                      key={`${provider.providerId}-${provider.name}`}
-                      className="flex min-h-[5.75rem] w-[176px] min-w-[176px] snap-start items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/55 p-3 transition hover:-translate-y-0.5 hover:border-sky-400/25 sm:w-[192px] sm:min-w-[192px] lg:w-[208px] lg:min-w-[208px]"
-                    >
-                      {provider.logoUrl ? (
-                        <img
-                          src={provider.logoUrl}
-                          alt=""
-                          aria-hidden="true"
-                          loading="lazy"
-                          className="h-11 w-11 shrink-0 rounded-xl object-cover"
+                  {featuredCharacters.items.map(
+                    (character) => (
+                      <div
+                        key={
+                          character.id
+                        }
+                        className="w-[146px] min-w-[146px] snap-start sm:w-[164px] sm:min-w-[164px] lg:w-[176px] lg:min-w-[176px]"
+                      >
+                        <CharacterCard
+                          character={
+                            character
+                          }
                         />
-                      ) : (
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sm font-bold text-sky-200">
-                          {provider.name.charAt(0)}
-                        </span>
-                      )}
-
-                      <div className="flex min-w-0 flex-1 flex-col justify-center">
-                        <div className="flex min-h-10 items-center">
-                          <h4 className="line-clamp-2 text-sm font-semibold leading-5 text-white">
-                            {provider.name}
-                          </h4>
-                        </div>
-
-                        <div className="mt-1.5 flex min-h-5 flex-wrap items-center gap-1">
-                          {provider.availabilityTypes.map(
-                            (availabilityType) => (
-                              <span
-                                key={availabilityType}
-                                className="rounded-full border border-sky-300/15 bg-sky-500/10 px-2 py-0.5 text-[0.65rem] font-semibold text-sky-200"
-                              >
-                                {availabilityType}
-                              </span>
-                            ),
-                          )}
-                        </div>
                       </div>
-                    </article>
-                  ))}
+                    ),
+                  )}
                 </div>
-              </div>
 
-              <div className="mt-5 flex flex-col gap-2 border-t border-white/10 pt-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-                <p>Provider information supplied by JustWatch.</p>
-
-                {availability?.link && (
-                  <ExternalLink
-                    href={availability.link}
-                    destinationName="JustWatch"
-                    className="font-semibold text-sky-300 transition hover:text-sky-200"
+                {canScrollLeft && (
+                  <button
+                    type="button"
+                    aria-label="Scroll featured characters left"
+                    aria-controls={
+                      railId
+                    }
+                    onClick={() =>
+                      scrollByPage(
+                        "left",
+                      )
+                    }
+                    className="media-row-desktop-control absolute left-1 top-1/2 z-20 h-16 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/95 text-white backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                   >
-                    View availability details ↗
-                  </ExternalLink>
+                    <CharacterArrowIcon
+                      direction="left"
+                    />
+                  </button>
+                )}
+
+                {canScrollRight && (
+                  <button
+                    type="button"
+                    aria-label="Scroll featured characters right"
+                    aria-controls={
+                      railId
+                    }
+                    onClick={() =>
+                      scrollByPage(
+                        "right",
+                      )
+                    }
+                    className="media-row-desktop-control absolute right-1 top-1/2 z-20 h-16 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/95 text-white backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  >
+                    <CharacterArrowIcon
+                      direction="right"
+                    />
+                  </button>
                 )}
               </div>
+
+              <p className="mt-4 text-xs leading-5 text-slate-500">
+                {featuredCharacters.source === "AniList"
+                  ? "Character names and artwork from AniList."
+                  : "Character information from TMDB."}
+              </p>
             </>
           )}
         </div>
@@ -508,4 +552,4 @@ function WatchAvailabilitySection({
   );
 }
 
-export default WatchAvailabilitySection;
+export default FeaturedCharactersSection;

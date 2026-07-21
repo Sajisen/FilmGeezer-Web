@@ -628,6 +628,7 @@ function MediaDetailsPage() {
           seasons={selectedMedia.seasons}
         />
       )}
+      
       <FeaturedCharactersSection
         mediaType={selectedMedia.mediaType}
         tmdbId={selectedMedia.tmdbId}
