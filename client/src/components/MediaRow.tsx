@@ -14,6 +14,7 @@ interface MediaRowProps {
   title: string
   description?: string
   items: MediaItem[]
+  contentClassName?: string
 }
 
 interface ArrowIconProps {
@@ -57,6 +58,7 @@ function MediaRow({
   title,
   description,
   items,
+  contentClassName = "",
 }: MediaRowProps) {
   const railRef =
     useRef<HTMLDivElement>(null)
@@ -215,6 +217,7 @@ function MediaRow({
       className="py-7 sm:py-8"
     >
       <ContentContainer>
+        <div className={contentClassName}></div>
         <header className="mb-4 sm:mb-5">
           <h2
             id={headingId}
@@ -310,6 +313,7 @@ function MediaRow({
               </button>
             </>
           )}
+        </div>
         </div>
       </ContentContainer>
     </section>

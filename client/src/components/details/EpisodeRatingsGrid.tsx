@@ -395,24 +395,31 @@ function EpisodesDownGrid({
   onSelectEpisode,
   instructionsId,
 }: EpisodesDownGridProps) {
+  const gridTemplateColumns = `var(--episode-grid-season-width) repeat(${seasons.length}, var(--episode-grid-cell-size))`;
+
   return (
     <div
       tabIndex={0}
       aria-label="Episode rating grid with episodes down"
       aria-describedby={instructionsId}
-      className="episode-grid-scrollbar max-h-[68vh] min-w-0 overflow-auto overscroll-contain rounded-2xl border border-white/10 bg-slate-950/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300 sm:max-h-[38rem]"
+      className="episode-grid-scrollbar max-h-[68vh] min-w-0 overflow-auto rounded-2xl border border-white/10 bg-slate-950/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300 sm:max-h-[38rem]"
     >
-      <div className="w-max min-w-full">
-        <div className="sticky top-0 z-40 min-w-full border-b border-white/10 bg-slate-950 px-2 pb-2 pt-2">
+      <div className="w-max min-w-full px-2 pb-2">
+        <div className="sticky top-0 z-40 -mx-2 bg-slate-950 px-2 pb-[var(--episode-grid-gap)] pt-2">
           <div
-            className="flex items-center"
-            style={{ gap: "var(--episode-grid-gap)" }}
+            className="grid items-center"
+            style={{
+              gridTemplateColumns,
+              gap: "var(--episode-grid-gap)",
+            }}
           >
             <div
-              className="sticky left-2 z-50 flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-[0.55rem] font-bold uppercase tracking-wide text-slate-500"
+              className="sticky left-0 z-50 flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-[0.55rem] font-bold uppercase tracking-wide text-slate-500"
               style={{
                 width: "var(--episode-grid-season-width)",
-                height: "var(--episode-grid-header-height)",
+                height: "var(--episode-grid-cell-size)",
+                boxShadow:
+                  "var(--episode-grid-gap) 0 0 rgb(2 6 23)",
               }}
             >
               Ep
@@ -425,7 +432,7 @@ function EpisodesDownGrid({
                 title={`Season ${seasonSummary.seasonNumber}`}
                 style={{
                   width: "var(--episode-grid-cell-size)",
-                  height: "var(--episode-grid-header-height)",
+                  height: "var(--episode-grid-cell-size)",
                 }}
               >
                 S{seasonSummary.seasonNumber}
@@ -434,10 +441,20 @@ function EpisodesDownGrid({
           </div>
         </div>
 
-        <div className="flex items-start px-2 pb-2 pt-2" style={{ gap: "var(--episode-grid-gap)" }}>
+        <div
+          className="grid items-start"
+          style={{
+            gridTemplateColumns,
+            gap: "var(--episode-grid-gap)",
+          }}
+        >
           <div
-            className="sticky left-0 z-30 flex shrink-0 flex-col bg-slate-950 pr-1"
-            style={{ gap: "var(--episode-grid-gap)" }}
+            className="sticky left-0 z-30 flex shrink-0 flex-col bg-slate-950"
+            style={{
+              gap: "var(--episode-grid-gap)",
+              boxShadow:
+                "var(--episode-grid-gap) 0 0 rgb(2 6 23)",
+            }}
           >
             {episodeNumbers.map((episodeNumber) => (
               <div
