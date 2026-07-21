@@ -414,16 +414,14 @@ function EpisodesDownGrid({
             }}
           >
             <div
-              className="sticky left-0 z-50 flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-[0.55rem] font-bold uppercase tracking-wide text-slate-500"
+              aria-hidden="true"
+              className="sticky left-0 z-50 shrink-0 bg-slate-950"
               style={{
                 width: "var(--episode-grid-season-width)",
                 height: "var(--episode-grid-cell-size)",
-                boxShadow:
-                  "var(--episode-grid-gap) 0 0 rgb(2 6 23)",
+                boxShadow: "var(--episode-grid-gap) 0 0 rgb(2 6 23)",
               }}
-            >
-              Ep
-            </div>
+            />
 
             {seasons.map((seasonSummary) => (
               <div
@@ -452,14 +450,13 @@ function EpisodesDownGrid({
             className="sticky left-0 z-30 flex shrink-0 flex-col bg-slate-950"
             style={{
               gap: "var(--episode-grid-gap)",
-              boxShadow:
-                "var(--episode-grid-gap) 0 0 rgb(2 6 23)",
+              boxShadow: "var(--episode-grid-gap) 0 0 rgb(2 6 23)",
             }}
           >
             {episodeNumbers.map((episodeNumber) => (
               <div
                 key={episodeNumber}
-                className="flex items-center justify-center rounded-md border border-white/10 bg-slate-900 text-[0.58rem] font-bold text-slate-400 sm:text-[0.65rem]"
+                className="flex items-center justify-center text-[0.55rem] font-bold text-slate-500 sm:text-[0.6rem]"
                 style={{
                   width: "var(--episode-grid-season-width)",
                   height: "var(--episode-grid-cell-size)",

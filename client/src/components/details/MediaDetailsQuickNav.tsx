@@ -3,11 +3,13 @@ import MediaDetailsContainer from "./MediaDetailsContainer";
 interface MediaDetailsQuickNavProps {
   hasTrailer: boolean;
   hasEpisodes: boolean;
+  hasCharacters: boolean;
 }
 
 function MediaDetailsQuickNav({
   hasTrailer,
   hasEpisodes,
+  hasCharacters,
 }: MediaDetailsQuickNavProps) {
   const navigationItems = [
     {
@@ -31,8 +33,18 @@ function MediaDetailsQuickNav({
       visible: hasEpisodes,
     },
     {
+  label: "Characters",
+  href: "#featured-characters",
+  visible: hasCharacters,
+},
+    {
       label: "FilmGeezer links",
       href: "#provider-links",
+      visible: true,
+    },
+    {
+      label: "More like this",
+      href: "#more-like-this",
       visible: true,
     },
   ].filter((item) => item.visible);

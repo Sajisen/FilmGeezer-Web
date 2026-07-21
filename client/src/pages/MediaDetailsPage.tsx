@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import MediaDetailsSkeleton from "../components/details/MediaDetailsSkeleton";
 import ContentContainer from "../components/layout/ContentContainer";
@@ -16,6 +16,7 @@ import WatchAvailabilitySection from "../components/details/WatchAvailabilitySec
 import FeaturedCharactersSection from "../components/details/FeaturedCharactersSection";
 import EpisodeExplorerSection from "../components/details/EpisodeExplorerSection";
 import MediaDetailsQuickNav from "../components/details/MediaDetailsQuickNav";
+import MoreLikeThisSection from "../components/details/MoreLikeThisSection";
 import ExternalLink from "../features/externalNavigation/ExternalLink";
 
 interface MediaDetailsRequestState {
@@ -124,6 +125,14 @@ function MediaDetailsPage() {
   const [detailsReloadKey, setDetailsReloadKey] = useState(0);
 
   const [linksReloadKey, setLinksReloadKey] = useState(0);
+
+  const [
+  characterAvailability,
+  setCharacterAvailability,
+] = useState({
+  mediaKey: "",
+  hasCharacters: false,
+});
 
   const [mediaRequestState, setMediaRequestState] =
     useState<MediaDetailsRequestState>(initialMediaRequestState);
@@ -286,6 +295,31 @@ function MediaDetailsPage() {
     ? providerRequestState.errorMessage
     : "";
 
+    const currentMediaKey = `${mediaType ?? ""}:${tmdbId ?? ""}`;
+
+const hasFeaturedCharacters =
+  characterAvailability.mediaKey === currentMediaKey &&
+  characterAvailability.hasCharacters;
+
+const handleCharacterAvailabilityChange = useCallback(
+  (hasCharacters: boolean) => {
+    setCharacterAvailability((currentState) => {
+      if (
+        currentState.mediaKey === currentMediaKey &&
+        currentState.hasCharacters === hasCharacters
+      ) {
+        return currentState;
+      }
+
+      return {
+        mediaKey: currentMediaKey,
+        hasCharacters,
+      };
+    });
+  },
+  [currentMediaKey],
+);
+
   function retryMediaDetails() {
     setDetailsReloadKey((currentKey) => currentKey + 1);
   }
@@ -295,7 +329,7 @@ function MediaDetailsPage() {
   }
 
   if (isMediaLoading) {
-    return <MediaDetailsSkeleton />;
+    return <MediaDetailsSkeleton mediaType={mediaType} />;
   }
 
   if (mediaErrorMessage) {
@@ -541,11 +575,13 @@ function MediaDetailsPage() {
       </section>
 
       <MediaDetailsQuickNav
-        hasTrailer={hasTrailer}
-        hasEpisodes={
-          selectedMedia.mediaType === "tv" && selectedMedia.seasons.length > 0
-        }
-      />
+  hasTrailer={hasTrailer}
+  hasEpisodes={
+    selectedMedia.mediaType === "tv" &&
+    selectedMedia.seasons.length > 0
+  }
+  hasCharacters={hasFeaturedCharacters}
+/>
 
       <section id="key-details" className="scroll-mt-24 py-10 sm:py-12">
         <MediaDetailsContainer>
@@ -628,17 +664,24 @@ function MediaDetailsPage() {
           seasons={selectedMedia.seasons}
         />
       )}
-      
       <FeaturedCharactersSection
-        mediaType={selectedMedia.mediaType}
-        tmdbId={selectedMedia.tmdbId}
-      />
+  mediaType={selectedMedia.mediaType}
+  tmdbId={selectedMedia.tmdbId}
+  onAvailabilityChange={
+    handleCharacterAvailabilityChange
+  }
+/>
 
       <ProviderLinksSection
         links={providerLinks}
         isLoading={isProviderLinksLoading}
         errorMessage={providerErrorMessage}
         onRetry={retryProviderLinks}
+      />
+
+      <MoreLikeThisSection
+        mediaType={selectedMedia.mediaType}
+        tmdbId={selectedMedia.tmdbId}
       />
     </main>
   );

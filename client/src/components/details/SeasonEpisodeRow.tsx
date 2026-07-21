@@ -234,7 +234,7 @@ function SeasonEpisodeRow({
       className="border-t border-white/10 py-4 first:border-t-0"
     >
       <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-        <header className="w-12 shrink-0 sm:w-14">
+        <header className="flex w-14 shrink-0 flex-col items-center justify-center self-stretch text-center sm:w-16">
           <h3 className="text-lg font-black leading-none text-white sm:text-xl">
             S{seasonSummary.seasonNumber}
           </h3>

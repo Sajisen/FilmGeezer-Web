@@ -13,36 +13,24 @@ import type {
   FeaturedCharacter,
   FeaturedCharacterPresentation,
 } from "../../types/featuredCharacter";
-import type {
-  MediaType,
-} from "../../types/media";
+import type { MediaType } from "../../types/media";
 import MediaDetailsContainer from "./MediaDetailsContainer";
 
 interface FeaturedCharactersSectionProps {
   mediaType: MediaType;
   tmdbId: number;
+  onAvailabilityChange?: (hasCharacters: boolean) => void;
 }
 
 interface CharacterArrowIconProps {
   direction: "left" | "right";
 }
 
-function CharacterArrowIcon({
-  direction,
-}: CharacterArrowIconProps) {
+function CharacterArrowIcon({ direction }: CharacterArrowIconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="h-6 w-6"
-      fill="none"
-    >
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6" fill="none">
       <path
-        d={
-          direction === "left"
-            ? "m14.5 6-6 6 6 6"
-            : "m9.5 6 6 6-6 6"
-        }
+        d={direction === "left" ? "m14.5 6-6 6 6 6" : "m9.5 6 6 6-6 6"}
         stroke="currentColor"
         strokeWidth="1.9"
         strokeLinecap="round"
@@ -53,49 +41,34 @@ function CharacterArrowIcon({
 }
 
 function getPreferredScrollBehavior(): ScrollBehavior {
-  return window.matchMedia(
-    "(prefers-reduced-motion: reduce)",
-  ).matches
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ? "auto"
     : "smooth";
 }
 
-function getSectionDescription(
-  presentation:
-    FeaturedCharacterPresentation,
-) {
+function getSectionDescription(presentation: FeaturedCharacterPresentation) {
   if (presentation === "anime") {
     return "Main and supporting characters from the Anime.";
   }
 
-  if (
-    presentation === "animation"
-  ) {
+  if (presentation === "animation") {
     return "Important characters from the story.";
   }
 
   return "Leading and recurring characters, with performers shown as secondary context.";
 }
 
-function getCharacterInitials(
-  characterName: string,
-) {
+function getCharacterInitials(characterName: string) {
   return characterName
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((namePart) =>
-      namePart.charAt(0),
-    )
+    .map((namePart) => namePart.charAt(0))
     .join("")
     .toUpperCase();
 }
 
-function CharacterCard({
-  character,
-}: {
-  character: FeaturedCharacter;
-}) {
+function CharacterCard({ character }: { character: FeaturedCharacter }) {
   const cardContent: ReactNode = (
     <>
       <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-sky-950 via-slate-900 to-blue-950">
@@ -116,17 +89,14 @@ function CharacterCard({
             className="flex h-full items-center justify-center"
           >
             <span className="text-4xl font-black text-sky-300/70">
-              {getCharacterInitials(
-                character.characterName,
-              )}
+              {getCharacterInitials(character.characterName)}
             </span>
           </div>
         )}
 
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950 to-transparent" />
 
-        {character.role !==
-          "Featured" && (
+        {character.role !== "Featured" && (
           <span className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-slate-950/80 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-sky-200 backdrop-blur-md">
             {character.role}
           </span>
@@ -135,16 +105,12 @@ function CharacterCard({
 
       <div className="min-h-28 p-3.5">
         <h3 className="line-clamp-2 text-sm font-bold leading-5 text-white">
-          {
-            character.characterName
-          }
+          {character.characterName}
         </h3>
 
         {character.alternateName && (
           <p className="mt-1 line-clamp-1 text-xs text-slate-500">
-            {
-              character.alternateName
-            }
+            {character.alternateName}
           </p>
         )}
 
@@ -152,9 +118,7 @@ function CharacterCard({
           <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-400">
             Played by{" "}
             <span className="font-semibold text-slate-300">
-              {
-                character.performerName
-              }
+              {character.performerName}
             </span>
           </p>
         )}
@@ -178,81 +142,55 @@ function CharacterCard({
     );
   }
 
-  return (
-    <article
-      className={
-        cardClassName
-      }
-    >
-      {cardContent}
-    </article>
-  );
+  return <article className={cardClassName}>{cardContent}</article>;
 }
 
 function FeaturedCharactersSection({
   mediaType,
   tmdbId,
+  onAvailabilityChange,
 }: FeaturedCharactersSectionProps) {
-  const railRef =
-    useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLDivElement>(null);
 
   const headingId = useId();
   const railId = useId();
   const instructionsId = useId();
 
-  const [
-    canScrollLeft,
-    setCanScrollLeft,
-  ] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
 
-  const [
-    canScrollRight,
-    setCanScrollRight,
-  ] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const {
-    featuredCharacters,
-    isLoading,
-    errorMessage,
-    retry,
-  } = useFeaturedCharacters(
-    mediaType,
-    tmdbId,
-  );
+  const { featuredCharacters, isLoading, errorMessage, retry } =
+    useFeaturedCharacters(mediaType, tmdbId);
 
   const characterSignature =
-    featuredCharacters?.items
-      .map(
-        (character) =>
-          character.id,
-      )
-      .join("|") ?? "";
+    featuredCharacters?.items.map((character) => character.id).join("|") ?? "";
 
-  const updateScrollState =
-    useCallback(() => {
-      const rail = railRef.current;
+  const hasCharacters = Boolean(featuredCharacters?.items.length);
 
-      if (!rail) {
-        return;
-      }
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
 
-      const threshold = 4;
+    onAvailabilityChange?.(!errorMessage && hasCharacters);
+  }, [errorMessage, hasCharacters, isLoading, onAvailabilityChange]);
 
-      const maximumScrollLeft =
-        rail.scrollWidth -
-        rail.clientWidth;
+  const updateScrollState = useCallback(() => {
+    const rail = railRef.current;
 
-      setCanScrollLeft(
-        rail.scrollLeft >
-          threshold,
-      );
+    if (!rail) {
+      return;
+    }
 
-      setCanScrollRight(
-        maximumScrollLeft -
-          rail.scrollLeft >
-          threshold,
-      );
-    }, []);
+    const threshold = 4;
+
+    const maximumScrollLeft = rail.scrollWidth - rail.clientWidth;
+
+    setCanScrollLeft(rail.scrollLeft > threshold);
+
+    setCanScrollRight(maximumScrollLeft - rail.scrollLeft > threshold);
+  }, []);
 
   useEffect(() => {
     const rail = railRef.current;
@@ -263,24 +201,16 @@ function FeaturedCharactersSection({
 
     updateScrollState();
 
-    const resizeObserver =
-      new ResizeObserver(
-        updateScrollState,
-      );
+    const resizeObserver = new ResizeObserver(updateScrollState);
 
     resizeObserver.observe(rail);
 
     return () => {
       resizeObserver.disconnect();
     };
-  }, [
-    characterSignature,
-    updateScrollState,
-  ]);
+  }, [characterSignature, updateScrollState]);
 
-  function scrollByPage(
-    direction: "left" | "right",
-  ) {
+  function scrollByPage(direction: "left" | "right") {
     const rail = railRef.current;
 
     if (!rail) {
@@ -289,20 +219,13 @@ function FeaturedCharactersSection({
 
     rail.scrollBy({
       left:
-        direction === "left"
-          ? -rail.clientWidth *
-            0.8
-          : rail.clientWidth *
-            0.8,
+        direction === "left" ? -rail.clientWidth * 0.8 : rail.clientWidth * 0.8,
 
-      behavior:
-        getPreferredScrollBehavior(),
+      behavior: getPreferredScrollBehavior(),
     });
   }
 
-  function scrollToBoundary(
-    boundary: "start" | "end",
-  ) {
+  function scrollToBoundary(boundary: "start" | "end") {
     const rail = railRef.current;
 
     if (!rail) {
@@ -310,38 +233,24 @@ function FeaturedCharactersSection({
     }
 
     rail.scrollTo({
-      left:
-        boundary === "start"
-          ? 0
-          : rail.scrollWidth,
+      left: boundary === "start" ? 0 : rail.scrollWidth,
 
-      behavior:
-        getPreferredScrollBehavior(),
+      behavior: getPreferredScrollBehavior(),
     });
   }
 
-  function handleRailKeyDown(
-    event:
-      KeyboardEvent<HTMLDivElement>,
-  ) {
-    if (
-      event.target !==
-      event.currentTarget
-    ) {
+  function handleRailKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget) {
       return;
     }
 
-    if (
-      event.key === "ArrowLeft"
-    ) {
+    if (event.key === "ArrowLeft") {
       event.preventDefault();
       scrollByPage("left");
       return;
     }
 
-    if (
-      event.key === "ArrowRight"
-    ) {
+    if (event.key === "ArrowRight") {
       event.preventDefault();
       scrollByPage("right");
       return;
@@ -362,9 +271,7 @@ function FeaturedCharactersSection({
   if (
     !isLoading &&
     !errorMessage &&
-    (!featuredCharacters ||
-      featuredCharacters.items
-        .length === 0)
+    (!featuredCharacters || featuredCharacters.items.length === 0)
   ) {
     return null;
   }
@@ -391,9 +298,7 @@ function FeaturedCharactersSection({
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
               {featuredCharacters
-                ? getSectionDescription(
-                    featuredCharacters.presentation,
-                  )
+                ? getSectionDescription(featuredCharacters.presentation)
                 : "Loading the important characters from this title."}
             </p>
           </header>
@@ -403,9 +308,7 @@ function FeaturedCharactersSection({
               role="status"
               className="mt-6 flex gap-3 overflow-hidden sm:gap-4"
             >
-              <span className="sr-only">
-                Loading featured characters
-              </span>
+              <span className="sr-only">Loading featured characters</span>
 
               {Array.from({
                 length: 6,
@@ -427,15 +330,12 @@ function FeaturedCharactersSection({
             </div>
           )}
 
-          {!isLoading &&
-            errorMessage && (
+          {!isLoading && errorMessage && (
             <div
               role="alert"
               className="mt-6 rounded-2xl border border-red-400/20 bg-red-500/10 p-4"
             >
-              <p className="text-sm text-red-100">
-                {errorMessage}
-              </p>
+              <p className="text-sm text-red-100">{errorMessage}</p>
 
               <button
                 type="button"
@@ -450,102 +350,66 @@ function FeaturedCharactersSection({
           {!isLoading &&
             !errorMessage &&
             featuredCharacters &&
-            featuredCharacters.items
-              .length > 0 && (
-            <>
-              <p
-                id={instructionsId}
-                className="sr-only"
-              >
-                Use the left and right
-                arrow keys to browse
-                featured characters
-                when the row is focused.
-              </p>
+            featuredCharacters.items.length > 0 && (
+              <>
+                <p id={instructionsId} className="sr-only">
+                  Use the left and right arrow keys to browse featured
+                  characters when the row is focused.
+                </p>
 
-              <div className="relative mt-6">
-                <div
-                  id={railId}
-                  ref={railRef}
-                  tabIndex={0}
-                  aria-label="Featured characters"
-                  aria-describedby={
-                    instructionsId
-                  }
-                  onScroll={
-                    updateScrollState
-                  }
-                  onKeyDown={
-                    handleRailKeyDown
-                  }
-                  className="media-row-scrollbar flex snap-x snap-proximity gap-3 overflow-x-auto overscroll-x-contain pb-2 pr-4 focus-visible:rounded-2xl sm:gap-4 sm:pr-6"
-                >
-                  {featuredCharacters.items.map(
-                    (character) => (
+                <div className="relative mt-6">
+                  <div
+                    id={railId}
+                    ref={railRef}
+                    tabIndex={0}
+                    aria-label="Featured characters"
+                    aria-describedby={instructionsId}
+                    onScroll={updateScrollState}
+                    onKeyDown={handleRailKeyDown}
+                    className="media-row-scrollbar flex snap-x snap-proximity gap-3 overflow-x-auto overscroll-x-contain pb-2 pr-4 focus-visible:rounded-2xl sm:gap-4 sm:pr-6"
+                  >
+                    {featuredCharacters.items.map((character) => (
                       <div
-                        key={
-                          character.id
-                        }
+                        key={character.id}
                         className="w-[146px] min-w-[146px] snap-start sm:w-[164px] sm:min-w-[164px] lg:w-[176px] lg:min-w-[176px]"
                       >
-                        <CharacterCard
-                          character={
-                            character
-                          }
-                        />
+                        <CharacterCard character={character} />
                       </div>
-                    ),
+                    ))}
+                  </div>
+
+                  {canScrollLeft && (
+                    <button
+                      type="button"
+                      aria-label="Scroll featured characters left"
+                      aria-controls={railId}
+                      onClick={() => scrollByPage("left")}
+                      className="media-row-desktop-control absolute left-1 top-1/2 z-20 h-16 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/95 text-white backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      <CharacterArrowIcon direction="left" />
+                    </button>
+                  )}
+
+                  {canScrollRight && (
+                    <button
+                      type="button"
+                      aria-label="Scroll featured characters right"
+                      aria-controls={railId}
+                      onClick={() => scrollByPage("right")}
+                      className="media-row-desktop-control absolute right-1 top-1/2 z-20 h-16 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/95 text-white backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      <CharacterArrowIcon direction="right" />
+                    </button>
                   )}
                 </div>
 
-                {canScrollLeft && (
-                  <button
-                    type="button"
-                    aria-label="Scroll featured characters left"
-                    aria-controls={
-                      railId
-                    }
-                    onClick={() =>
-                      scrollByPage(
-                        "left",
-                      )
-                    }
-                    className="media-row-desktop-control absolute left-1 top-1/2 z-20 h-16 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/95 text-white backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  >
-                    <CharacterArrowIcon
-                      direction="left"
-                    />
-                  </button>
-                )}
-
-                {canScrollRight && (
-                  <button
-                    type="button"
-                    aria-label="Scroll featured characters right"
-                    aria-controls={
-                      railId
-                    }
-                    onClick={() =>
-                      scrollByPage(
-                        "right",
-                      )
-                    }
-                    className="media-row-desktop-control absolute right-1 top-1/2 z-20 h-16 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/15 bg-slate-950/95 text-white backdrop-blur-md transition hover:border-sky-300/60 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  >
-                    <CharacterArrowIcon
-                      direction="right"
-                    />
-                  </button>
-                )}
-              </div>
-
-              <p className="mt-4 text-xs leading-5 text-slate-500">
-                {featuredCharacters.source === "AniList"
-                  ? "Character names and artwork from AniList."
-                  : "Character information from TMDB."}
-              </p>
-            </>
-          )}
+                <p className="mt-4 text-xs leading-5 text-slate-500">
+                  {featuredCharacters.source === "AniList"
+                    ? "Character names and artwork from AniList."
+                    : "Character information from TMDB."}
+                </p>
+              </>
+            )}
         </div>
       </MediaDetailsContainer>
     </section>
