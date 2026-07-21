@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import type { MediaVideo } from "../../types/media";
 import { getLanguageName } from "../../utils/language";
 import MediaDetailsContainer from "./MediaDetailsContainer";
@@ -45,7 +45,7 @@ function getVideoMetaLabel(video: MediaVideo) {
     .join(" • ");
 }
 
-function MediaTrailerSection({
+function MediaTrailerContent({
   itemTitle,
   backdropUrl,
   videos,
@@ -58,17 +58,9 @@ function MediaTrailerSection({
 
   const defaultVideoId = primaryTrailer?.id ?? availableVideos[0]?.id ?? "";
 
-  const videoSignature = availableVideos.map((video) => video.id).join("|");
-
   const [selectedVideoId, setSelectedVideoId] = useState(defaultVideoId);
 
   const [isPlayerLoaded, setIsPlayerLoaded] = useState(false);
-
-  useEffect(() => {
-    setSelectedVideoId(defaultVideoId);
-
-    setIsPlayerLoaded(false);
-  }, [defaultVideoId, videoSignature]);
 
   const selectedVideo =
     availableVideos.find((video) => video.id === selectedVideoId) ??
@@ -285,6 +277,16 @@ function MediaTrailerSection({
       </MediaDetailsContainer>
     </section>
   );
+}
+
+function MediaTrailerSection(props: MediaTrailerSectionProps) {
+  const videoKey = [
+    props.itemTitle,
+    props.primaryTrailer?.id ?? "",
+    ...props.videos.map((video) => video.id),
+  ].join("|");
+
+  return <MediaTrailerContent key={videoKey} {...props} />;
 }
 
 export default MediaTrailerSection;

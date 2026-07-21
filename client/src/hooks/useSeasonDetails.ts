@@ -40,25 +40,15 @@ export function useSeasonDetails(
   const requestKey =
     `${cacheKey}:${reloadKey}`
 
+  const cachedSeason =
+    reloadKey === 0
+      ? (seasonDetailsCache.get(
+          cacheKey,
+        ) ?? null)
+      : null
+
   useEffect(() => {
-    if (!enabled) {
-      return
-    }
-
-    const cachedSeason =
-      reloadKey === 0
-        ? seasonDetailsCache.get(
-            cacheKey,
-          )
-        : null
-
-    if (cachedSeason) {
-      setState({
-        requestKey,
-        season: cachedSeason,
-        errorMessage: '',
-      })
-
+    if (!enabled || cachedSeason) {
       return
     }
 
@@ -100,7 +90,6 @@ export function useSeasonDetails(
         setState({
           requestKey,
           season: null,
-
           errorMessage:
             error instanceof Error
               ? error.message
@@ -116,10 +105,10 @@ export function useSeasonDetails(
     }
   }, [
     enabled,
+    cachedSeason,
     tmdbId,
     seasonNumber,
     cacheKey,
-    reloadKey,
     requestKey,
   ])
 
@@ -134,23 +123,33 @@ export function useSeasonDetails(
     )
   }, [cacheKey])
 
+  const hasCurrentResponse =
+    state.requestKey === requestKey
+
+  const season =
+    enabled
+      ? cachedSeason ??
+        (hasCurrentResponse
+          ? state.season
+          : null)
+      : null
+
   const isLoading =
     enabled &&
-    state.requestKey !== requestKey
+    !cachedSeason &&
+    !hasCurrentResponse
+
+  const errorMessage =
+    enabled &&
+    !cachedSeason &&
+    hasCurrentResponse
+      ? state.errorMessage
+      : ''
 
   return {
-    season:
-      !enabled || isLoading
-        ? null
-        : state.season,
-
+    season,
     isLoading,
-
-    errorMessage:
-      !enabled || isLoading
-        ? ''
-        : state.errorMessage,
-
+    errorMessage,
     retry,
   }
 }
