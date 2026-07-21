@@ -231,17 +231,6 @@ function EpisodeGridColumn({
       className="flex shrink-0 flex-col"
       style={{ gap: "var(--episode-grid-gap)" }}
     >
-      <div
-        className="sticky top-0 z-20 flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-[0.65rem] font-black text-sky-300 sm:text-xs"
-        title={`Season ${seasonSummary.seasonNumber}`}
-        style={{
-          width: "var(--episode-grid-cell-size)",
-          height: "var(--episode-grid-header-height)",
-        }}
-      >
-        S{seasonSummary.seasonNumber}
-      </div>
-
       {isLoading &&
         episodeNumbers.map((episodeNumber) => (
           <LoadingEpisodeCell key={episodeNumber} />
@@ -413,17 +402,14 @@ function EpisodesDownGrid({
       aria-describedby={instructionsId}
       className="episode-grid-scrollbar max-h-[68vh] min-w-0 overflow-auto overscroll-contain rounded-2xl border border-white/10 bg-slate-950/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300 sm:max-h-[38rem]"
     >
-      <div className="w-max min-w-full p-2">
-        <div
-          className="flex items-start"
-          style={{ gap: "var(--episode-grid-gap)" }}
-        >
+      <div className="w-max min-w-full">
+        <div className="sticky top-0 z-40 min-w-full border-b border-white/10 bg-slate-950 px-2 pb-2 pt-2">
           <div
-            className="sticky left-0 z-30 flex shrink-0 flex-col bg-slate-950 pr-1"
+            className="flex items-center"
             style={{ gap: "var(--episode-grid-gap)" }}
           >
             <div
-              className="sticky top-0 z-40 flex items-center justify-center rounded-md border border-white/10 bg-slate-900 text-[0.55rem] font-bold uppercase tracking-wide text-slate-500"
+              className="sticky left-2 z-50 flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-[0.55rem] font-bold uppercase tracking-wide text-slate-500"
               style={{
                 width: "var(--episode-grid-season-width)",
                 height: "var(--episode-grid-header-height)",
@@ -432,6 +418,27 @@ function EpisodesDownGrid({
               Ep
             </div>
 
+            {seasons.map((seasonSummary) => (
+              <div
+                key={seasonSummary.tmdbSeasonId}
+                className="flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-[0.65rem] font-black text-sky-300 sm:text-xs"
+                title={`Season ${seasonSummary.seasonNumber}`}
+                style={{
+                  width: "var(--episode-grid-cell-size)",
+                  height: "var(--episode-grid-header-height)",
+                }}
+              >
+                S{seasonSummary.seasonNumber}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-start px-2 pb-2 pt-2" style={{ gap: "var(--episode-grid-gap)" }}>
+          <div
+            className="sticky left-0 z-30 flex shrink-0 flex-col bg-slate-950 pr-1"
+            style={{ gap: "var(--episode-grid-gap)" }}
+          >
             {episodeNumbers.map((episodeNumber) => (
               <div
                 key={episodeNumber}
