@@ -48,9 +48,9 @@ function SearchToolbar({
       role="search"
       aria-label="Search FilmGeezer"
       onSubmit={handleSubmit}
-      className="rounded-3xl border border-white/10 bg-slate-900/70 p-3 shadow-xl shadow-black/15 sm:p-4"
+      className="rounded-3xl border border-white/10 bg-slate-900/70 p-3 shadow-xl shadow-black/15 sm:p-4 lg:hidden"
     >
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:gap-3">
         <div className="relative min-w-0">
           <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
 
@@ -65,58 +65,58 @@ function SearchToolbar({
             maxLength={100}
             autoFocus={autoFocus}
             onChange={(event) => onSearchTextChange(event.target.value)}
-            placeholder="Search by title, or explore with filters..."
-            className="min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/80 pl-12 pr-4 text-white outline-none placeholder:text-slate-500 focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/15"
+            placeholder="Search titles..."
+            className="min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/80 pl-12 pr-3 text-white outline-none placeholder:text-slate-500 focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/15"
           />
         </div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-          <button
-            type="button"
-            onClick={onOpenFilters}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:hidden"
-          >
-            <FilterIcon className="h-4 w-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs text-sky-200">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="min-h-12 rounded-2xl bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            Search
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="min-h-12 rounded-2xl bg-sky-500 px-4 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-45 sm:px-5"
+        >
+          Search
+        </button>
       </div>
 
-      <div className="mt-3 overflow-x-auto search-filter-scrollbar">
-        <div
-          role="group"
-          aria-label="Content category"
-          className="flex w-max min-w-full gap-2"
-        >
-          {scopeOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={scope === option.value}
-              onClick={() => onScopeChange(option.value)}
-              className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                scope === option.value
-                  ? "border-sky-300/35 bg-sky-500/15 text-sky-100"
-                  : "border-white/10 bg-slate-950/55 text-slate-400 hover:bg-white/[0.05] hover:text-white"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+      <div className="mt-3 flex min-w-0 items-center gap-2">
+        <div className="search-scope-scrollbar min-w-0 flex-1 overflow-x-auto pb-1">
+          <div
+            role="group"
+            aria-label="Content category"
+            className="flex w-max gap-2"
+          >
+            {scopeOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={scope === option.value}
+                onClick={() => onScopeChange(option.value)}
+                className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                  scope === option.value
+                    ? "border-sky-300/35 bg-sky-500/15 text-sky-100"
+                    : "border-white/10 bg-slate-950/55 text-slate-400 hover:bg-white/[0.05] hover:text-white"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <button
+          type="button"
+          onClick={onOpenFilters}
+          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        >
+          <FilterIcon className="h-4 w-4" />
+          <span className="hidden sm:inline">Filters</span>
+          {activeFilterCount > 0 && (
+            <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs text-sky-200">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
     </form>
   );

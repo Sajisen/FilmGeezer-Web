@@ -5,9 +5,10 @@ interface UseMobileDrawerGestureOptions {
   onOpen: () => void;
 }
 
-const EDGE_ACTIVATION_WIDTH = 28;
-const OPEN_DISTANCE = 72;
-const DIRECTION_RATIO = 1.35;
+const EDGE_ACTIVATION_WIDTH = 56;
+const OPEN_DISTANCE = 48;
+const DIRECTION_RATIO = 1.2;
+const MAX_VERTICAL_DRIFT = 48;
 
 function isInsideHorizontalScroller(target: EventTarget | null) {
   let element = target instanceof HTMLElement ? target : null;
@@ -28,23 +29,42 @@ function isInsideHorizontalScroller(target: EventTarget | null) {
   return false;
 }
 
+function isInteractiveTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    Boolean(
+      target.closest(
+        "input, textarea, select, button, a, [role='button'], [contenteditable='true']",
+      ),
+    )
+  );
+}
+
 export function useMobileDrawerGesture({
   enabled,
   onOpen,
 }: UseMobileDrawerGestureOptions) {
   useEffect(() => {
-    if (!enabled || !window.matchMedia("(pointer: coarse)").matches) {
+    const supportsGesture = window.matchMedia(
+      "(max-width: 1023px) and (pointer: coarse)",
+    ).matches;
+
+    if (!enabled || !supportsGesture) {
       return;
     }
 
     let isTracking = false;
     let startX = 0;
     let startY = 0;
+    let latestX = 0;
+    let latestY = 0;
 
     function resetGesture() {
       isTracking = false;
       startX = 0;
       startY = 0;
+      latestX = 0;
+      latestY = 0;
     }
 
     function handleTouchStart(event: TouchEvent) {
@@ -54,14 +74,13 @@ export function useMobileDrawerGesture({
       }
 
       const touch = event.touches[0];
-      const startsAtRightEdge =
+      const startsInsideActivationZone =
         touch.clientX >= window.innerWidth - EDGE_ACTIVATION_WIDTH;
 
       if (
-        !startsAtRightEdge ||
-        isInsideHorizontalScroller(event.target) ||
-        (event.target instanceof HTMLElement &&
-          event.target.closest("input, textarea, select, button, a"))
+        !startsInsideActivationZone ||
+        isInteractiveTarget(event.target) ||
+        isInsideHorizontalScroller(event.target)
       ) {
         resetGesture();
         return;
@@ -70,6 +89,8 @@ export function useMobileDrawerGesture({
       isTracking = true;
       startX = touch.clientX;
       startY = touch.clientY;
+      latestX = touch.clientX;
+      latestY = touch.clientY;
     }
 
     function handleTouchMove(event: TouchEvent) {
@@ -78,24 +99,36 @@ export function useMobileDrawerGesture({
       }
 
       const touch = event.touches[0];
-      const horizontalDistance = startX - touch.clientX;
-      const verticalDistance = Math.abs(touch.clientY - startY);
+      latestX = touch.clientX;
+      latestY = touch.clientY;
+
+      const horizontalDistance = startX - latestX;
+      const verticalDistance = Math.abs(latestY - startY);
 
       if (
-        verticalDistance > 18 &&
-        verticalDistance > horizontalDistance
+        verticalDistance > MAX_VERTICAL_DRIFT &&
+        verticalDistance > Math.abs(horizontalDistance)
       ) {
         resetGesture();
+      }
+    }
+
+    function handleTouchEnd() {
+      if (!isTracking) {
         return;
       }
+
+      const horizontalDistance = startX - latestX;
+      const verticalDistance = Math.abs(latestY - startY);
 
       if (
         horizontalDistance >= OPEN_DISTANCE &&
         horizontalDistance >= verticalDistance * DIRECTION_RATIO
       ) {
-        resetGesture();
         onOpen();
       }
+
+      resetGesture();
     }
 
     window.addEventListener("touchstart", handleTouchStart, {
@@ -106,7 +139,7 @@ export function useMobileDrawerGesture({
       passive: true,
       capture: true,
     });
-    window.addEventListener("touchend", resetGesture, {
+    window.addEventListener("touchend", handleTouchEnd, {
       passive: true,
       capture: true,
     });
@@ -118,7 +151,7 @@ export function useMobileDrawerGesture({
     return () => {
       window.removeEventListener("touchstart", handleTouchStart, true);
       window.removeEventListener("touchmove", handleTouchMove, true);
-      window.removeEventListener("touchend", resetGesture, true);
+      window.removeEventListener("touchend", handleTouchEnd, true);
       window.removeEventListener("touchcancel", resetGesture, true);
     };
   }, [enabled, onOpen]);

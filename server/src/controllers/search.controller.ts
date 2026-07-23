@@ -95,10 +95,10 @@ export async function searchMedia(req: Request, res: Response) {
     return;
   }
 
-  if (!Number.isInteger(page) || page <= 0) {
+  if (!Number.isInteger(page) || page <= 0 || page > 100) {
     res.status(400).json({
       status: "error",
-      message: "Page must be a valid positive number.",
+      message: "Page must be a whole number between 1 and 100.",
     });
     return;
   }

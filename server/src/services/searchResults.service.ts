@@ -22,19 +22,71 @@ export interface SearchResultsPage {
   hasMore: boolean;
 }
 
-interface CachedSearchPage {
+interface SearchPoolState {
   expiresAt: number;
-  data: SearchResultsPage;
+  items: MediaItem[];
+  seenKeys: Set<string>;
+  nextSourcePage: number;
+  sourceTotalPages: number | null;
+  exhausted: boolean;
+  pending: Promise<void> | null;
 }
 
-const DEFAULT_SOURCE_PAGES_PER_PAGE = 2;
-const FILTERED_TITLE_SOURCE_PAGES_PER_PAGE = 4;
-const FILTERED_DISCOVERY_SOURCE_PAGES_PER_PAGE = 3;
-const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_CACHE_ENTRIES = 120;
+interface SearchCriteria {
+  query: string;
+  scope: SearchScope;
+  filters: SearchResultsFilters;
+}
 
-const searchCache = new Map<string, CachedSearchPage>();
-const pendingSearchRequests = new Map<string, Promise<SearchResultsPage>>();
+const RESULT_PAGE_SIZE = 24;
+const SOURCE_BATCH_SIZE = 4;
+const MAX_SOURCE_PAGES_PER_EXPANSION = 24;
+const MAX_SOURCE_PAGES_PER_POOL = 80;
+const SEARCH_POOL_TTL_MS = 10 * 60 * 1000;
+const MAX_SEARCH_POOLS = 80;
+
+const searchPools = new Map<string, SearchPoolState>();
+
+const MOVIE_GENRES = new Set([
+  "Action",
+  "Adventure",
+  "Animation",
+  "Comedy",
+  "Crime",
+  "Documentary",
+  "Drama",
+  "Family",
+  "Fantasy",
+  "History",
+  "Horror",
+  "Music",
+  "Mystery",
+  "Romance",
+  "Science Fiction",
+  "TV Movie",
+  "Thriller",
+  "War",
+  "Western",
+]);
+
+const TV_GENRES = new Set([
+  "Action & Adventure",
+  "Animation",
+  "Comedy",
+  "Crime",
+  "Documentary",
+  "Drama",
+  "Family",
+  "Kids",
+  "Mystery",
+  "News",
+  "Reality",
+  "Sci-Fi & Fantasy",
+  "Soap",
+  "Talk",
+  "War & Politics",
+  "Western",
+]);
 
 const BLOCKED_ANIME_TERMS = [
   "hentai",
@@ -147,21 +199,6 @@ function applyApplicationFilters(
   });
 }
 
-function removeDuplicateItems(items: MediaItem[]) {
-  const seen = new Set<string>();
-
-  return items.filter((item) => {
-    const key = `${item.mediaType}:${item.tmdbId}`;
-
-    if (seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
-}
-
 function interleaveItems(firstItems: MediaItem[], secondItems: MediaItem[]) {
   const items: MediaItem[] = [];
   const maximumLength = Math.max(firstItems.length, secondItems.length);
@@ -179,203 +216,252 @@ function interleaveItems(firstItems: MediaItem[], secondItems: MediaItem[]) {
   return items;
 }
 
-async function loadSourcePages(
-  loadPage: (page: number) => Promise<TmdbBrowseResult>,
-  applicationPage: number,
-  sourcePagesPerPage = DEFAULT_SOURCE_PAGES_PER_PAGE,
-) {
-  const firstSourcePage =
-    (applicationPage - 1) * sourcePagesPerPage + 1;
-
-  const firstResponse = await loadPage(firstSourcePage);
-  const additionalPages = Array.from(
-    { length: sourcePagesPerPage - 1 },
-    (_, index) => firstSourcePage + index + 1,
-  ).filter((page) => page <= firstResponse.totalPages);
-
-  const additionalResponses = await Promise.all(
-    additionalPages.map(loadPage),
-  );
-  const responses = [firstResponse, ...additionalResponses];
-  const totalSourcePages = firstResponse.totalPages;
-  const lastLoadedPage = additionalPages.at(-1) ?? firstSourcePage;
-
-  return {
-    items: responses.flatMap((response) => response.results),
-    totalSourcePages,
-    totalResults: firstResponse.totalResults,
-    hasMore: lastLoadedPage < totalSourcePages,
-  };
-}
-
-async function searchWithTitle(
-  query: string,
-  scope: SearchScope,
-  page: number,
-  filters: SearchResultsFilters,
-): Promise<SearchResultsPage> {
-  const hasNarrowingFilters =
-    filters.genres.length > 0 ||
-    Boolean(filters.language) ||
-    filters.minRating !== undefined;
-
-  const sourcePagesPerPage = hasNarrowingFilters
-    ? FILTERED_TITLE_SOURCE_PAGES_PER_PAGE
-    : DEFAULT_SOURCE_PAGES_PER_PAGE;
-
-  const source = await loadSourcePages(
-    (sourcePage) =>
-      searchTmdbMedia(query, scope, sourcePage, {
-        language: filters.language,
-        minRating: filters.minRating,
-      }),
-    page,
-    sourcePagesPerPage,
-  );
-
-  const results = removeDuplicateItems(
-    applyApplicationFilters(source.items, scope, filters),
-  );
-
-  return {
-    page,
-    totalPages: Math.ceil(
-      source.totalSourcePages / sourcePagesPerPage,
-    ),
-    totalResults: source.totalResults,
-    results,
-    hasMore: source.hasMore,
-  };
-}
-
-async function discoverOneMediaType(
+function getCompatibleGenres(
   mediaType: MediaType,
-  page: number,
-  filters: SearchResultsFilters,
-  sourcePagesPerPage: number,
-) {
-  return loadSourcePages(
-    (sourcePage) =>
-      getTmdbCatalog(mediaType, {
-        language: filters.language,
-        minRating: filters.minRating,
-        page: sourcePage,
-      }),
-    page,
-    sourcePagesPerPage,
-  );
-}
-
-async function discoverWithoutTitle(
-  scope: SearchScope,
-  page: number,
-  filters: SearchResultsFilters,
-): Promise<SearchResultsPage> {
-  const sourcePagesPerPage =
-    filters.genres.length > 0
-      ? FILTERED_DISCOVERY_SOURCE_PAGES_PER_PAGE
-      : DEFAULT_SOURCE_PAGES_PER_PAGE;
-
-  if (scope === "movie" || scope === "tv") {
-    const source = await discoverOneMediaType(
-      scope,
-      page,
-      filters,
-      sourcePagesPerPage,
-    );
-    const results = removeDuplicateItems(
-      applyApplicationFilters(source.items, scope, filters),
-    );
-
-    return {
-      page,
-      totalPages: Math.ceil(
-        source.totalSourcePages / sourcePagesPerPage,
-      ),
-      totalResults: source.totalResults,
-      results,
-      hasMore: source.hasMore,
-    };
+  genres: string[],
+  mode: GenreMatchMode,
+): string[] | null {
+  if (genres.length === 0) {
+    return [];
   }
 
-  const fixedLanguage =
-    scope === "anime" ? "ja" : scope === "k-drama" ? "ko" : filters.language;
+  const allowedGenres = mediaType === "movie" ? MOVIE_GENRES : TV_GENRES;
+  const compatibleGenres = genres.filter((genre) => allowedGenres.has(genre));
 
-  const scopedFilters: SearchResultsFilters = {
-    ...filters,
-    language: fixedLanguage,
-  };
+  if (mode === "all" && compatibleGenres.length !== genres.length) {
+    return null;
+  }
 
-  const [movieSource, tvSource] = await Promise.all([
-    discoverOneMediaType(
-      "movie",
-      page,
-      scopedFilters,
-      sourcePagesPerPage,
-    ),
-    discoverOneMediaType(
-      "tv",
-      page,
-      scopedFilters,
-      sourcePagesPerPage,
-    ),
-  ]);
+  if (mode === "any" && compatibleGenres.length === 0) {
+    return null;
+  }
 
-  const mergedItems = interleaveItems(movieSource.items, tvSource.items);
-  const results = removeDuplicateItems(
-    applyApplicationFilters(mergedItems, scope, scopedFilters),
-  );
+  return compatibleGenres;
+}
 
-  const totalSourcePages = Math.max(
-    movieSource.totalSourcePages,
-    tvSource.totalSourcePages,
-  );
-
+function createEmptySourcePage(page: number): TmdbBrowseResult {
   return {
     page,
-    totalPages: Math.ceil(
-      totalSourcePages / sourcePagesPerPage,
-    ),
-    totalResults: movieSource.totalResults + tvSource.totalResults,
-    results,
-    hasMore: movieSource.hasMore || tvSource.hasMore,
+    totalPages: 0,
+    totalResults: 0,
+    results: [],
+    hasMore: false,
   };
 }
 
-function createCacheKey(
-  query: string,
+async function loadDiscoveryPageForMediaType(
+  mediaType: MediaType,
+  sourcePage: number,
   scope: SearchScope,
-  page: number,
   filters: SearchResultsFilters,
 ) {
-  return JSON.stringify({
-    query: query.trim().toLowerCase(),
-    scope,
-    page,
-    genres: filters.genres.map(normalizeText).sort(),
-    genreMode: filters.genreMode,
-    language: filters.language?.toLowerCase() ?? "",
-    minRating: filters.minRating ?? null,
+  const fixedLanguage =
+    scope === "anime"
+      ? "ja"
+      : scope === "k-drama"
+        ? "ko"
+        : filters.language;
+
+  const requestedGenres =
+    scope === "anime"
+      ? ["Animation"]
+      : getCompatibleGenres(mediaType, filters.genres, filters.genreMode);
+
+  if (requestedGenres === null) {
+    return createEmptySourcePage(sourcePage);
+  }
+
+  return getTmdbCatalog(mediaType, {
+    genres: requestedGenres,
+    genreMode: scope === "anime" ? "all" : filters.genreMode,
+    language: fixedLanguage,
+    minRating: filters.minRating,
+    page: sourcePage,
   });
 }
 
-function pruneCache() {
+async function loadLogicalSourcePage(
+  criteria: SearchCriteria,
+  sourcePage: number,
+): Promise<TmdbBrowseResult> {
+  const { query, scope, filters } = criteria;
+
+  if (query) {
+    return searchTmdbMedia(query, scope, sourcePage);
+  }
+
+  if (scope === "movie" || scope === "tv") {
+    return loadDiscoveryPageForMediaType(
+      scope,
+      sourcePage,
+      scope,
+      filters,
+    );
+  }
+
+  const [moviePage, tvPage] = await Promise.all([
+    loadDiscoveryPageForMediaType("movie", sourcePage, scope, filters),
+    loadDiscoveryPageForMediaType("tv", sourcePage, scope, filters),
+  ]);
+
+  return {
+    page: sourcePage,
+    totalPages: Math.max(moviePage.totalPages, tvPage.totalPages),
+    totalResults: moviePage.totalResults + tvPage.totalResults,
+    results: interleaveItems(moviePage.results, tvPage.results),
+    hasMore: Boolean(moviePage.hasMore || tvPage.hasMore),
+  };
+}
+
+function createPoolKey(criteria: SearchCriteria) {
+  return JSON.stringify({
+    query: criteria.query.trim().toLowerCase(),
+    scope: criteria.scope,
+    genres: criteria.filters.genres.map(normalizeText).sort(),
+    genreMode: criteria.filters.genreMode,
+    language: criteria.filters.language?.toLowerCase() ?? "",
+    minRating: criteria.filters.minRating ?? null,
+  });
+}
+
+function createSearchPool(): SearchPoolState {
+  return {
+    expiresAt: Date.now() + SEARCH_POOL_TTL_MS,
+    items: [],
+    seenKeys: new Set<string>(),
+    nextSourcePage: 1,
+    sourceTotalPages: null,
+    exhausted: false,
+    pending: null,
+  };
+}
+
+function pruneSearchPools() {
   const now = Date.now();
 
-  for (const [key, value] of searchCache.entries()) {
-    if (value.expiresAt <= now) {
-      searchCache.delete(key);
+  for (const [key, pool] of searchPools.entries()) {
+    if (pool.expiresAt <= now && !pool.pending) {
+      searchPools.delete(key);
     }
   }
 
-  while (searchCache.size > MAX_CACHE_ENTRIES) {
-    const oldestKey = searchCache.keys().next().value as string | undefined;
+  while (searchPools.size > MAX_SEARCH_POOLS) {
+    const oldestKey = searchPools.keys().next().value as string | undefined;
 
     if (!oldestKey) {
       break;
     }
 
-    searchCache.delete(oldestKey);
+    searchPools.delete(oldestKey);
+  }
+}
+
+function appendUniqueItems(pool: SearchPoolState, items: MediaItem[]) {
+  items.forEach((item) => {
+    const key = `${item.mediaType}:${item.tmdbId}`;
+
+    if (pool.seenKeys.has(key)) {
+      return;
+    }
+
+    pool.seenKeys.add(key);
+    pool.items.push(item);
+  });
+}
+
+async function expandSearchPool(
+  pool: SearchPoolState,
+  criteria: SearchCriteria,
+  targetItemCount: number,
+) {
+  let scannedPages = 0;
+
+  while (
+    pool.items.length < targetItemCount &&
+    !pool.exhausted &&
+    scannedPages < MAX_SOURCE_PAGES_PER_EXPANSION
+  ) {
+    const knownLastPage = Math.min(
+      pool.sourceTotalPages ?? MAX_SOURCE_PAGES_PER_POOL,
+      MAX_SOURCE_PAGES_PER_POOL,
+    );
+
+    if (pool.nextSourcePage > knownLastPage) {
+      pool.exhausted = true;
+      break;
+    }
+
+    const remainingExpansionPages =
+      MAX_SOURCE_PAGES_PER_EXPANSION - scannedPages;
+
+    const batchSize = Math.min(
+      SOURCE_BATCH_SIZE,
+      remainingExpansionPages,
+      knownLastPage - pool.nextSourcePage + 1,
+    );
+
+    const pages = Array.from(
+      { length: batchSize },
+      (_, index) => pool.nextSourcePage + index,
+    );
+
+    const responses = await Promise.all(
+      pages.map((page) => loadLogicalSourcePage(criteria, page)),
+    );
+
+    responses.forEach((response) => {
+      pool.sourceTotalPages = Math.min(
+        response.totalPages,
+        MAX_SOURCE_PAGES_PER_POOL,
+      );
+      const filteredItems = applyApplicationFilters(
+        response.results,
+        criteria.scope,
+        criteria.filters,
+      );
+
+      appendUniqueItems(pool, filteredItems);
+    });
+
+    scannedPages += pages.length;
+    pool.nextSourcePage = pages[pages.length - 1] + 1;
+
+    const lastAvailablePage = Math.min(
+      pool.sourceTotalPages ?? MAX_SOURCE_PAGES_PER_POOL,
+      MAX_SOURCE_PAGES_PER_POOL,
+    );
+
+    if (pool.nextSourcePage > lastAvailablePage) {
+      pool.exhausted = true;
+    }
+  }
+
+  pool.expiresAt = Date.now() + SEARCH_POOL_TTL_MS;
+}
+
+async function ensureSearchPool(
+  pool: SearchPoolState,
+  criteria: SearchCriteria,
+  targetItemCount: number,
+) {
+  while (pool.items.length < targetItemCount && !pool.exhausted) {
+    if (pool.pending) {
+      await pool.pending;
+      continue;
+    }
+
+    const request = expandSearchPool(pool, criteria, targetItemCount);
+    pool.pending = request;
+
+    try {
+      await request;
+    } finally {
+      pool.pending = null;
+    }
+
+    if (pool.items.length < targetItemCount && !pool.exhausted) {
+      break;
+    }
   }
 }
 
@@ -384,38 +470,43 @@ export async function getSearchResults(
   scope: SearchScope,
   page: number,
   filters: SearchResultsFilters,
-) {
-  const cacheKey = createCacheKey(query, scope, page, filters);
-  const cached = searchCache.get(cacheKey);
+): Promise<SearchResultsPage> {
+  pruneSearchPools();
 
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
+  const criteria: SearchCriteria = {
+    query: query.trim(),
+    scope,
+    filters,
+  };
+
+  const poolKey = createPoolKey(criteria);
+  const existingPool = searchPools.get(poolKey);
+  const pool =
+    existingPool && existingPool.expiresAt > Date.now()
+      ? existingPool
+      : createSearchPool();
+
+  if (pool !== existingPool) {
+    searchPools.set(poolKey, pool);
   }
 
-  const pendingRequest = pendingSearchRequests.get(cacheKey);
+  const startIndex = (page - 1) * RESULT_PAGE_SIZE;
+  const endIndex = startIndex + RESULT_PAGE_SIZE;
 
-  if (pendingRequest) {
-    return pendingRequest;
-  }
+  await ensureSearchPool(pool, criteria, endIndex);
 
-  const request = (query.trim()
-    ? searchWithTitle(query.trim(), scope, page, filters)
-    : discoverWithoutTitle(scope, page, filters)
-  ).then((data) => {
-    pruneCache();
-    searchCache.set(cacheKey, {
-      expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
-      data,
-    });
+  const results = pool.items.slice(startIndex, endIndex);
+  const hasMore = endIndex < pool.items.length || !pool.exhausted;
 
-    return data;
-  });
+  const totalPages = pool.exhausted
+    ? Math.max(1, Math.ceil(pool.items.length / RESULT_PAGE_SIZE))
+    : Math.max(page + 1, Math.ceil(pool.items.length / RESULT_PAGE_SIZE) + 1);
 
-  pendingSearchRequests.set(cacheKey, request);
-
-  try {
-    return await request;
-  } finally {
-    pendingSearchRequests.delete(cacheKey);
-  }
+  return {
+    page,
+    totalPages,
+    totalResults: pool.items.length,
+    results,
+    hasMore,
+  };
 }

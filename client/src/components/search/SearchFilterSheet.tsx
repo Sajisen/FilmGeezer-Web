@@ -129,7 +129,7 @@ function SearchFilterSheet({
         tabIndex={-1}
         aria-label="Close search filters"
         onClick={onClose}
-        className="absolute inset-0 bg-slate-950/[0.82] backdrop-blur-md"
+        className="absolute inset-0 bg-slate-950/[0.84] backdrop-blur-md"
       />
 
       <aside
@@ -138,9 +138,9 @@ function SearchFilterSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-search-filters-title"
-        className="absolute inset-x-2 bottom-2 max-h-[92dvh] overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl shadow-black/70"
+        className="absolute inset-x-2 bottom-2 flex max-h-[92dvh] min-h-0 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl shadow-black/70"
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
               Search
@@ -165,17 +165,16 @@ function SearchFilterSheet({
           </button>
         </div>
 
-        <div className="max-h-[calc(92dvh-5rem)] overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))] search-filter-scrollbar">
-          <SearchFilterPanel
-            scope={scope}
-            filters={draftFilters}
-            onFiltersChange={setDraftFilters}
-            onApply={() => onApply(draftFilters)}
-            onReset={resetDraftFilters}
-            hasPendingChanges={hasPendingChanges}
-            variant="sheet"
-          />
-        </div>
+        <SearchFilterPanel
+          scope={scope}
+          filters={draftFilters}
+          onFiltersChange={setDraftFilters}
+          onApply={() => onApply(draftFilters)}
+          onReset={resetDraftFilters}
+          hasPendingChanges={hasPendingChanges}
+          variant="sheet"
+          className="min-h-0"
+        />
       </aside>
     </div>,
     document.body,

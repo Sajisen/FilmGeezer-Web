@@ -13,12 +13,22 @@ interface EpisodeExplorerSectionProps {
 
 type EpisodeViewMode = "rows" | "grid";
 
-const INITIAL_SEASON_LIMIT = 8;
-const GRID_DEFAULT_TOTAL_EPISODES = 40;
-const GRID_DEFAULT_SEASONS = 5;
-const GRID_DEFAULT_EPISODES_IN_ONE_SEASON = 20;
+interface InitialExplorerState {
+  viewMode: EpisodeViewMode;
+  gridOrientation: EpisodeGridOrientation;
+}
 
-function getRecommendedView(seasons: MediaSeasonSummary[]): EpisodeViewMode {
+const INITIAL_SEASON_LIMIT = 8;
+
+const DESKTOP_GRID_TOTAL_EPISODES = 40;
+const DESKTOP_GRID_SEASONS = 5;
+const DESKTOP_GRID_EPISODES_IN_ONE_SEASON = 20;
+
+const MOBILE_DOWN_TOTAL_EPISODES = 36;
+const MOBILE_DOWN_SEASONS = 4;
+const MOBILE_DOWN_EPISODES_IN_ONE_SEASON = 18;
+
+function getSeriesStatistics(seasons: MediaSeasonSummary[]) {
   const totalEpisodeCount = seasons.reduce(
     (currentTotal, season) => currentTotal + season.episodeCount,
     0,
@@ -29,22 +39,45 @@ function getRecommendedView(seasons: MediaSeasonSummary[]): EpisodeViewMode {
     ...seasons.map((season) => season.episodeCount),
   );
 
-  const isLongSeries =
-    totalEpisodeCount >= GRID_DEFAULT_TOTAL_EPISODES ||
-    seasons.length >= GRID_DEFAULT_SEASONS ||
-    largestSeasonEpisodeCount >= GRID_DEFAULT_EPISODES_IN_ONE_SEASON;
-
-  return isLongSeries ? "grid" : "rows";
+  return {
+    totalEpisodeCount,
+    largestSeasonEpisodeCount,
+  };
 }
 
-function getInitialGridOrientation(): EpisodeGridOrientation {
-  if (typeof window === "undefined") {
-    return "episodes-across";
+function getInitialExplorerState(
+  seasons: MediaSeasonSummary[],
+): InitialExplorerState {
+  const { totalEpisodeCount, largestSeasonEpisodeCount } =
+    getSeriesStatistics(seasons);
+
+  const isMobile =
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 639px)").matches;
+
+  if (isMobile) {
+    const shouldUseDownGrid =
+      totalEpisodeCount >= MOBILE_DOWN_TOTAL_EPISODES ||
+      seasons.length >= MOBILE_DOWN_SEASONS ||
+      largestSeasonEpisodeCount >= MOBILE_DOWN_EPISODES_IN_ONE_SEASON;
+
+    return {
+      viewMode: "grid",
+      gridOrientation: shouldUseDownGrid
+        ? "episodes-down"
+        : "episodes-across",
+    };
   }
 
-  return window.matchMedia("(max-width: 639px)").matches
-    ? "episodes-down"
-    : "episodes-across";
+  const shouldUseDesktopGrid =
+    totalEpisodeCount >= DESKTOP_GRID_TOTAL_EPISODES ||
+    seasons.length >= DESKTOP_GRID_SEASONS ||
+    largestSeasonEpisodeCount >= DESKTOP_GRID_EPISODES_IN_ONE_SEASON;
+
+  return {
+    viewMode: shouldUseDesktopGrid ? "grid" : "rows",
+    gridOrientation: "episodes-across",
+  };
 }
 
 function RowsIcon() {
@@ -155,13 +188,19 @@ function EpisodeExplorerContent({
     0,
   );
 
+  const [initialExplorerState] = useState(() =>
+    getInitialExplorerState(availableSeasons),
+  );
+
   const [activeEpisodeKey, setActiveEpisodeKey] = useState<string | null>(null);
   const [showAllSeasons, setShowAllSeasons] = useState(false);
-  const [viewMode, setViewMode] = useState<EpisodeViewMode>(() =>
-    getRecommendedView(availableSeasons),
+  const [viewMode, setViewMode] = useState<EpisodeViewMode>(
+    initialExplorerState.viewMode,
   );
   const [gridOrientation, setGridOrientation] =
-    useState<EpisodeGridOrientation>(getInitialGridOrientation);
+    useState<EpisodeGridOrientation>(
+      initialExplorerState.gridOrientation,
+    );
 
   const hasHiddenSeasons = availableSeasons.length > INITIAL_SEASON_LIMIT;
 
@@ -216,110 +255,95 @@ function EpisodeExplorerContent({
             </div>
 
             <div className="w-full lg:w-auto">
-  <div
-    className={`grid w-full gap-2 ${
-      viewMode === "grid"
-        ? "grid-cols-2"
-        : "grid-cols-1"
-    } sm:flex sm:w-auto sm:justify-end`}
-  >
-    <div
-      role="group"
-      aria-label="Episode Explorer layout"
-      className="inline-flex w-full rounded-xl border border-white/10 bg-slate-950/65 p-1 sm:w-auto"
-    >
-      <button
-        type="button"
-        aria-pressed={viewMode === "rows"}
-        onClick={() => changeViewMode("rows")}
-        className={`inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition sm:flex-none sm:gap-2 sm:px-3.5 sm:text-sm ${
-          viewMode === "rows"
-            ? "bg-sky-500 text-white shadow-sm shadow-sky-950/40"
-            : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
-        }`}
-      >
-        <RowsIcon />
-        Rows
-      </button>
+              <div
+                className={`grid w-full gap-2 ${
+                  viewMode === "grid" ? "grid-cols-2" : "grid-cols-1"
+                } sm:flex sm:w-auto sm:justify-end`}
+              >
+                <div
+                  role="group"
+                  aria-label="Episode Explorer layout"
+                  className="inline-flex w-full rounded-xl border border-white/10 bg-slate-950/65 p-1 sm:w-auto"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={viewMode === "rows"}
+                    onClick={() => changeViewMode("rows")}
+                    className={`inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition sm:flex-none sm:gap-2 sm:px-3.5 sm:text-sm ${
+                      viewMode === "rows"
+                        ? "bg-sky-500 text-white shadow-sm shadow-sky-950/40"
+                        : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                    }`}
+                  >
+                    <RowsIcon />
+                    Rows
+                  </button>
 
-      <button
-        type="button"
-        aria-pressed={viewMode === "grid"}
-        onClick={() => changeViewMode("grid")}
-        className={`inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition sm:flex-none sm:gap-2 sm:px-3.5 sm:text-sm ${
-          viewMode === "grid"
-            ? "bg-sky-500 text-white shadow-sm shadow-sky-950/40"
-            : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
-        }`}
-      >
-        <GridIcon />
-        Grid
-      </button>
-    </div>
+                  <button
+                    type="button"
+                    aria-pressed={viewMode === "grid"}
+                    onClick={() => changeViewMode("grid")}
+                    className={`inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition sm:flex-none sm:gap-2 sm:px-3.5 sm:text-sm ${
+                      viewMode === "grid"
+                        ? "bg-sky-500 text-white shadow-sm shadow-sky-950/40"
+                        : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                    }`}
+                  >
+                    <GridIcon />
+                    Grid
+                  </button>
+                </div>
 
-    {viewMode === "grid" && (
-      <div
-        role="group"
-        aria-label="Grid direction"
-        className="inline-flex w-full rounded-xl border border-white/10 bg-slate-950/65 p-1 sm:w-auto"
-      >
-        <button
-          type="button"
-          title="Show episodes across the screen"
-          aria-label="Show episodes across the screen"
-          aria-pressed={
-            gridOrientation === "episodes-across"
-          }
-          onClick={() =>
-            changeGridOrientation("episodes-across")
-          }
-          className={`inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-1.5 text-[0.68rem] font-semibold transition sm:flex-none sm:gap-2 sm:px-3 sm:text-sm ${
-            gridOrientation === "episodes-across"
-              ? "bg-white/10 text-white"
-              : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
-          }`}
-        >
-          <AcrossIcon />
-          Across
-        </button>
+                {viewMode === "grid" && (
+                  <div
+                    role="group"
+                    aria-label="Grid direction"
+                    className="inline-flex w-full rounded-xl border border-white/10 bg-slate-950/65 p-1 sm:w-auto"
+                  >
+                    <button
+                      type="button"
+                      title="Show episodes across the screen"
+                      aria-label="Show episodes across the screen"
+                      aria-pressed={gridOrientation === "episodes-across"}
+                      onClick={() => changeGridOrientation("episodes-across")}
+                      className={`inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-1.5 text-[0.68rem] font-semibold transition sm:flex-none sm:gap-2 sm:px-3 sm:text-sm ${
+                        gridOrientation === "episodes-across"
+                          ? "bg-white/10 text-white"
+                          : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                      }`}
+                    >
+                      <AcrossIcon />
+                      Across
+                    </button>
 
-        <button
-          type="button"
-          title="Show episodes down the screen"
-          aria-label="Show episodes down the screen"
-          aria-pressed={
-            gridOrientation === "episodes-down"
-          }
-          onClick={() =>
-            changeGridOrientation("episodes-down")
-          }
-          className={`inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-1.5 text-[0.68rem] font-semibold transition sm:flex-none sm:gap-2 sm:px-3 sm:text-sm ${
-            gridOrientation === "episodes-down"
-              ? "bg-white/10 text-white"
-              : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
-          }`}
-        >
-          <DownIcon />
-          Down
-        </button>
-      </div>
-    )}
-  </div>
+                    <button
+                      type="button"
+                      title="Show episodes down the screen"
+                      aria-label="Show episodes down the screen"
+                      aria-pressed={gridOrientation === "episodes-down"}
+                      onClick={() => changeGridOrientation("episodes-down")}
+                      className={`inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-1.5 text-[0.68rem] font-semibold transition sm:flex-none sm:gap-2 sm:px-3 sm:text-sm ${
+                        gridOrientation === "episodes-down"
+                          ? "bg-white/10 text-white"
+                          : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                      }`}
+                    >
+                      <DownIcon />
+                      Down
+                    </button>
+                  </div>
+                )}
+              </div>
 
-  <p className="mt-3 w-fit rounded-full border border-white/10 bg-slate-950/55 px-3 py-2 text-xs font-semibold text-slate-300 lg:ml-auto">
-    {availableSeasons.length}{" "}
-    {availableSeasons.length === 1
-      ? "season"
-      : "seasons"}
-    <span
-      aria-hidden="true"
-      className="mx-2 text-slate-600"
-    >
-      •
-    </span>
-    {totalEpisodeCount} episodes
-  </p>
-</div>
+              <p className="mt-3 w-fit rounded-full border border-white/10 bg-slate-950/55 px-3 py-2 text-xs font-semibold text-slate-300 lg:ml-auto">
+                {availableSeasons.length}{" "}
+                {availableSeasons.length === 1 ? "season" : "seasons"}
+                <span aria-hidden="true" className="mx-2 text-slate-600">
+                  •
+                </span>
+                {totalEpisodeCount} episodes
+              </p>
+            </div>
           </header>
 
           <div className="mt-5 border-y border-white/10 py-3">

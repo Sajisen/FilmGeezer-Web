@@ -23,7 +23,7 @@ interface MobileNavigationDrawerProps {
   onPlannedFeature: (featureName: string) => void;
 }
 
-const EXIT_DURATION_MS = 220;
+const EXIT_DURATION_MS = 280;
 const CLOSE_SWIPE_DISTANCE = 72;
 const DIRECTION_RATIO = 1.35;
 
@@ -248,7 +248,7 @@ function MobileNavigationDrawer({
         tabIndex={-1}
         aria-label="Close navigation menu"
         onClick={requestClose}
-        className={`absolute inset-0 bg-slate-950/[0.82] backdrop-blur-md transition-opacity duration-200 ${
+        className={`absolute inset-0 bg-slate-950/[0.82] backdrop-blur-md transition-opacity duration-300 ${
           isEntered ? "opacity-100" : "opacity-0"
         }`}
       />
@@ -260,8 +260,8 @@ function MobileNavigationDrawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-navigation-title"
-        className={`absolute bottom-3 right-3 top-3 flex w-[min(84vw,22rem)] max-w-full touch-pan-y flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/[0.98] shadow-2xl shadow-black/70 transition-transform duration-200 ease-out ${
-          isEntered ? "translate-x-0" : "translate-x-[110%]"
+        className={`absolute bottom-3 right-3 top-3 flex w-[min(84vw,22rem)] max-w-full touch-pan-y flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/[0.98] shadow-2xl shadow-black/70 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isEntered ? "translate-x-0" : "translate-x-[105%]"
         }`}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 pb-4 pt-[max(1.1rem,env(safe-area-inset-top))]">

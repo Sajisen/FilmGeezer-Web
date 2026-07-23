@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
   getLanguageLabel,
@@ -13,7 +13,7 @@ import MediaCard from "../components/MediaCard";
 import MediaCardSkeleton from "../components/skeletons/MediaCardSkeleton";
 import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
-import SearchFilterPanel from "../components/search/SearchFilterPanel";
+import SearchDesktopSidebar from "../components/search/SearchDesktopSidebar";
 import SearchFilterSheet from "../components/search/SearchFilterSheet";
 import SearchToolbar from "../components/search/SearchToolbar";
 import { useSearchDiscovery } from "../hooks/useSearchDiscovery";
@@ -122,6 +122,12 @@ function getActiveFilterCount(
   );
 }
 
+function getPreferredScrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "auto"
+    : "smooth";
+}
+
 interface ActiveFilterChip {
   key: string;
   label: string;
@@ -151,6 +157,13 @@ function SearchPageContent({
   const [filters, setFilters] =
     useState<SearchFilterValues>(committedFilters);
   const [areMobileFiltersOpen, setAreMobileFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: getPreferredScrollBehavior(),
+    });
+  }, []);
 
   const isCommittedSearchActive =
     committedQuery.length > 0 ||
@@ -208,22 +221,21 @@ function SearchPageContent({
   }
 
   function removeCommittedScope() {
-    onCommit(
-      committedQuery,
-      "all",
-      {
-        ...committedFilters,
-        genres: sanitizeGenres("all", committedFilters.genres),
-      },
-    );
+    onCommit(committedQuery, "all", {
+      ...committedFilters,
+      genres: sanitizeGenres("all", committedFilters.genres),
+    });
   }
 
   function removeCommittedGenre(genre: string) {
+    const nextGenres = committedFilters.genres.filter(
+      (currentGenre) => currentGenre !== genre,
+    );
+
     onCommit(committedQuery, committedScope, {
       ...committedFilters,
-      genres: committedFilters.genres.filter(
-        (currentGenre) => currentGenre !== genre,
-      ),
+      genres: nextGenres,
+      genreMode: nextGenres.length > 1 ? committedFilters.genreMode : "all",
     });
   }
 
@@ -319,219 +331,200 @@ function SearchPageContent({
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <section className="border-b border-white/10 bg-slate-950 py-5 sm:py-7">
+      <section className="py-5 sm:py-7">
         <ContentContainer>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
-                Search
-              </p>
-
-              <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-                Find your next watch
-              </h1>
-            </div>
-
-            <p className="max-w-xl text-sm leading-6 text-slate-400 sm:text-right">
-              Search by title or explore the catalogue with category and genre
-              filters.
-            </p>
-          </div>
-
-          <div className="mt-5">
-            <SearchToolbar
+          <div className="grid min-w-0 gap-7 lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start xl:gap-9">
+            <SearchDesktopSidebar
               searchText={searchText}
               scope={scope}
-              activeFilterCount={activeFilterCount}
+              filters={filters}
               canSubmit={canSubmit}
-              autoFocus={
-                !committedQuery &&
-                !isCommittedSearchActive &&
-                typeof window !== "undefined" &&
-                Boolean(
-                  window.matchMedia?.("(min-width: 1024px)").matches,
-                )
-              }
+              hasPendingChanges={hasPendingSearchChanges}
               onSearchTextChange={setSearchText}
               onScopeChange={handleScopeChange}
-              onSubmit={() => applyCurrentSearch()}
-              onOpenFilters={() => setAreMobileFiltersOpen(true)}
+              onFiltersChange={setFilters}
+              onApply={() => applyCurrentSearch()}
+              onResetFilters={resetDraftFilters}
             />
-          </div>
-
-          {hasPendingSearchChanges && (
-            <p className="mt-3 text-xs leading-5 text-amber-200/80">
-              Search options have changed. Press Search or Apply filters to
-              update the results.
-            </p>
-          )}
-
-          {activeChips.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="mr-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Applied
-              </span>
-
-              {activeChips.map((chip) => (
-                <button
-                  key={chip.key}
-                  type="button"
-                  aria-label={chip.removeLabel}
-                  title={chip.removeLabel}
-                  onClick={chip.onRemove}
-                  className="group inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 py-1 pl-3 pr-1.5 text-xs font-semibold text-sky-100 transition hover:border-red-300/30 hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                >
-                  <span>{chip.label}</span>
-
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-sm text-slate-300 transition group-hover:bg-red-300/15 group-hover:text-red-100"
-                  >
-                    ×
-                  </span>
-                </button>
-              ))}
-
-              {activeChips.length > 1 && (
-                <button
-                  type="button"
-                  onClick={clearAllSearchCriteria}
-                  className="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.05] hover:text-white"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-          )}
-        </ContentContainer>
-      </section>
-
-      <section className="py-6 sm:py-8">
-        <ContentContainer>
-          <div className="grid min-w-0 gap-7 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
-            <aside className="hidden lg:block">
-              <div className="sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1 search-filter-scrollbar">
-                <SearchFilterPanel
-                  scope={scope}
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  onApply={() => applyCurrentSearch()}
-                  onReset={resetDraftFilters}
-                  hasPendingChanges={!filtersEqual(filters, committedFilters)}
-                />
-              </div>
-            </aside>
 
             <div className="min-w-0">
-              <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">
-                    {resultTitle}
-                  </h2>
-
-                  <p className="mt-1 text-sm leading-6 text-slate-400">
-                    {resultDescription}
+              <header className="mb-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
+                  Search
+                </p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    Find your next watch
+                  </h1>
+                  <p className="max-w-lg text-sm leading-6 text-slate-400 sm:text-right">
+                    Search by title or explore the catalogue using focused filters.
                   </p>
                 </div>
-
-                {isCommittedSearchActive && (
-                  <button
-                    type="button"
-                    onClick={clearAllSearchCriteria}
-                    className="w-fit text-sm font-semibold text-sky-300 transition hover:text-sky-200"
-                  >
-                    Reset search
-                  </button>
-                )}
               </header>
 
-              <div aria-live="polite" className="sr-only">
-                {isLoading ? "Loading titles" : resultDescription}
-              </div>
+              <SearchToolbar
+                searchText={searchText}
+                scope={scope}
+                activeFilterCount={activeFilterCount}
+                canSubmit={canSubmit}
+                onSearchTextChange={setSearchText}
+                onScopeChange={handleScopeChange}
+                onSubmit={() => applyCurrentSearch()}
+                onOpenFilters={() => setAreMobileFiltersOpen(true)}
+              />
 
-              {isLoading && (
-                <div
-                  role="status"
-                  className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4"
-                >
-                  <span className="sr-only">Loading titles</span>
-
-                  {Array.from({ length: 12 }).map((_, index) => (
-                    <MediaCardSkeleton key={index} />
-                  ))}
-                </div>
+              {hasPendingSearchChanges && (
+                <p className="mt-3 text-xs leading-5 text-sky-200/80 lg:hidden">
+                  Search options changed. Press Search or apply the filters to
+                  refresh the results.
+                </p>
               )}
 
-              {!isLoading && errorMessage && (
-                <ErrorState
-                  message={errorMessage}
-                  onRetry={
-                    isCommittedSearchActive ? search.reload : discovery.reload
-                  }
-                />
-              )}
+              {activeChips.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="mr-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Applied
+                  </span>
 
-              {!isLoading && !errorMessage && items.length === 0 && (
-                <EmptyState
-                  title={
-                    isCommittedSearchActive
-                      ? "No matching titles"
-                      : "No discovery titles available"
-                  }
-                  message={
-                    isCommittedSearchActive
-                      ? "Try another title, switch Match all to Match any, or use fewer filters."
-                      : "Try again shortly to load a fresh selection."
-                  }
-                />
-              )}
-
-              {!isLoading && !errorMessage && items.length > 0 && (
-                <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
-                  {items.map((item) => (
-                    <MediaCard
-                      key={`${item.mediaType}-${item.tmdbId}`}
-                      item={item}
-                    />
+                  {activeChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      aria-label={chip.removeLabel}
+                      title={chip.removeLabel}
+                      onClick={chip.onRemove}
+                      className="group inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 py-1 pl-3 pr-1.5 text-xs font-semibold text-sky-100 transition hover:border-red-300/30 hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      <span>{chip.label}</span>
+                      <span
+                        aria-hidden="true"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-sm text-slate-300 transition group-hover:bg-red-300/15 group-hover:text-red-100"
+                      >
+                        ×
+                      </span>
+                    </button>
                   ))}
 
-                  {isCommittedSearchActive &&
-                    search.isLoadingMore &&
-                    Array.from({ length: 4 }).map((_, index) => (
-                      <MediaCardSkeleton key={`loading-more-${index}`} />
-                    ))}
-                </div>
-              )}
-
-              {isCommittedSearchActive &&
-                !isLoading &&
-                !errorMessage &&
-                search.loadMoreErrorMessage && (
-                  <p
-                    role="alert"
-                    className="mt-6 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100"
-                  >
-                    {search.loadMoreErrorMessage}
-                  </p>
-                )}
-
-              {isCommittedSearchActive &&
-                !isLoading &&
-                !errorMessage &&
-                search.hasMore && (
-                  <div className="mt-8 flex justify-center">
+                  {activeChips.length > 1 && (
                     <button
                       type="button"
-                      onClick={search.loadMore}
-                      disabled={search.isLoadingMore}
-                      className="min-h-12 rounded-full border border-sky-300/25 bg-sky-500/10 px-7 py-3 font-semibold text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-500/15 disabled:cursor-wait disabled:opacity-60"
+                      onClick={clearAllSearchCriteria}
+                      className="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.05] hover:text-white"
                     >
-                      {search.isLoadingMore
-                        ? "Loading more titles..."
-                        : "Show more titles"}
+                      Clear all
                     </button>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-7 border-t border-white/10 pt-6">
+                <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      {resultTitle}
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                      {resultDescription}
+                    </p>
+                  </div>
+
+                  {isCommittedSearchActive && (
+                    <button
+                      type="button"
+                      onClick={clearAllSearchCriteria}
+                      className="w-fit text-sm font-semibold text-sky-300 transition hover:text-sky-200"
+                    >
+                      Reset search
+                    </button>
+                  )}
+                </header>
+
+                <div aria-live="polite" className="sr-only">
+                  {isLoading ? "Loading titles" : resultDescription}
+                </div>
+
+                {isLoading && (
+                  <div role="status" className="search-results-grid">
+                    <span className="sr-only">Loading titles</span>
+                    {Array.from({ length: 18 }).map((_, index) => (
+                      <MediaCardSkeleton key={index} />
+                    ))}
                   </div>
                 )}
+
+                {!isLoading && errorMessage && (
+                  <ErrorState
+                    message={errorMessage}
+                    onRetry={
+                      isCommittedSearchActive ? search.reload : discovery.reload
+                    }
+                  />
+                )}
+
+                {!isLoading && !errorMessage && items.length === 0 && (
+                  <EmptyState
+                    title={
+                      isCommittedSearchActive
+                        ? "No matching titles"
+                        : "No discovery titles available"
+                    }
+                    message={
+                      isCommittedSearchActive
+                        ? search.hasMore
+                          ? "No matches were found in the current catalogue slice. Load more titles or loosen one of the filters."
+                          : "Try another title, switch Match all to Match any, or use fewer filters."
+                        : "Try again shortly to load a fresh selection."
+                    }
+                  />
+                )}
+
+                {!isLoading && !errorMessage && items.length > 0 && (
+                  <div className="search-results-grid">
+                    {items.map((item) => (
+                      <MediaCard
+                        key={`${item.mediaType}-${item.tmdbId}`}
+                        item={item}
+                      />
+                    ))}
+
+                    {isCommittedSearchActive &&
+                      search.isLoadingMore &&
+                      Array.from({ length: 6 }).map((_, index) => (
+                        <MediaCardSkeleton key={`loading-more-${index}`} />
+                      ))}
+                  </div>
+                )}
+
+                {isCommittedSearchActive &&
+                  !isLoading &&
+                  !errorMessage &&
+                  search.loadMoreErrorMessage && (
+                    <p
+                      role="alert"
+                      className="mt-6 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+                    >
+                      {search.loadMoreErrorMessage}
+                    </p>
+                  )}
+
+                {isCommittedSearchActive &&
+                  !isLoading &&
+                  !errorMessage &&
+                  search.hasMore && (
+                    <div className="mt-8 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={search.loadMore}
+                        disabled={search.isLoadingMore}
+                        className="min-h-12 rounded-full border border-sky-300/25 bg-sky-500/10 px-7 py-3 font-semibold text-sky-100 transition hover:border-sky-300/45 hover:bg-sky-500/15 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {search.isLoadingMore
+                          ? "Loading more titles..."
+                          : "Show more titles"}
+                      </button>
+                    </div>
+                  )}
+              </div>
             </div>
           </div>
         </ContentContainer>
@@ -563,10 +556,7 @@ function SearchPage() {
     ...(searchParams.get("genre") ? [searchParams.get("genre")!] : []),
   ].map((genre) => genre.trim());
 
-  const committedGenres = sanitizeGenres(
-    committedScope,
-    requestedGenres,
-  );
+  const committedGenres = sanitizeGenres(committedScope, requestedGenres);
 
   const committedLanguage = supportsLanguageFilter(committedScope)
     ? getLanguageFilter(searchParams.get("language"))

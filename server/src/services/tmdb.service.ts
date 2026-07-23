@@ -70,6 +70,8 @@ export interface TmdbBrowseResult {
 export interface TmdbCatalogFilters {
   search?: string;
   genre?: string;
+  genres?: string[];
+  genreMode?: "all" | "any";
   language?: string;
   minRating?: number;
   page?: number;
@@ -2539,19 +2541,69 @@ export async function getTmdbCatalog(
 ): Promise<TmdbBrowseResult> {
   const page = filters.page ?? 1;
   const search = filters.search?.trim();
-  const genre = filters.genre?.trim();
   const language = filters.language?.trim().toLowerCase();
+  const genreMode = filters.genreMode === "any" ? "any" : "all";
+
+  const requestedGenres = Array.from(
+    new Set(
+      [
+        ...(filters.genres ?? []),
+        ...(filters.genre ? [filters.genre] : []),
+      ]
+        .map((genre) => genre.trim())
+        .filter(Boolean),
+    ),
+  );
 
   const genreMap = await getGenreMap(mediaType);
 
-  /*
-   * TMDB title searching uses /search/movie or /search/tv.
-   */
-  if (search) {
-    if (genre && findGenreIdByName(genreMap, genre) === null) {
-      throw new UnknownGenreError(genre);
+  const genreIds = requestedGenres.map((genreName) => {
+    const genreId = findGenreIdByName(genreMap, genreName);
+
+    if (genreId === null) {
+      throw new UnknownGenreError(genreName);
     }
 
+    return genreId;
+  });
+
+  function applyRequestedFilters(items: MediaItem[]) {
+    return items.filter((item) => {
+      if (requestedGenres.length > 0) {
+        const itemGenres = new Set(
+          item.genres.map((genre) => genre.toLowerCase()),
+        );
+
+        const genreMatches =
+          genreMode === "all"
+            ? requestedGenres.every((genre) =>
+                itemGenres.has(genre.toLowerCase()),
+              )
+            : requestedGenres.some((genre) =>
+                itemGenres.has(genre.toLowerCase()),
+              );
+
+        if (!genreMatches) {
+          return false;
+        }
+      }
+
+      if (language && item.language.toLowerCase() !== language) {
+        return false;
+      }
+
+      if (
+        filters.minRating !== undefined &&
+        item.rating < filters.minRating
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  if (search) {
     const searchParams = new URLSearchParams({
       query: search,
       include_adult: "false",
@@ -2563,44 +2615,19 @@ export async function getTmdbCatalog(
       `/search/${mediaType}?${searchParams.toString()}`,
     );
 
-    let results = data.results.map((item) =>
+    const mappedResults = data.results.map((item) =>
       mapListResult(item, mediaType, genreMap),
     );
-
-    /*
-     * Search endpoints do not directly support all Discover filters,
-     * so additional filters are applied to the returned search page.
-     */
-    if (genre) {
-      results = results.filter((item) =>
-        item.genres.some(
-          (itemGenre) => itemGenre.toLowerCase() === genre.toLowerCase(),
-        ),
-      );
-    }
-
-    if (language) {
-      results = results.filter(
-        (item) => item.language.toLowerCase() === language,
-      );
-    }
-
-    if (filters.minRating !== undefined) {
-      results = results.filter((item) => item.rating >= filters.minRating!);
-    }
 
     return {
       page: data.page,
       totalPages: data.total_pages,
       totalResults: data.total_results,
-      results,
+      results: applyRequestedFilters(mappedResults),
+      hasMore: data.page < data.total_pages,
     };
   }
 
-  /*
-   * Without a title search, use TMDB Discover so filters
-   * are handled by TMDB across its catalogue.
-   */
   const discoverParams = new URLSearchParams({
     include_adult: "false",
     language: "en-US",
@@ -2610,16 +2637,15 @@ export async function getTmdbCatalog(
 
   if (mediaType === "movie") {
     discoverParams.set("include_video", "false");
+  } else {
+    discoverParams.set("include_null_first_air_dates", "false");
   }
 
-  if (genre) {
-    const genreId = findGenreIdByName(genreMap, genre);
-
-    if (genreId === null) {
-      throw new UnknownGenreError(genre);
-    }
-
-    discoverParams.set("with_genres", String(genreId));
+  if (genreIds.length > 0) {
+    discoverParams.set(
+      "with_genres",
+      genreIds.join(genreMode === "all" ? "," : "|"),
+    );
   }
 
   if (language) {
@@ -2628,6 +2654,10 @@ export async function getTmdbCatalog(
 
   if (filters.minRating !== undefined) {
     discoverParams.set("vote_average.gte", String(filters.minRating));
+    discoverParams.set(
+      "vote_count.gte",
+      mediaType === "movie" ? "20" : "10",
+    );
   }
 
   const data = await tmdbFetch<TmdbListResponse>(
@@ -2641,6 +2671,7 @@ export async function getTmdbCatalog(
     results: data.results.map((item) =>
       mapListResult(item, mediaType, genreMap),
     ),
+    hasMore: data.page < data.total_pages,
   };
 }
 
