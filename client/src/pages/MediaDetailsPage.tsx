@@ -126,13 +126,10 @@ function MediaDetailsPage() {
 
   const [linksReloadKey, setLinksReloadKey] = useState(0);
 
-  const [
-  characterAvailability,
-  setCharacterAvailability,
-] = useState({
-  mediaKey: "",
-  hasCharacters: false,
-});
+  const [characterAvailability, setCharacterAvailability] = useState({
+    mediaKey: "",
+    hasCharacters: false,
+  });
 
   const [mediaRequestState, setMediaRequestState] =
     useState<MediaDetailsRequestState>(initialMediaRequestState);
@@ -295,30 +292,30 @@ function MediaDetailsPage() {
     ? providerRequestState.errorMessage
     : "";
 
-    const currentMediaKey = `${mediaType ?? ""}:${tmdbId ?? ""}`;
+  const currentMediaKey = `${mediaType ?? ""}:${tmdbId ?? ""}`;
 
-const hasFeaturedCharacters =
-  characterAvailability.mediaKey === currentMediaKey &&
-  characterAvailability.hasCharacters;
+  const hasFeaturedCharacters =
+    characterAvailability.mediaKey === currentMediaKey &&
+    characterAvailability.hasCharacters;
 
-const handleCharacterAvailabilityChange = useCallback(
-  (hasCharacters: boolean) => {
-    setCharacterAvailability((currentState) => {
-      if (
-        currentState.mediaKey === currentMediaKey &&
-        currentState.hasCharacters === hasCharacters
-      ) {
-        return currentState;
-      }
+  const handleCharacterAvailabilityChange = useCallback(
+    (hasCharacters: boolean) => {
+      setCharacterAvailability((currentState) => {
+        if (
+          currentState.mediaKey === currentMediaKey &&
+          currentState.hasCharacters === hasCharacters
+        ) {
+          return currentState;
+        }
 
-      return {
-        mediaKey: currentMediaKey,
-        hasCharacters,
-      };
-    });
-  },
-  [currentMediaKey],
-);
+        return {
+          mediaKey: currentMediaKey,
+          hasCharacters,
+        };
+      });
+    },
+    [currentMediaKey],
+  );
 
   function retryMediaDetails() {
     setDetailsReloadKey((currentKey) => currentKey + 1);
@@ -396,42 +393,65 @@ const handleCharacterAvailabilityChange = useCallback(
     : "";
 
   const primaryFacts = [
-    {
-      label:
-        selectedMedia.mediaType === "movie" ? "Release date" : "First aired",
+    selectedMedia.fullReleaseDate
+      ? {
+          label:
+            selectedMedia.mediaType === "movie"
+              ? "Release date"
+              : "First aired",
+          value: releaseDateLabel,
+        }
+      : null,
 
-      value: releaseDateLabel,
-    },
-    {
-      label: selectedMedia.mediaType === "movie" ? "Runtime" : "Seasons",
+    selectedMedia.mediaType === "movie"
+      ? selectedMedia.runtimeMinutes !== null &&
+        selectedMedia.runtimeMinutes > 0
+        ? {
+            label: "Runtime",
+            value: runtimeLabel,
+          }
+        : null
+      : (selectedMedia.numberOfSeasons ?? 0) > 0
+        ? {
+            label: "Seasons",
+            value: `${selectedMedia.numberOfSeasons} ${
+              selectedMedia.numberOfSeasons === 1 ? "season" : "seasons"
+            }`,
+          }
+        : null,
 
-      value:
-        selectedMedia.mediaType === "movie"
-          ? runtimeLabel
-          : `${selectedMedia.numberOfSeasons ?? 0} seasons`,
-    },
+    selectedMedia.mediaType === "tv" &&
+    (selectedMedia.numberOfEpisodes ?? 0) > 0
+      ? {
+          label: "Episodes",
+          value: `${selectedMedia.numberOfEpisodes} ${
+            selectedMedia.numberOfEpisodes === 1 ? "episode" : "episodes"
+          }`,
+        }
+      : null,
 
-    ...(selectedMedia.mediaType === "tv"
-      ? [
-          {
-            label: "Episodes",
+    selectedMedia.language
+      ? {
+          label: "Original language",
+          value: languageLabel,
+        }
+      : null,
 
-            value: `${selectedMedia.numberOfEpisodes ?? 0} episodes`,
-          },
-        ]
-      : []),
-
-    {
-      label: "Original language",
-
-      value: languageLabel,
-    },
-    {
-      label: "Status",
-
-      value: selectedMedia.status || "Unknown",
-    },
-  ];
+    selectedMedia.status &&
+    selectedMedia.status.trim().toLowerCase() !== "unknown"
+      ? {
+          label: "Status",
+          value: selectedMedia.status,
+        }
+      : null,
+  ].filter(
+    (
+      fact,
+    ): fact is {
+      label: string;
+      value: string;
+    } => fact !== null,
+  );
 
   const hasTrailer =
     selectedMedia.videos.length > 0 || Boolean(selectedMedia.primaryTrailer);
@@ -575,13 +595,12 @@ const handleCharacterAvailabilityChange = useCallback(
       </section>
 
       <MediaDetailsQuickNav
-  hasTrailer={hasTrailer}
-  hasEpisodes={
-    selectedMedia.mediaType === "tv" &&
-    selectedMedia.seasons.length > 0
-  }
-  hasCharacters={hasFeaturedCharacters}
-/>
+        hasTrailer={hasTrailer}
+        hasEpisodes={
+          selectedMedia.mediaType === "tv" && selectedMedia.seasons.length > 0
+        }
+        hasCharacters={hasFeaturedCharacters}
+      />
 
       <section id="key-details" className="scroll-mt-24 py-10 sm:py-12">
         <MediaDetailsContainer>
@@ -596,21 +615,29 @@ const handleCharacterAvailabilityChange = useCallback(
               </h2>
             </header>
 
-            <dl className="mt-6 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4 xl:auto-cols-fr xl:grid-flow-col">
-              {primaryFacts.map((fact) => (
-                <div
-                  key={fact.label}
-                  className="last:col-span-2 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 sm:last:col-span-1 sm:p-5"
-                >
-                  <dt className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-                    {fact.label}
-                  </dt>
+            <dl className="mt-6 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
+              {primaryFacts.map((fact, index) => {
+                const shouldFillMobileRow =
+                  primaryFacts.length % 2 === 1 &&
+                  index === primaryFacts.length - 1;
 
-                  <dd className="mt-1.5 text-sm font-semibold text-white sm:mt-2 sm:text-base">
-                    {fact.value}
-                  </dd>
-                </div>
-              ))}
+                return (
+                  <div
+                    key={fact.label}
+                    className={`rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 sm:p-5 ${
+                      shouldFillMobileRow ? "col-span-2 lg:col-span-1" : ""
+                    }`}
+                  >
+                    <dt className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+                      {fact.label}
+                    </dt>
+
+                    <dd className="mt-1.5 text-sm font-semibold text-white sm:mt-2 sm:text-base">
+                      {fact.value}
+                    </dd>
+                  </div>
+                );
+              })}
             </dl>
 
             {(selectedMedia.homepageUrl || imdbUrl) && (
@@ -665,12 +692,10 @@ const handleCharacterAvailabilityChange = useCallback(
         />
       )}
       <FeaturedCharactersSection
-  mediaType={selectedMedia.mediaType}
-  tmdbId={selectedMedia.tmdbId}
-  onAvailabilityChange={
-    handleCharacterAvailabilityChange
-  }
-/>
+        mediaType={selectedMedia.mediaType}
+        tmdbId={selectedMedia.tmdbId}
+        onAvailabilityChange={handleCharacterAvailabilityChange}
+      />
 
       <ProviderLinksSection
         links={providerLinks}
