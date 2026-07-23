@@ -204,3 +204,28 @@ body {
     background: rgb(56 189 248 / 72%);
   }
 }
+
+.search-filter-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(56 189 248 / 45%) rgb(15 23 42 / 35%);
+  -webkit-overflow-scrolling: touch;
+}
+
+.search-filter-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.search-filter-scrollbar::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgb(15 23 42 / 35%);
+}
+
+.search-filter-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(56 189 248 / 45%);
+}
+
+.search-filter-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(56 189 248 / 65%);
+}

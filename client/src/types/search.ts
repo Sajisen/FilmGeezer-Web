@@ -1,5 +1,8 @@
+export type GenreMatchMode = "all" | "any";
+
 export interface SearchFilterValues {
-  genre: string
-  language: string
-  minRating: string
+  genres: string[];
+  genreMode: GenreMatchMode;
+  language: string;
+  minRating: string;
 }

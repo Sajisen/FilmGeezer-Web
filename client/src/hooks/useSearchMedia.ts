@@ -9,6 +9,7 @@ interface SearchRequestState {
   items: MediaItem[];
   page: number;
   totalPages: number;
+  totalResults: number;
   errorMessage: string;
   hasMore: boolean;
 }
@@ -24,6 +25,7 @@ const initialRequestState: SearchRequestState = {
   items: [],
   page: 1,
   totalPages: 0,
+  totalResults: 0,
   errorMessage: "",
   hasMore: false,
 };
@@ -34,6 +36,14 @@ const initialLoadMoreState: LoadMoreState = {
   errorMessage: "",
 };
 
+function hasActiveFilters(filters: SearchFilterValues) {
+  return (
+    filters.genres.length > 0 ||
+    filters.language !== "all" ||
+    filters.minRating !== "all"
+  );
+}
+
 function createRequestKey(
   query: string,
   scope: SearchScope,
@@ -43,7 +53,8 @@ function createRequestKey(
   return [
     query,
     scope,
-    filters.genre,
+    filters.genres.join("|"),
+    filters.genreMode,
     filters.language,
     filters.minRating,
     String(reloadKey),
@@ -56,13 +67,11 @@ export function useSearchMedia(
   filters: SearchFilterValues,
 ) {
   const trimmedQuery = query.trim();
-  const { genre, language, minRating } = filters;
+  const { genres, genreMode, language, minRating } = filters;
 
   const [reloadKey, setReloadKey] = useState(0);
-
   const [requestState, setRequestState] =
     useState<SearchRequestState>(initialRequestState);
-
   const [loadMoreState, setLoadMoreState] =
     useState<LoadMoreState>(initialLoadMoreState);
 
@@ -70,12 +79,18 @@ export function useSearchMedia(
 
   const currentFilters = useMemo<SearchFilterValues>(
     () => ({
-      genre,
+      genres,
+      genreMode,
       language,
       minRating,
     }),
-    [genre, language, minRating],
+    [genreMode, genres, language, minRating],
   );
+
+  const shouldSearch =
+    trimmedQuery.length > 0 ||
+    scope !== "all" ||
+    hasActiveFilters(currentFilters);
 
   const currentRequestKey = createRequestKey(
     trimmedQuery,
@@ -87,7 +102,7 @@ export function useSearchMedia(
   useEffect(() => {
     loadMoreControllerRef.current?.abort();
 
-    if (!trimmedQuery) {
+    if (!shouldSearch) {
       return;
     }
 
@@ -109,13 +124,11 @@ export function useSearchMedia(
 
         setRequestState({
           requestKey: currentRequestKey,
-
           items: data.results,
           page: data.page,
           totalPages: data.totalPages,
-
+          totalResults: data.totalResults,
           hasMore: data.hasMore,
-
           errorMessage: "",
         });
       } catch (error: unknown) {
@@ -125,12 +138,11 @@ export function useSearchMedia(
 
         setRequestState({
           requestKey: currentRequestKey,
-
           items: [],
           page: 1,
           totalPages: 0,
+          totalResults: 0,
           hasMore: false,
-
           errorMessage:
             error instanceof Error
               ? error.message
@@ -144,7 +156,7 @@ export function useSearchMedia(
     return () => {
       controller.abort();
     };
-  }, [currentFilters, currentRequestKey, scope, trimmedQuery]);
+  }, [currentFilters, currentRequestKey, scope, shouldSearch, trimmedQuery]);
 
   useEffect(() => {
     return () => {
@@ -154,30 +166,30 @@ export function useSearchMedia(
 
   const requestMatchesCurrentSearch =
     requestState.requestKey === currentRequestKey;
-
   const loadMoreMatchesCurrentSearch =
     loadMoreState.requestKey === currentRequestKey;
 
   const items = requestMatchesCurrentSearch ? requestState.items : [];
-
   const page = requestMatchesCurrentSearch ? requestState.page : 1;
-
-  const hasMore = requestMatchesCurrentSearch ? requestState.hasMore : false;
-
+  const totalResults = requestMatchesCurrentSearch
+    ? requestState.totalResults
+    : 0;
+  const hasMore = requestMatchesCurrentSearch
+    ? requestState.hasMore
+    : false;
   const errorMessage = requestMatchesCurrentSearch
     ? requestState.errorMessage
     : "";
 
-  const isLoading = trimmedQuery.length > 0 && !requestMatchesCurrentSearch;
-
-  const isLoadingMore = loadMoreMatchesCurrentSearch && loadMoreState.isLoading;
-
+  const isLoading = shouldSearch && !requestMatchesCurrentSearch;
+  const isLoadingMore =
+    loadMoreMatchesCurrentSearch && loadMoreState.isLoading;
   const loadMoreErrorMessage = loadMoreMatchesCurrentSearch
     ? loadMoreState.errorMessage
     : "";
 
   async function loadMore() {
-    if (!trimmedQuery || isLoading || isLoadingMore || !hasMore) {
+    if (!shouldSearch || isLoading || isLoadingMore || !hasMore) {
       return;
     }
 
@@ -212,13 +224,10 @@ export function useSearchMedia(
 
         return {
           ...currentState,
-
           items: removeDuplicateMedia([...currentState.items, ...data.results]),
-
           page: data.page,
-
           totalPages: data.totalPages,
-
+          totalResults: data.totalResults,
           hasMore: data.hasMore,
         };
       });
@@ -250,6 +259,7 @@ export function useSearchMedia(
 
   return {
     items,
+    totalResults,
     isLoading,
     isLoadingMore,
     errorMessage,

@@ -21,7 +21,8 @@ interface SearchApiResponse {
   scope: SearchScope;
 
   filters: {
-    genre: string | null;
+    genres: string[];
+    genreMode: "all" | "any";
     language: string | null;
     minRating: number | null;
   };
@@ -48,7 +49,8 @@ export async function searchMedia(
   query: string,
   scope: SearchScope = "all",
   filters: SearchFilterValues = {
-    genre: "all",
+    genres: [],
+    genreMode: "all",
     language: "all",
     minRating: "all",
   },
@@ -56,14 +58,20 @@ export async function searchMedia(
   signal?: AbortSignal,
 ): Promise<SearchMediaResult> {
   const searchParams = new URLSearchParams({
-    q: query,
     scope,
     page: String(page),
+    genreMode: filters.genreMode,
   });
 
-  if (filters.genre !== "all") {
-    searchParams.set("genre", filters.genre);
+  const trimmedQuery = query.trim();
+
+  if (trimmedQuery) {
+    searchParams.set("q", trimmedQuery);
   }
+
+  filters.genres.forEach((genre) => {
+    searchParams.append("genres", genre);
+  });
 
   if (filters.language !== "all") {
     searchParams.set("language", filters.language);
@@ -95,13 +103,9 @@ export async function searchMedia(
 
   return {
     page: searchData.page,
-
     totalPages: searchData.totalPages,
-
     totalResults: searchData.totalResults,
-
     hasMore: searchData.hasMore ?? searchData.page < searchData.totalPages,
-
     results: searchData.results,
   };
 }
