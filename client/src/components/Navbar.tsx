@@ -2,17 +2,32 @@ import { useCallback, useEffect, useState } from "react";
 import { NavLink } from "react-router";
 import ContentContainer from "./layout/ContentContainer";
 import MobileNavigationDrawer from "./navigation/MobileNavigationDrawer";
-import { BookmarkIcon, MenuIcon, UserIcon } from "./navigation/NavigationIcons";
+import {
+  BookmarkIcon,
+  MenuIcon,
+  SearchIcon,
+  UserIcon,
+} from "./navigation/NavigationIcons";
 import { primaryNavigation } from "./navigation/NavigationItems";
 import { usePlannedFeature } from "../features/plannedFeature/plannedFeatureContext";
+import { useMobileDrawerGesture } from "../hooks/useMobileDrawerGesture";
 
 function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { showPlannedFeature } = usePlannedFeature();
 
+  const openMenu = useCallback(() => {
+    setIsMenuOpen(true);
+  }, []);
+
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
   }, []);
+
+  useMobileDrawerGesture({
+    enabled: !isMenuOpen,
+    onOpen: openMenu,
+  });
 
   useEffect(() => {
     window.addEventListener("popstate", closeMenu);
@@ -30,7 +45,6 @@ function Navbar() {
         title: isWatchlist
           ? "Watchlist requires an account"
           : "Profile and login are coming next",
-
         message: isWatchlist
           ? "Nothing has been saved yet. Persistent watchlists will be connected after authentication is implemented."
           : "Registration, login, and profile management will be added during the authentication phase.",
@@ -55,9 +69,12 @@ function Navbar() {
       <ContentContainer>
         <nav
           aria-label="Primary navigation"
-          className="flex min-h-18 items-center justify-between gap-4"
+          className="flex min-h-18 items-center justify-between gap-3 sm:gap-4"
         >
-          <NavLink to="/" className="shrink-0 text-xl font-bold tracking-tight">
+          <NavLink
+            to="/"
+            className="shrink-0 text-xl font-bold tracking-tight"
+          >
             Film<span className="text-sky-400">Geezer</span>
           </NavLink>
 
@@ -81,6 +98,25 @@ function Navbar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <NavLink
+              to="/search"
+              aria-label="Search FilmGeezer"
+              title="Search FilmGeezer"
+              className={({ isActive }) =>
+                `group inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:w-11 xl:w-44 xl:justify-start ${
+                  isActive
+                    ? "border-sky-400/40 bg-sky-500/15 text-sky-200"
+                    : "border-white/10 bg-white/5 text-slate-300 hover:border-sky-400/30 hover:bg-white/10 hover:text-white"
+                }`
+              }
+            >
+              <SearchIcon className="h-5 w-5 shrink-0" />
+
+              <span className="hidden min-w-0 truncate xl:inline">
+                Search FilmGeezer
+              </span>
+            </NavLink>
+
             <button
               type="button"
               onClick={() => showPlannedFeatureNotice("Watchlist")}
@@ -103,7 +139,7 @@ function Navbar() {
 
             <button
               type="button"
-              onClick={() => setIsMenuOpen(true)}
+              onClick={openMenu}
               aria-label="Open navigation menu"
               aria-expanded={isMenuOpen}
               aria-controls="mobile-navigation"
