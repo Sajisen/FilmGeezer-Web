@@ -247,20 +247,18 @@ function SearchFilterPanel({
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className}`}>
       {variant === "sidebar" && (
-  <div className="shrink-0 border-b border-white/10 px-4 py-3">
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-sm font-bold text-white">
-        Refine results
-      </h2>
+        <div className="shrink-0 border-b border-white/10 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-white">Refine results</h2>
 
-      {activeFilterCount > 0 && (
-        <span className="rounded-full border border-sky-400/25 bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-200">
-          {activeFilterCount} active
-        </span>
+            {activeFilterCount > 0 && (
+              <span className="rounded-full border border-sky-400/25 bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-200">
+                {activeFilterCount} active
+              </span>
+            )}
+          </div>
+        </div>
       )}
-    </div>
-  </div>
-)}
 
       <div className="search-filter-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-3">
         <div className="space-y-3">
@@ -512,17 +510,20 @@ function SearchFilterPanel({
       </div>
 
       <div
-        className={`shrink-0 border-t border-white/10 bg-slate-950/85 px-4 pt-4 backdrop-blur-md ${
+        className={`shrink-0 border-t border-white/10 bg-slate-950/85 px-4 pt-3 backdrop-blur-md ${
           variant === "sheet"
             ? "pb-[max(1rem,env(safe-area-inset-bottom))]"
             : "pb-4"
         }`}
       >
         {hasPendingChanges && (
-          <p className="mb-3 text-xs leading-5 text-sky-200/80">
-            Changes are ready. Apply them to refresh the results.
-          </p>
-        )}
+  <p
+    role="status"
+    className="mb-3 text-xs font-medium leading-5 text-amber-300"
+  >
+    Changes are not applied yet. Press {applyLabel} to refresh the results.
+  </p>
+)}
 
         <div className="grid grid-cols-2 gap-3">
           <button

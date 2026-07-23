@@ -348,19 +348,19 @@ function SearchPageContent({
             />
 
             <div className="min-w-0">
-              <header className="mb-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
-                  Search
-                </p>
-                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                    Find your next watch
-                  </h1>
-                  <p className="max-w-lg text-sm leading-6 text-slate-400 sm:text-right">
-                    Search by title or explore the catalogue using focused filters.
-                  </p>
-                </div>
-              </header>
+              <header className="mb-5 lg:hidden">
+  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
+    Search
+  </p>
+
+  <p className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+    Find your next watch
+  </p>
+
+  <p className="mt-2 max-w-lg text-sm leading-6 text-slate-400">
+    Search by title or explore the catalogue using focused filters.
+  </p>
+</header>
 
               <SearchToolbar
                 searchText={searchText}
@@ -374,70 +374,81 @@ function SearchPageContent({
               />
 
               {hasPendingSearchChanges && (
-                <p className="mt-3 text-xs leading-5 text-sky-200/80 lg:hidden">
-                  Search options changed. Press Search or apply the filters to
-                  refresh the results.
-                </p>
-              )}
+  <p
+    role="status"
+    className="mt-3 text-xs font-medium leading-5 text-amber-300 lg:hidden"
+  >
+    Search options changed. Apply them to refresh the results.
+  </p>
+)}
 
-              {activeChips.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <span className="mr-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Applied
-                  </span>
 
-                  {activeChips.map((chip) => (
-                    <button
-                      key={chip.key}
-                      type="button"
-                      aria-label={chip.removeLabel}
-                      title={chip.removeLabel}
-                      onClick={chip.onRemove}
-                      className="group inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 py-1 pl-3 pr-1.5 text-xs font-semibold text-sky-100 transition hover:border-red-300/30 hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                    >
-                      <span>{chip.label}</span>
-                      <span
-                        aria-hidden="true"
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-sm text-slate-300 transition group-hover:bg-red-300/15 group-hover:text-red-100"
-                      >
-                        ×
-                      </span>
-                    </button>
-                  ))}
+<div className="mt-7 lg:mt-0">
+  <header className="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p className="hidden text-xs font-semibold uppercase tracking-[0.22em] text-sky-300 lg:block">
+        Search results
+      </p>
 
-                  {activeChips.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={clearAllSearchCriteria}
-                      className="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.05] hover:text-white"
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-              )}
+      <h1 className="text-2xl font-bold text-white lg:mt-2 lg:text-3xl">
+        {resultTitle}
+      </h1>
 
-              <div className="mt-7 border-t border-white/10 pt-6">
-                <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">
-                      {resultTitle}
-                    </h2>
-                    <p className="mt-1 text-sm leading-6 text-slate-400">
-                      {resultDescription}
-                    </p>
-                  </div>
+      <p className="mt-1 text-sm leading-6 text-slate-400">
+        {resultDescription}
+      </p>
+    </div>
 
-                  {isCommittedSearchActive && (
-                    <button
-                      type="button"
-                      onClick={clearAllSearchCriteria}
-                      className="w-fit text-sm font-semibold text-sky-300 transition hover:text-sky-200"
-                    >
-                      Reset search
-                    </button>
-                  )}
-                </header>
+    {isCommittedSearchActive && (
+      <button
+        type="button"
+        onClick={clearAllSearchCriteria}
+        className="w-fit text-sm font-semibold text-sky-300 transition hover:text-sky-200"
+      >
+        Reset search
+      </button>
+    )}
+  </header>
+
+  {activeChips.length > 0 && (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <span className="mr-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+        Applied
+      </span>
+
+      {activeChips.map((chip) => (
+        <button
+          key={chip.key}
+          type="button"
+          aria-label={chip.removeLabel}
+          title={chip.removeLabel}
+          onClick={chip.onRemove}
+          className="group inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 py-1 pl-3 pr-1.5 text-xs font-semibold text-sky-100 transition hover:border-red-300/30 hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        >
+          <span>{chip.label}</span>
+
+          <span
+            aria-hidden="true"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-sm text-slate-300 transition group-hover:bg-red-300/15 group-hover:text-red-100"
+          >
+            ×
+          </span>
+        </button>
+      ))}
+
+      {activeChips.length > 1 && (
+        <button
+          type="button"
+          onClick={clearAllSearchCriteria}
+          className="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.05] hover:text-white"
+        >
+          Clear all
+        </button>
+      )}
+    </div>
+  )}
+
+  <div className="mt-6">
 
                 <div aria-live="polite" className="sr-only">
                   {isLoading ? "Loading titles" : resultDescription}
@@ -526,6 +537,7 @@ function SearchPageContent({
                   )}
               </div>
             </div>
+          </div>
           </div>
         </ContentContainer>
       </section>

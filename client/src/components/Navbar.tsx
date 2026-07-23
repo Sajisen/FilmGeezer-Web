@@ -10,7 +10,6 @@ import {
 } from "./navigation/NavigationIcons";
 import { primaryNavigation } from "./navigation/NavigationItems";
 import { usePlannedFeature } from "../features/plannedFeature/plannedFeatureContext";
-import { useMobileDrawerGesture } from "../hooks/useMobileDrawerGesture";
 
 function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -24,10 +23,6 @@ function Navbar() {
     setIsMenuOpen(false);
   }, []);
 
-  useMobileDrawerGesture({
-    enabled: !isMenuOpen,
-    onOpen: openMenu,
-  });
 
   useEffect(() => {
     window.addEventListener("popstate", closeMenu);
