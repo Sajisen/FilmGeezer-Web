@@ -172,6 +172,115 @@ function MatchModeButton({
   );
 }
 
+interface EditableYearInputProps {
+  id: string;
+  label: string;
+  value: number | null;
+  minimumYear: number;
+  maximumYear: number;
+  minimumAllowedYear: number;
+  maximumAllowedYear: number;
+  onChange: (year: number | null) => void;
+}
+
+function EditableYearInput({
+  id,
+  label,
+  value,
+  minimumYear,
+  maximumYear,
+  minimumAllowedYear,
+  maximumAllowedYear,
+  onChange,
+}: EditableYearInputProps) {
+  const [text, setText] = useState(value === null ? "" : String(value));
+
+  const parsedYear = /^\d{4}$/.test(text) ? Number(text) : null;
+  const isIncomplete = text.length > 0 && text.length < 4;
+  const isOutsideGlobalRange =
+    parsedYear !== null &&
+    (parsedYear < minimumYear || parsedYear > maximumYear);
+  const isOutsideSelectedRange =
+    parsedYear !== null &&
+    (parsedYear < minimumAllowedYear || parsedYear > maximumAllowedYear);
+  const isInvalid =
+    isIncomplete || isOutsideGlobalRange || isOutsideSelectedRange;
+
+  function handleChange(nextText: string) {
+    const numericText = nextText.replace(/\D/g, "").slice(0, 4);
+    setText(numericText);
+
+    if (!numericText) {
+      onChange(null);
+      return;
+    }
+
+    if (!/^\d{4}$/.test(numericText)) {
+      return;
+    }
+
+    const nextYear = Number(numericText);
+
+    if (
+      nextYear < minimumYear ||
+      nextYear > maximumYear ||
+      nextYear < minimumAllowedYear ||
+      nextYear > maximumAllowedYear
+    ) {
+      return;
+    }
+
+    onChange(nextYear);
+  }
+
+  function restoreCommittedValue() {
+    if (isInvalid) {
+      setText(value === null ? "" : String(value));
+    }
+  }
+
+  return (
+    <div className="min-w-0 flex-1">
+      <label
+        htmlFor={id}
+        className="block text-xs font-semibold uppercase tracking-[0.15em] text-slate-500"
+      >
+        {label}
+      </label>
+
+      <input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        maxLength={4}
+        value={text}
+        placeholder="Any"
+        aria-invalid={isInvalid || undefined}
+        aria-describedby={`${id}-hint`}
+        onChange={(event) => handleChange(event.target.value)}
+        onBlur={restoreCommittedValue}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+        className={`mt-1 min-h-10 w-full rounded-xl border bg-slate-950/80 px-3 text-base font-bold outline-none transition placeholder:text-slate-500 focus:ring-2 ${
+          isInvalid
+            ? "border-red-300/45 text-red-100 focus:border-red-300/70 focus:ring-red-300/15"
+            : "border-sky-400/20 text-white hover:border-sky-400/35 focus:border-sky-300/65 focus:ring-sky-400/15"
+        }`}
+      />
+
+      <p id={`${id}-hint`} className="sr-only">
+        Enter a four-digit year from {minimumAllowedYear} to {maximumAllowedYear},
+        or leave the field empty for any year.
+      </p>
+    </div>
+  );
+}
+
 interface ReleaseYearRangeProps {
   idPrefix: string;
   fromYear: number | null;
@@ -193,44 +302,45 @@ function ReleaseYearRange({
 
   function changeMinimum(value: number) {
     const boundedValue = Math.min(value, maximumValue);
-
-    onChange(
-      boundedValue === MIN_RELEASE_YEAR ? null : boundedValue,
-      toYear,
-    );
+    onChange(boundedValue, toYear);
   }
 
   function changeMaximum(value: number) {
     const boundedValue = Math.max(value, minimumValue);
-
-    onChange(
-      fromYear,
-      boundedValue === MAX_RELEASE_YEAR ? null : boundedValue,
-    );
+    onChange(fromYear, boundedValue);
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-            From
-          </p>
-          <p className="mt-1 text-base font-bold text-white">
-            {fromYear ?? "Any"}
-          </p>
-        </div>
+      <div className="flex items-end gap-3">
+        <EditableYearInput
+          key={`${idPrefix}-from-${fromYear ?? "any"}`}
+          id={`${idPrefix}-from-text`}
+          label="From"
+          value={fromYear}
+          minimumYear={MIN_RELEASE_YEAR}
+          maximumYear={MAX_RELEASE_YEAR}
+          minimumAllowedYear={MIN_RELEASE_YEAR}
+          maximumAllowedYear={toYear ?? MAX_RELEASE_YEAR}
+          onChange={(year) => onChange(year, toYear)}
+        />
 
-        <div className="h-px flex-1 bg-gradient-to-r from-sky-500/15 via-sky-300/50 to-sky-500/15" />
+        <div
+          aria-hidden="true"
+          className="mb-5 h-px w-5 shrink-0 bg-gradient-to-r from-sky-500/20 to-sky-300/60"
+        />
 
-        <div className="text-right">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-            To
-          </p>
-          <p className="mt-1 text-base font-bold text-white">
-            {toYear ?? "Any"}
-          </p>
-        </div>
+        <EditableYearInput
+          key={`${idPrefix}-to-${toYear ?? "any"}`}
+          id={`${idPrefix}-to-text`}
+          label="To"
+          value={toYear}
+          minimumYear={MIN_RELEASE_YEAR}
+          maximumYear={MAX_RELEASE_YEAR}
+          minimumAllowedYear={fromYear ?? MIN_RELEASE_YEAR}
+          maximumAllowedYear={MAX_RELEASE_YEAR}
+          onChange={(year) => onChange(fromYear, year)}
+        />
       </div>
 
       <div className="relative mt-5 h-9">
@@ -653,7 +763,7 @@ function SearchFilterPanel({
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs leading-5 text-slate-500">
-                    Drag either handle to choose an open or closed year range.
+                    Type a four-digit year or drag either handle. Leave a field empty for Any.
                   </p>
 
                   {(filters.releaseYearFrom !== null ||

@@ -17,8 +17,8 @@ export interface FilterOption {
   group?: FilterOptionGroup;
 }
 
-export const MIN_RELEASE_YEAR = 1900;
-export const MAX_RELEASE_YEAR = new Date().getFullYear() + 2;
+export const MIN_RELEASE_YEAR = 1870;
+export const MAX_RELEASE_YEAR = new Date().getFullYear() + 1;
 
 export const movieGenreOptions: FilterOption[] = [
   { label: "Action", value: "Action" },

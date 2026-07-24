@@ -101,6 +101,7 @@ export class UnknownGenreError extends Error {
   }
 }
 
+const MAX_RELIABLE_FUTURE_YEAR = new Date().getUTCFullYear() + 1;
 const genreMapCache: Partial<Record<MediaType, Map<number, string>>> = {};
 
 const TMDB_API_BASE_URL = "https://api.themoviedb.org/3";
@@ -2686,6 +2687,17 @@ export async function getTmdbCatalog(
     );
   }
 
+  const releaseYearTo =
+    filters.sortBy ===
+      (mediaType === "movie"
+        ? "primary_release_date.desc"
+        : "first_air_date.desc")
+      ? Math.min(
+          filters.releaseYearTo ?? MAX_RELIABLE_FUTURE_YEAR,
+          MAX_RELIABLE_FUTURE_YEAR,
+        )
+      : filters.releaseYearTo;
+
   if (filters.releaseYearFrom !== undefined) {
     discoverParams.set(
       mediaType === "movie"
@@ -2695,12 +2707,12 @@ export async function getTmdbCatalog(
     );
   }
 
-  if (filters.releaseYearTo !== undefined) {
+  if (releaseYearTo !== undefined) {
     discoverParams.set(
       mediaType === "movie"
         ? "primary_release_date.lte"
         : "first_air_date.lte",
-      `${filters.releaseYearTo}-12-31`,
+      `${releaseYearTo}-12-31`,
     );
   }
 

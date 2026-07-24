@@ -13,8 +13,8 @@ import {
 import type { SearchScope } from "../types/media.js";
 
 const MAX_GENRES = 6;
-const MIN_RELEASE_YEAR = 1900;
-const MAX_RELEASE_YEAR = new Date().getFullYear() + 2;
+const MIN_RELEASE_YEAR = 1870;
+const MAX_RELEASE_YEAR = new Date().getUTCFullYear() + 1;
 
 const ALLOWED_GENRES = new Set([
   "Action",

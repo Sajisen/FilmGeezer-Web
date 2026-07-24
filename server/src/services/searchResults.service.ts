@@ -61,6 +61,7 @@ const MAX_SOURCE_PAGES_PER_POOL = 80;
 const MAX_SORTED_TITLE_SOURCE_PAGES = 20;
 const SEARCH_POOL_TTL_MS = 10 * 60 * 1000;
 const MAX_SEARCH_POOLS = 80;
+const MAX_RELIABLE_FUTURE_YEAR = new Date().getUTCFullYear() + 1;
 
 const searchPools = new Map<string, SearchPoolState>();
 
@@ -183,6 +184,16 @@ function getItemYear(item: MediaItem) {
   return Number.isInteger(displayedYear) ? displayedYear : null;
 }
 
+function getEffectiveReleaseYearTo(filters: SearchResultsFilters) {
+  if (filters.sortBy !== "release-desc") {
+    return filters.releaseYearTo;
+  }
+
+  return filters.releaseYearTo === undefined
+    ? MAX_RELIABLE_FUTURE_YEAR
+    : Math.min(filters.releaseYearTo, MAX_RELIABLE_FUTURE_YEAR);
+}
+
 function getEstablishedVoteThreshold(
   item: MediaItem,
   scope: SearchScope,
@@ -203,6 +214,8 @@ function applyApplicationFilters(
   scope: SearchScope,
   filters: SearchResultsFilters,
 ) {
+  const effectiveReleaseYearTo = getEffectiveReleaseYearTo(filters);
+
   return items.filter((item) => {
     if (scope === "movie") {
       if (
@@ -264,9 +277,13 @@ function applyApplicationFilters(
     }
 
     if (
-      filters.releaseYearTo !== undefined &&
-      (itemYear === null || itemYear > filters.releaseYearTo)
+      effectiveReleaseYearTo !== undefined &&
+      (itemYear === null || itemYear > effectiveReleaseYearTo)
     ) {
+      return false;
+    }
+
+    if (filters.sortBy === "release-desc" && !hasPoster(item)) {
       return false;
     }
 
@@ -492,7 +509,7 @@ async function loadDiscoveryPageForMediaType(
         ? "vote_count.desc"
         : getDiscoverSort(mediaType, filters.sortBy),
     releaseYearFrom: filters.releaseYearFrom,
-    releaseYearTo: filters.releaseYearTo,
+    releaseYearTo: getEffectiveReleaseYearTo(filters),
     page: sourcePage,
   });
 }
