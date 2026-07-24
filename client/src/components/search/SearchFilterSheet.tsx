@@ -115,7 +115,13 @@ function SearchFilterSheet({
       document.body.style.overflow = previousOverflow;
       document.body.style.paddingRight = previousPaddingRight;
       document.removeEventListener("keydown", handleKeyDown);
-      previouslyFocusedElementRef.current?.focus();
+
+      const previouslyFocusedElement =
+        previouslyFocusedElementRef.current;
+
+      if (previouslyFocusedElement?.isConnected) {
+        previouslyFocusedElement.focus();
+      }
     };
   }, [onClose]);
 

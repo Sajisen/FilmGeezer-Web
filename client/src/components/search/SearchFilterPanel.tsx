@@ -261,9 +261,8 @@ function EditableYearInput({
         onChange={(event) => handleChange(event.target.value)}
         onBlur={restoreCommittedValue}
         onKeyDown={(event) => {
-          if (event.key === "Enter") {
+          if (event.key === "Enter" && isInvalid) {
             event.preventDefault();
-            event.currentTarget.blur();
           }
         }}
         className={`mt-1 min-h-10 w-full rounded-xl border bg-slate-950/80 px-3 text-base font-bold outline-none transition placeholder:text-slate-500 focus:ring-2 ${
@@ -363,6 +362,11 @@ function ReleaseYearRange({
           max={MAX_RELEASE_YEAR}
           step={1}
           value={minimumValue}
+          aria-valuetext={
+            fromYear === null
+              ? "No earliest year limit"
+              : String(minimumValue)
+          }
           onChange={(event) => changeMinimum(Number(event.target.value))}
           className="release-year-range-input release-year-range-input--from"
         />
@@ -377,6 +381,11 @@ function ReleaseYearRange({
           max={MAX_RELEASE_YEAR}
           step={1}
           value={maximumValue}
+          aria-valuetext={
+            toYear === null
+              ? "No latest year limit"
+              : String(maximumValue)
+          }
           onChange={(event) => changeMaximum(Number(event.target.value))}
           className="release-year-range-input release-year-range-input--to"
         />

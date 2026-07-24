@@ -51,9 +51,10 @@ function formatVotes(voteCount: number) {
 
 function SeasonRowSkeleton({ cellCount }: { cellCount: number }) {
   return (
-    <div role="status" className="flex gap-1.5 overflow-hidden sm:gap-2">
-      <span className="sr-only">Loading season episodes</span>
-
+    <div
+      aria-hidden="true"
+      className="flex gap-1.5 overflow-hidden sm:gap-2"
+    >
       {Array.from({
         length: Math.min(Math.max(cellCount, 5), 12),
       }).map((_, index) => (
@@ -231,6 +232,7 @@ function SeasonEpisodeRow({
   return (
     <div
       ref={rowRef}
+      aria-busy={!shouldLoad || isLoading}
       className="border-t border-white/10 py-4 first:border-t-0"
     >
       <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">

@@ -602,9 +602,9 @@ function SearchPageContent({
                   Search
                 </p>
 
-                <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+                <p className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
                   Find your next watch
-                </h1>
+                </p>
 
                 <p className="mt-2 max-w-lg text-sm leading-6 text-slate-400">
                   Search by title or explore the catalogue using focused filters.

@@ -27,6 +27,14 @@ const EXIT_DURATION_MS = 280;
 const CLOSE_SWIPE_DISTANCE = 72;
 const DIRECTION_RATIO = 1.35;
 
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getExitDuration() {
+  return prefersReducedMotion() ? 0 : EXIT_DURATION_MS;
+}
+
 function MobileNavigationDrawer({
   onClose,
   onPlannedFeature,
@@ -43,11 +51,19 @@ function MobileNavigationDrawer({
       return;
     }
 
+    const exitDuration = getExitDuration();
+
     setIsEntered(false);
+
+    if (exitDuration === 0) {
+      onClose();
+      return;
+    }
+
     closeTimerRef.current = window.setTimeout(() => {
       closeTimerRef.current = null;
       onClose();
-    }, EXIT_DURATION_MS);
+    }, exitDuration);
   }, [onClose]);
 
   const requestPlannedFeature = useCallback(
@@ -56,16 +72,34 @@ function MobileNavigationDrawer({
         return;
       }
 
+      const exitDuration = getExitDuration();
+
       setIsEntered(false);
+
+      if (exitDuration === 0) {
+        onPlannedFeature(featureName);
+        return;
+      }
+
       closeTimerRef.current = window.setTimeout(() => {
         closeTimerRef.current = null;
         onPlannedFeature(featureName);
-      }, EXIT_DURATION_MS);
+      }, exitDuration);
     },
     [onPlannedFeature],
   );
 
   useEffect(() => {
+    if (prefersReducedMotion()) {
+      setIsEntered(true);
+
+      return () => {
+        if (closeTimerRef.current !== null) {
+          window.clearTimeout(closeTimerRef.current);
+        }
+      };
+    }
+
     const animationFrame = window.requestAnimationFrame(() => {
       setIsEntered(true);
     });
@@ -143,7 +177,12 @@ function MobileNavigationDrawer({
       document.body.style.overflow = previousOverflow;
       document.body.style.paddingRight = previousPaddingRight;
       document.removeEventListener("keydown", handleKeyDown);
-      previouslyFocusedElementRef.current?.focus();
+      const previouslyFocusedElement =
+        previouslyFocusedElementRef.current;
+
+      if (previouslyFocusedElement?.isConnected) {
+        previouslyFocusedElement.focus();
+      }
     };
   }, [requestClose]);
 

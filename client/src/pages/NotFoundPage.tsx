@@ -29,6 +29,7 @@ export default function NotFoundPage() {
             Return to Home
           </Link>
           <button
+            type="button"
             onClick={() => window.history.back()}
             className="rounded-md px-5 py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
           >
