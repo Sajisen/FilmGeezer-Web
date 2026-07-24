@@ -74,6 +74,8 @@ export interface TmdbCatalogFilters {
   genreMode?: "all" | "any";
   language?: string;
   minRating?: number;
+  minVoteCount?: number;
+  sortBy?: "popularity.desc" | "vote_count.desc" | "vote_average.desc";
   page?: number;
 }
 
@@ -2632,7 +2634,7 @@ export async function getTmdbCatalog(
     include_adult: "false",
     language: "en-US",
     page: String(page),
-    sort_by: "popularity.desc",
+    sort_by: filters.sortBy ?? "popularity.desc",
   });
 
   if (mediaType === "movie") {
@@ -2654,6 +2656,11 @@ export async function getTmdbCatalog(
 
   if (filters.minRating !== undefined) {
     discoverParams.set("vote_average.gte", String(filters.minRating));
+  }
+
+  if (filters.minVoteCount !== undefined) {
+    discoverParams.set("vote_count.gte", String(filters.minVoteCount));
+  } else if (filters.minRating !== undefined) {
     discoverParams.set(
       "vote_count.gte",
       mediaType === "movie" ? "20" : "10",

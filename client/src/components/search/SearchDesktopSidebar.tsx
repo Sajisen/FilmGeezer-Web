@@ -71,21 +71,10 @@ function SearchDesktopSidebar({
           />
         </div>
 
-        <p
-          role={hasPendingChanges ? "status" : undefined}
-          className={`mt-2 min-h-5 text-[0.68rem] leading-5 ${
-            hasPendingChanges ? "font-medium text-amber-300" : "text-slate-500"
-          }`}
-        >
-          {hasPendingChanges
-            ? "Changes are waiting. Press Search & apply below to refresh the results."
-            : "Change the title or filters, then use Search & apply below."}
-        </p>
-
         <div
           role="group"
           aria-label="Content category"
-          className="mt-3 grid grid-cols-5 gap-1.5"
+          className="mt-3 grid grid-cols-[0.72fr_1.05fr_0.62fr_0.9fr_1.15fr] gap-1.5"
         >
           {scopeOptions.map((option) => (
             <button
@@ -93,13 +82,13 @@ function SearchDesktopSidebar({
               type="button"
               aria-pressed={scope === option.value}
               onClick={() => onScopeChange(option.value)}
-              className={`min-h-9 min-w-0 rounded-full border px-1 text-[0.65rem] font-semibold leading-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 xl:text-[0.68rem] ${
+              className={`min-h-9 min-w-0 rounded-full border px-1 text-[0.64rem] font-semibold leading-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 xl:text-[0.68rem] ${
                 scope === option.value
                   ? "border-sky-300/35 bg-sky-500/15 text-sky-100"
                   : "border-white/10 bg-slate-950/55 text-slate-400 hover:bg-white/[0.05] hover:text-white"
               }`}
             >
-              {option.label}
+              <span className="block truncate">{option.label}</span>
             </button>
           ))}
         </div>

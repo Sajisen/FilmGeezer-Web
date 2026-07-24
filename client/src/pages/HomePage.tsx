@@ -6,6 +6,7 @@ import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
 import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useHomeCollections } from "../hooks/useHomeCollections";
+import { buildSearchHref } from "../utils/searchLinks";
 import homeBanner from "../assets/images/home-banner2.png";
 
 function HomePage() {
@@ -66,24 +67,28 @@ function HomePage() {
             title="Trending Movies"
             description="Current movie trends, kept separate from Anime."
             items={collections.trendingMovies}
+              viewMoreHref={buildSearchHref({ scope: "movie", preset: "trending" })}
           />
 
           <MediaRow
             title="Trending TV Series"
             description="Current TV trends, excluding Anime and K-dramas shown in their own rows."
             items={collections.trendingTv}
+              viewMoreHref={buildSearchHref({ scope: "tv", preset: "trending" })}
           />
 
           <MediaRow
             title="Trending Anime"
             description="Anime movies and series receiving current audience attention."
             items={collections.trendingAnime}
+              viewMoreHref={buildSearchHref({ scope: "anime", preset: "trending" })}
           />
 
           <MediaRow
             title="Trending K-Dramas"
             description="Korean drama series receiving current audience attention."
             items={collections.trendingKDrama}
+              viewMoreHref={buildSearchHref({ scope: "k-drama", preset: "trending" })}
           />
         </>
       )}

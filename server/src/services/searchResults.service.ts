@@ -1,11 +1,13 @@
 import type { MediaItem, MediaType, SearchScope } from "../types/media.js";
 import {
+  getTmdbBrowseList,
   getTmdbCatalog,
   searchTmdbMedia,
   type TmdbBrowseResult,
 } from "./tmdb.service.js";
 
 export type GenreMatchMode = "all" | "any";
+export type SearchPreset = "default" | "trending" | "essentials";
 
 export interface SearchResultsFilters {
   genres: string[];
@@ -35,6 +37,7 @@ interface SearchPoolState {
 interface SearchCriteria {
   query: string;
   scope: SearchScope;
+  preset: SearchPreset;
   filters: SearchResultsFilters;
 }
 
@@ -161,12 +164,16 @@ function applyApplicationFilters(
   filters: SearchResultsFilters,
 ) {
   return items.filter((item) => {
-    if (scope === "movie" && item.mediaType !== "movie") {
-      return false;
+    if (scope === "movie") {
+      if (item.mediaType !== "movie" || isPublicAnime(item) || isPublicKDrama(item)) {
+        return false;
+      }
     }
 
-    if (scope === "tv" && item.mediaType !== "tv") {
-      return false;
+    if (scope === "tv") {
+      if (item.mediaType !== "tv" || isPublicAnime(item) || isPublicKDrama(item)) {
+        return false;
+      }
     }
 
     if (scope === "anime" && !isPublicAnime(item)) {
@@ -253,6 +260,7 @@ async function loadDiscoveryPageForMediaType(
   mediaType: MediaType,
   sourcePage: number,
   scope: SearchScope,
+  preset: SearchPreset,
   filters: SearchResultsFilters,
 ) {
   const fixedLanguage =
@@ -271,37 +279,78 @@ async function loadDiscoveryPageForMediaType(
     return createEmptySourcePage(sourcePage);
   }
 
+  const essentialsMinimumRating =
+    scope === "anime"
+      ? 7
+      : scope === "k-drama"
+        ? 6.8
+        : mediaType === "movie"
+          ? 6.5
+          : 6.8;
+
+  const essentialsMinimumVotes =
+    scope === "anime"
+      ? mediaType === "movie"
+        ? 80
+        : 100
+      : scope === "k-drama"
+        ? mediaType === "movie"
+          ? 120
+          : 80
+        : mediaType === "movie"
+          ? 500
+          : 250;
+
   return getTmdbCatalog(mediaType, {
     genres: requestedGenres,
     genreMode: scope === "anime" ? "all" : filters.genreMode,
     language: fixedLanguage,
-    minRating: filters.minRating,
+    minRating:
+      filters.minRating ??
+      (preset === "essentials" ? essentialsMinimumRating : undefined),
+    minVoteCount:
+      preset === "essentials" ? essentialsMinimumVotes : undefined,
+    sortBy: preset === "essentials" ? "vote_count.desc" : "popularity.desc",
     page: sourcePage,
   });
+}
+
+async function loadTrendingPageForMediaType(
+  mediaType: MediaType,
+  sourcePage: number,
+) {
+  return getTmdbBrowseList(mediaType, "trending", sourcePage);
 }
 
 async function loadLogicalSourcePage(
   criteria: SearchCriteria,
   sourcePage: number,
 ): Promise<TmdbBrowseResult> {
-  const { query, scope, filters } = criteria;
+  const { query, scope, preset, filters } = criteria;
 
   if (query) {
     return searchTmdbMedia(query, scope, sourcePage);
   }
 
+  async function loadPage(mediaType: MediaType) {
+    return preset === "trending"
+      ? loadTrendingPageForMediaType(mediaType, sourcePage)
+      : loadDiscoveryPageForMediaType(
+          mediaType,
+          sourcePage,
+          scope,
+          preset,
+          filters,
+        );
+  }
+
   if (scope === "movie" || scope === "tv") {
-    return loadDiscoveryPageForMediaType(
-      scope,
-      sourcePage,
-      scope,
-      filters,
-    );
+    return loadPage(scope);
   }
 
   const [moviePage, tvPage] = await Promise.all([
-    loadDiscoveryPageForMediaType("movie", sourcePage, scope, filters),
-    loadDiscoveryPageForMediaType("tv", sourcePage, scope, filters),
+    loadPage("movie"),
+    loadPage("tv"),
   ]);
 
   return {
@@ -317,6 +366,7 @@ function createPoolKey(criteria: SearchCriteria) {
   return JSON.stringify({
     query: criteria.query.trim().toLowerCase(),
     scope: criteria.scope,
+    preset: criteria.preset,
     genres: criteria.filters.genres.map(normalizeText).sort(),
     genreMode: criteria.filters.genreMode,
     language: criteria.filters.language?.toLowerCase() ?? "",
@@ -468,6 +518,7 @@ async function ensureSearchPool(
 export async function getSearchResults(
   query: string,
   scope: SearchScope,
+  preset: SearchPreset,
   page: number,
   filters: SearchResultsFilters,
 ): Promise<SearchResultsPage> {
@@ -476,6 +527,7 @@ export async function getSearchResults(
   const criteria: SearchCriteria = {
     query: query.trim(),
     scope,
+    preset,
     filters,
   };
 

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import {
   getSearchResults,
   type GenreMatchMode,
+  type SearchPreset,
 } from "../services/searchResults.service.js";
 import {
   TmdbRequestError,
@@ -70,6 +71,7 @@ export async function searchMedia(req: Request, res: Response) {
   const minRatingText = getQueryString(req.query.minRating);
   const language = getQueryString(req.query.language)?.toLowerCase();
   const genreModeText = getQueryString(req.query.genreMode) ?? "all";
+  const presetText = getQueryString(req.query.preset) ?? "default";
 
   const legacyGenre = getQueryString(req.query.genre);
   const genres = getQueryStrings(req.query.genres);
@@ -135,6 +137,19 @@ export async function searchMedia(req: Request, res: Response) {
     return;
   }
 
+
+  if (
+    presetText !== "default" &&
+    presetText !== "trending" &&
+    presetText !== "essentials"
+  ) {
+    res.status(400).json({
+      status: "error",
+      message: "Search preset must be default, trending, or essentials.",
+    });
+    return;
+  }
+
   if (genreModeText !== "all" && genreModeText !== "any") {
     res.status(400).json({
       status: "error",
@@ -167,18 +182,21 @@ export async function searchMedia(req: Request, res: Response) {
 
   const scope = scopeText as SearchScope;
   const genreMode = genreModeText as GenreMatchMode;
+  const preset = presetText as SearchPreset;
 
   if (
     !query &&
     scope === "all" &&
     genres.length === 0 &&
     !language &&
-    minRating === undefined
+    minRating === undefined &&
+    preset === "default"
   ) {
     res.status(200).json({
       status: "success",
       query,
       scope,
+      preset,
       filters: {
         genres,
         genreMode,
@@ -196,7 +214,7 @@ export async function searchMedia(req: Request, res: Response) {
   }
 
   try {
-    const data = await getSearchResults(query, scope, page, {
+    const data = await getSearchResults(query, scope, preset, page, {
       genres,
       genreMode,
       language,
@@ -207,6 +225,7 @@ export async function searchMedia(req: Request, res: Response) {
       status: "success",
       query,
       scope,
+      preset,
       filters: {
         genres,
         genreMode,

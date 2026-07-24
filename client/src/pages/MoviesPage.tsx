@@ -6,6 +6,7 @@ import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
 import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useMovieCollections } from "../hooks/useMovieCollections";
+import { buildSearchHref } from "../utils/searchLinks";
 import moviesBanner from "../assets/images/movies-banner.png";
 
 function MoviesPage() {
@@ -69,6 +70,7 @@ function MoviesPage() {
               title="Trending & Now Playing"
               description="Current releases and movies receiving strong audience attention."
               items={collections.trendingAndNowPlaying}
+              viewMoreHref={buildSearchHref({ scope: "movie", preset: "trending" })}
             />
           )}
 
@@ -77,6 +79,7 @@ function MoviesPage() {
               title="FilmGeezer Essentials"
               description="Recognisable, highly regarded movies selected using rating, popularity, and audience confidence."
               items={collections.essentials}
+              viewMoreHref={buildSearchHref({ scope: "movie", preset: "essentials" })}
             />
           )}
 
@@ -85,6 +88,7 @@ function MoviesPage() {
               title="Action, Adventure, Crime & Thriller"
               description="High-energy stories, dangerous missions, investigations, and suspense."
               items={collections.actionAdventureCrimeThriller}
+              viewMoreHref={buildSearchHref({ scope: "movie", genres: ["Action", "Adventure", "Crime", "Thriller"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -93,6 +97,7 @@ function MoviesPage() {
               title="Comedy"
               description="Popular comedies and lighter movies worth adding to your watch list."
               items={collections.comedy}
+              viewMoreHref={buildSearchHref({ scope: "movie", genres: ["Comedy"], minRating: "6" })}
             />
           )}
 
@@ -101,6 +106,7 @@ function MoviesPage() {
               title="Drama & Romance"
               description="Character-driven, emotional, and relationship-focused movies."
               items={collections.dramaRomance}
+              viewMoreHref={buildSearchHref({ scope: "movie", genres: ["Drama", "Romance"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -109,6 +115,7 @@ function MoviesPage() {
               title="Family"
               description="Accessible family movies and suitable animated favourites."
               items={collections.family}
+              viewMoreHref={buildSearchHref({ scope: "movie", genres: ["Family"], minRating: "6" })}
             />
           )}
         </>

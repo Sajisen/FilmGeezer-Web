@@ -4,7 +4,7 @@ import type {
   SearchScope,
 } from '../types/media'
 
-import type { SearchFilterValues } from "../types/search";
+import type { SearchFilterValues, SearchPreset } from "../types/search";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export interface SearchMediaResult {
@@ -54,6 +54,7 @@ export async function searchMedia(
     language: "all",
     minRating: "all",
   },
+  preset: SearchPreset = "default",
   page = 1,
   signal?: AbortSignal,
 ): Promise<SearchMediaResult> {
@@ -62,6 +63,10 @@ export async function searchMedia(
     page: String(page),
     genreMode: filters.genreMode,
   });
+
+  if (preset !== "default") {
+    searchParams.set("preset", preset);
+  }
 
   const trimmedQuery = query.trim();
 

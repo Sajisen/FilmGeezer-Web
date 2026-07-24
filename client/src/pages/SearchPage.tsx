@@ -22,6 +22,7 @@ import type { SearchScope } from "../types/media";
 import type {
   GenreMatchMode,
   SearchFilterValues,
+  SearchPreset,
 } from "../types/search";
 
 const emptyFilters: SearchFilterValues = {
@@ -46,6 +47,56 @@ function getSearchScope(value: string | null): SearchScope {
 
 function getGenreMatchMode(value: string | null): GenreMatchMode {
   return value === "any" ? "any" : "all";
+}
+
+function getSearchPreset(value: string | null): SearchPreset {
+  if (value === "trending" || value === "essentials") {
+    return value;
+  }
+
+  return "default";
+}
+
+function getPresetLabel(preset: SearchPreset) {
+  if (preset === "trending") {
+    return "Trending";
+  }
+
+  if (preset === "essentials") {
+    return "FilmGeezer essentials";
+  }
+
+  return "";
+}
+
+function getPresetTitle(preset: SearchPreset, scope: SearchScope) {
+  if (preset === "trending") {
+    return scope === "all"
+      ? "Trending titles"
+      : `Trending ${getScopeLabel(scope)}`;
+  }
+
+  if (preset === "essentials") {
+    if (scope === "movie") {
+      return "FilmGeezer Movie Essentials";
+    }
+
+    if (scope === "tv") {
+      return "FilmGeezer TV Essentials";
+    }
+
+    if (scope === "anime") {
+      return "FilmGeezer Anime Essentials";
+    }
+
+    if (scope === "k-drama") {
+      return "FilmGeezer K-Drama Essentials";
+    }
+
+    return "FilmGeezer Essentials";
+  }
+
+  return "";
 }
 
 function getScopeLabel(scope: SearchScope) {
@@ -138,17 +189,20 @@ interface ActiveFilterChip {
 interface SearchPageContentProps {
   committedQuery: string;
   committedScope: SearchScope;
+  committedPreset: SearchPreset;
   committedFilters: SearchFilterValues;
   onCommit: (
     query: string,
     scope: SearchScope,
     filters: SearchFilterValues,
+    preset?: SearchPreset,
   ) => void;
 }
 
 function SearchPageContent({
   committedQuery,
   committedScope,
+  committedPreset,
   committedFilters,
   onCommit,
 }: SearchPageContentProps) {
@@ -168,12 +222,14 @@ function SearchPageContent({
   const isCommittedSearchActive =
     committedQuery.length > 0 ||
     committedScope !== "all" ||
+    committedPreset !== "default" ||
     hasActiveFilters(committedFilters);
 
   const search = useSearchMedia(
     committedQuery,
     committedScope,
     committedFilters,
+    committedPreset,
   );
   const discovery = useSearchDiscovery(!isCommittedSearchActive);
 
@@ -208,7 +264,7 @@ function SearchPageContent({
   }
 
   function applyCurrentSearch(nextFilters = filters) {
-    onCommit(searchText.trim(), scope, nextFilters);
+    onCommit(searchText.trim(), scope, nextFilters, "default");
     setAreMobileFiltersOpen(false);
   }
 
@@ -217,14 +273,19 @@ function SearchPageContent({
   }
 
   function clearAllSearchCriteria() {
-    onCommit("", "all", emptyFilters);
+    onCommit("", "all", emptyFilters, "default");
   }
 
   function removeCommittedScope() {
-    onCommit(committedQuery, "all", {
-      ...committedFilters,
-      genres: sanitizeGenres("all", committedFilters.genres),
-    });
+    onCommit(
+      committedQuery,
+      "all",
+      {
+        ...committedFilters,
+        genres: sanitizeGenres("all", committedFilters.genres),
+      },
+      committedPreset,
+    );
   }
 
   function removeCommittedGenre(genre: string) {
@@ -232,35 +293,74 @@ function SearchPageContent({
       (currentGenre) => currentGenre !== genre,
     );
 
-    onCommit(committedQuery, committedScope, {
-      ...committedFilters,
-      genres: nextGenres,
-      genreMode: nextGenres.length > 1 ? committedFilters.genreMode : "all",
-    });
+    onCommit(
+      committedQuery,
+      committedScope,
+      {
+        ...committedFilters,
+        genres: nextGenres,
+        genreMode: nextGenres.length > 1 ? committedFilters.genreMode : "all",
+      },
+      committedPreset,
+    );
   }
 
   function resetCommittedGenreMode() {
-    onCommit(committedQuery, committedScope, {
-      ...committedFilters,
-      genreMode: "all",
-    });
+    onCommit(
+      committedQuery,
+      committedScope,
+      {
+        ...committedFilters,
+        genreMode: "all",
+      },
+      committedPreset,
+    );
   }
 
   function removeCommittedLanguage() {
-    onCommit(committedQuery, committedScope, {
-      ...committedFilters,
-      language: "all",
-    });
+    onCommit(
+      committedQuery,
+      committedScope,
+      {
+        ...committedFilters,
+        language: "all",
+      },
+      committedPreset,
+    );
   }
 
   function removeCommittedRating() {
-    onCommit(committedQuery, committedScope, {
-      ...committedFilters,
-      minRating: "all",
-    });
+    onCommit(
+      committedQuery,
+      committedScope,
+      {
+        ...committedFilters,
+        minRating: "all",
+      },
+      committedPreset,
+    );
+  }
+
+  function removeCommittedPreset() {
+    onCommit(
+      committedQuery,
+      committedScope,
+      committedFilters,
+      "default",
+    );
   }
 
   const activeChips: ActiveFilterChip[] = [
+    ...(committedPreset !== "default"
+      ? [
+          {
+            key: "preset",
+            label: getPresetLabel(committedPreset),
+            removeLabel: `Remove ${getPresetLabel(committedPreset)} collection`,
+            onRemove: removeCommittedPreset,
+          },
+        ]
+      : []),
     ...(committedScope !== "all"
       ? [
           {
@@ -317,11 +417,13 @@ function SearchPageContent({
 
   const resultTitle = committedQuery
     ? `Results for “${committedQuery}”`
-    : isCommittedSearchActive
-      ? committedScope === "all"
-        ? "Filtered discoveries"
-        : `Explore ${getScopeLabel(committedScope)}`
-      : "Discover something new";
+    : committedPreset !== "default"
+      ? getPresetTitle(committedPreset, committedScope)
+      : isCommittedSearchActive
+        ? committedScope === "all"
+          ? "Filtered discoveries"
+          : `Explore ${getScopeLabel(committedScope)}`
+        : "Discover something new";
 
   const resultDescription = isCommittedSearchActive
     ? `${search.items.length} title${search.items.length === 1 ? "" : "s"} loaded${
@@ -333,7 +435,7 @@ function SearchPageContent({
     <main className="min-h-screen bg-slate-950 text-white">
       <section className="py-5 sm:py-7">
         <ContentContainer>
-          <div className="grid min-w-0 gap-7 lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start xl:gap-9">
+          <div className="grid min-w-0 gap-7 lg:grid-cols-[21.5rem_minmax(0,1fr)] lg:items-start xl:gap-9">
             <SearchDesktopSidebar
               searchText={searchText}
               scope={scope}
@@ -349,18 +451,18 @@ function SearchPageContent({
 
             <div className="min-w-0">
               <header className="mb-5 lg:hidden">
-  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
-    Search
-  </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
+                  Search
+                </p>
 
-  <p className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-    Find your next watch
-  </p>
+                <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+                  Find your next watch
+                </h1>
 
-  <p className="mt-2 max-w-lg text-sm leading-6 text-slate-400">
-    Search by title or explore the catalogue using focused filters.
-  </p>
-</header>
+                <p className="mt-2 max-w-lg text-sm leading-6 text-slate-400">
+                  Search by title or explore the catalogue using focused filters.
+                </p>
+              </header>
 
               <SearchToolbar
                 searchText={searchText}
@@ -374,82 +476,79 @@ function SearchPageContent({
               />
 
               {hasPendingSearchChanges && (
-  <p
-    role="status"
-    className="mt-3 text-xs font-medium leading-5 text-amber-300 lg:hidden"
-  >
-    Search options changed. Apply them to refresh the results.
-  </p>
-)}
+                <p
+                  role="status"
+                  className="mt-3 text-xs font-medium leading-5 text-amber-300 lg:hidden"
+                >
+                  Search options changed. Apply them to refresh the results.
+                </p>
+              )}
 
+              <div className="mt-7 lg:mt-0">
+                <header className="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
+                      Search results
+                    </p>
 
-<div className="mt-7 lg:mt-0">
-  <header className="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
-    <div>
-      <p className="hidden text-xs font-semibold uppercase tracking-[0.22em] text-sky-300 lg:block">
-        Search results
-      </p>
+                    <h1 className="mt-2 text-2xl font-bold text-white lg:text-3xl">
+                      {resultTitle}
+                    </h1>
 
-      <h1 className="text-2xl font-bold text-white lg:mt-2 lg:text-3xl">
-        {resultTitle}
-      </h1>
+                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                      {resultDescription}
+                    </p>
+                  </div>
 
-      <p className="mt-1 text-sm leading-6 text-slate-400">
-        {resultDescription}
-      </p>
-    </div>
+                  {isCommittedSearchActive && (
+                    <button
+                      type="button"
+                      onClick={clearAllSearchCriteria}
+                      className="w-fit text-sm font-semibold text-sky-300 transition hover:text-sky-200"
+                    >
+                      Reset search
+                    </button>
+                  )}
+                </header>
 
-    {isCommittedSearchActive && (
-      <button
-        type="button"
-        onClick={clearAllSearchCriteria}
-        className="w-fit text-sm font-semibold text-sky-300 transition hover:text-sky-200"
-      >
-        Reset search
-      </button>
-    )}
-  </header>
+                {activeChips.length > 0 && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="mr-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Applied
+                    </span>
 
-  {activeChips.length > 0 && (
-    <div className="mt-4 flex flex-wrap items-center gap-2">
-      <span className="mr-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-        Applied
-      </span>
+                    {activeChips.map((chip) => (
+                      <button
+                        key={chip.key}
+                        type="button"
+                        aria-label={chip.removeLabel}
+                        title={chip.removeLabel}
+                        onClick={chip.onRemove}
+                        className="group inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 py-1 pl-3 pr-1.5 text-xs font-semibold text-sky-100 transition hover:border-red-300/30 hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        <span>{chip.label}</span>
+                        <span
+                          aria-hidden="true"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-sm text-slate-300 transition group-hover:bg-red-300/15 group-hover:text-red-100"
+                        >
+                          ×
+                        </span>
+                      </button>
+                    ))}
 
-      {activeChips.map((chip) => (
-        <button
-          key={chip.key}
-          type="button"
-          aria-label={chip.removeLabel}
-          title={chip.removeLabel}
-          onClick={chip.onRemove}
-          className="group inline-flex min-h-9 items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 py-1 pl-3 pr-1.5 text-xs font-semibold text-sky-100 transition hover:border-red-300/30 hover:bg-red-400/10 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-        >
-          <span>{chip.label}</span>
+                    {activeChips.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={clearAllSearchCriteria}
+                        className="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.05] hover:text-white"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                )}
 
-          <span
-            aria-hidden="true"
-            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-sm text-slate-300 transition group-hover:bg-red-300/15 group-hover:text-red-100"
-          >
-            ×
-          </span>
-        </button>
-      ))}
-
-      {activeChips.length > 1 && (
-        <button
-          type="button"
-          onClick={clearAllSearchCriteria}
-          className="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.05] hover:text-white"
-        >
-          Clear all
-        </button>
-      )}
-    </div>
-  )}
-
-  <div className="mt-6">
-
+                <div className="mt-6">
                 <div aria-live="polite" className="sr-only">
                   {isLoading ? "Loading titles" : resultDescription}
                 </div>
@@ -535,9 +634,9 @@ function SearchPageContent({
                       </button>
                     </div>
                   )}
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </ContentContainer>
       </section>
@@ -562,6 +661,7 @@ function SearchPage() {
 
   const committedQuery = (searchParams.get("q") ?? "").trim();
   const committedScope = getSearchScope(searchParams.get("scope"));
+  const committedPreset = getSearchPreset(searchParams.get("preset"));
 
   const requestedGenres = [
     ...searchParams.getAll("genres"),
@@ -587,6 +687,7 @@ function SearchPage() {
     query: string,
     scope: SearchScope,
     filters: SearchFilterValues,
+    preset: SearchPreset = "default",
   ) {
     const trimmedQuery = query.trim();
     const sanitizedGenres = sanitizeGenres(scope, filters.genres);
@@ -616,12 +717,17 @@ function SearchPage() {
       nextParams.set("rating", filters.minRating);
     }
 
+    if (!trimmedQuery && preset !== "default") {
+      nextParams.set("preset", preset);
+    }
+
     setSearchParams(nextParams);
   }
 
   const pageKey = [
     committedQuery,
     committedScope,
+    committedPreset,
     committedFilters.genres.join("|"),
     committedFilters.genreMode,
     committedFilters.language,
@@ -633,6 +739,7 @@ function SearchPage() {
       key={pageKey}
       committedQuery={committedQuery}
       committedScope={committedScope}
+      committedPreset={committedPreset}
       committedFilters={committedFilters}
       onCommit={commitSearch}
     />

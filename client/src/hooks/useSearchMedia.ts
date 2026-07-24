@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { searchMedia } from "../services/mediaService";
 import type { MediaItem, SearchScope } from "../types/media";
-import type { SearchFilterValues } from "../types/search";
+import type { SearchFilterValues, SearchPreset } from "../types/search";
 import { removeDuplicateMedia } from "../utils/media";
 
 interface SearchRequestState {
@@ -48,6 +48,7 @@ function createRequestKey(
   query: string,
   scope: SearchScope,
   filters: SearchFilterValues,
+  preset: SearchPreset,
   reloadKey: number,
 ) {
   return [
@@ -57,6 +58,7 @@ function createRequestKey(
     filters.genreMode,
     filters.language,
     filters.minRating,
+    preset,
     String(reloadKey),
   ].join("\u0000");
 }
@@ -65,6 +67,7 @@ export function useSearchMedia(
   query: string,
   scope: SearchScope,
   filters: SearchFilterValues,
+  preset: SearchPreset = "default",
 ) {
   const trimmedQuery = query.trim();
   const { genres, genreMode, language, minRating } = filters;
@@ -90,12 +93,14 @@ export function useSearchMedia(
   const shouldSearch =
     trimmedQuery.length > 0 ||
     scope !== "all" ||
+    preset !== "default" ||
     hasActiveFilters(currentFilters);
 
   const currentRequestKey = createRequestKey(
     trimmedQuery,
     scope,
     currentFilters,
+    preset,
     reloadKey,
   );
 
@@ -114,6 +119,7 @@ export function useSearchMedia(
           trimmedQuery,
           scope,
           currentFilters,
+          preset,
           1,
           controller.signal,
         );
@@ -156,7 +162,14 @@ export function useSearchMedia(
     return () => {
       controller.abort();
     };
-  }, [currentFilters, currentRequestKey, scope, shouldSearch, trimmedQuery]);
+  }, [
+    currentFilters,
+    currentRequestKey,
+    preset,
+    scope,
+    shouldSearch,
+    trimmedQuery,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -209,6 +222,7 @@ export function useSearchMedia(
         trimmedQuery,
         scope,
         currentFilters,
+        preset,
         page + 1,
         controller.signal,
       );

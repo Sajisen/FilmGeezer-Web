@@ -6,6 +6,7 @@ import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
 import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useKDramaCollections } from "../hooks/useKDramaCollections";
+import { buildSearchHref } from "../utils/searchLinks";
 import kdramaBanner from "../assets/images/kdrama-banner.png";
 
 function KDramaPage() {
@@ -68,6 +69,7 @@ function KDramaPage() {
               title="Trending K-Dramas"
               description="Currently airing series, recent Korean movies, and titles receiving strong audience attention."
               items={collections.trendingKDramas}
+              viewMoreHref={buildSearchHref({ scope: "k-drama", preset: "trending" })}
             />
           )}
 
@@ -76,6 +78,7 @@ function KDramaPage() {
               title="FilmGeezer K-Drama Essentials"
               description="Recognisable Korean movies and series selected using rating, popularity, audience confidence, and lasting interest."
               items={collections.essentials}
+              viewMoreHref={buildSearchHref({ scope: "k-drama", preset: "essentials" })}
             />
           )}
 
@@ -84,6 +87,7 @@ function KDramaPage() {
               title="Romance K-Dramas"
               description="Relationship-focused Korean stories ranging from heartfelt romance to romantic comedy."
               items={collections.romance}
+              viewMoreHref={buildSearchHref({ scope: "k-drama", genres: ["Romance", "Comedy"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -92,6 +96,7 @@ function KDramaPage() {
               title="Action, Crime & Thriller"
               description="High-stakes conflicts, dangerous missions, criminal investigations, and tense Korean thrillers."
               items={collections.actionCrimeThriller}
+              viewMoreHref={buildSearchHref({ scope: "k-drama", genres: ["Action", "Action & Adventure", "Crime", "Thriller"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -100,6 +105,7 @@ function KDramaPage() {
               title="Mystery & Suspense"
               description="Secrets, investigations, psychological tension, and stories that keep their answers hidden."
               items={collections.mysterySuspense}
+              viewMoreHref={buildSearchHref({ scope: "k-drama", genres: ["Mystery", "Thriller"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -108,6 +114,7 @@ function KDramaPage() {
               title="Comedy & Feel-Good"
               description="Funny, warm, and comforting Korean stories built around friendship, family, and community."
               items={collections.comedyFeelGood}
+              viewMoreHref={buildSearchHref({ scope: "k-drama", genres: ["Comedy", "Family"], genreMode: "any", minRating: "6" })}
             />
           )}
         </>

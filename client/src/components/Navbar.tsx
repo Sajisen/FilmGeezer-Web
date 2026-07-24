@@ -63,17 +63,17 @@ function Navbar() {
     <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 text-white backdrop-blur-xl">
       <ContentContainer>
         <nav
-          aria-label="Primary navigation"
-          className="flex min-h-18 items-center justify-between gap-3 sm:gap-4"
-        >
+  aria-label="Primary navigation"
+  className="grid min-h-18 grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-4 lg:grid-cols-[1fr_auto_1fr]"
+>
           <NavLink
             to="/"
-            className="shrink-0 text-xl font-bold tracking-tight"
+            className="shrink-0 justify-self-start text-xl font-bold tracking-tight"
           >
             Film<span className="text-sky-400">Geezer</span>
           </NavLink>
 
-          <div className="hidden items-center gap-1 lg:flex">
+          <div className="hidden items-center justify-self-center gap-1 lg:flex">
             {primaryNavigation.map((item) => (
               <NavLink
                 key={item.to}
@@ -92,7 +92,7 @@ function Navbar() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-self-end gap-2">
             <NavLink
               to="/search"
               aria-label="Search FilmGeezer"

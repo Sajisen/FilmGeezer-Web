@@ -6,6 +6,7 @@ import {
   languageOptions,
   ratingOptions,
   supportsLanguageFilter,
+  type FilterOption,
 } from "../../config/searchFilters";
 import type { SearchScope } from "../../types/media";
 import type { SearchFilterValues } from "../../types/search";
@@ -26,10 +27,25 @@ type FilterSection = "genres" | "language" | "rating";
 
 const MAX_SELECTED_GENRES = 6;
 
+const GENRE_GROUP_ORDER = [
+  "Movies & series",
+  "Movies",
+  "Series",
+  "",
+] as const;
+
 function toggleArrayValue(values: string[], value: string) {
   return values.includes(value)
     ? values.filter((currentValue) => currentValue !== value)
     : [...values, value];
+}
+
+function getGenreGroupOrder(groupName: string) {
+  const groupIndex = GENRE_GROUP_ORDER.indexOf(
+    groupName as (typeof GENRE_GROUP_ORDER)[number],
+  );
+
+  return groupIndex === -1 ? GENRE_GROUP_ORDER.length : groupIndex;
 }
 
 function ChevronIcon({ isOpen }: { isOpen: boolean }) {
@@ -178,7 +194,7 @@ function SearchFilterPanel({
     return null;
   });
 
-  const genreOptions = getGenreOptions(scope);
+  const genreOptions = useMemo(() => getGenreOptions(scope), [scope]);
   const canFilterLanguage = supportsLanguageFilter(scope);
 
   const visibleGenreOptions = useMemo(() => {
@@ -188,10 +204,28 @@ function SearchFilterPanel({
       return genreOptions;
     }
 
-    return genreOptions.filter((option) =>
-      option.label.toLowerCase().includes(normalizedSearch),
-    );
+    return genreOptions.filter((option) => {
+      const searchableText = `${option.label} ${option.group ?? ""}`.toLowerCase();
+
+      return searchableText.includes(normalizedSearch);
+    });
   }, [genreOptions, genreSearch]);
+
+  const groupedGenreOptions = useMemo(() => {
+    const groups = new Map<string, FilterOption[]>();
+
+    visibleGenreOptions.forEach((option) => {
+      const groupName = option.group ?? "";
+      const existingOptions = groups.get(groupName) ?? [];
+
+      groups.set(groupName, [...existingOptions, option]);
+    });
+
+    return Array.from(groups.entries()).sort(
+      ([firstGroup], [secondGroup]) =>
+        getGenreGroupOrder(firstGroup) - getGenreGroupOrder(secondGroup),
+    );
+  }, [visibleGenreOptions]);
 
   const activeFilterCount =
     filters.genres.length +
@@ -247,9 +281,16 @@ function SearchFilterPanel({
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className}`}>
       {variant === "sidebar" && (
-        <div className="shrink-0 border-b border-white/10 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-bold text-white">Refine results</h2>
+        <div className="shrink-0 border-b border-white/10 px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
+                Refine
+              </p>
+              <h2 className="mt-1 text-base font-bold text-white">
+                Filter results
+              </h2>
+            </div>
 
             {activeFilterCount > 0 && (
               <span className="rounded-full border border-sky-400/25 bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-200">
@@ -260,7 +301,7 @@ function SearchFilterPanel({
         </div>
       )}
 
-      <div className="search-filter-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <div className="search-filter-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="space-y-3">
           <section>
             <FilterSectionButton
@@ -281,7 +322,9 @@ function SearchFilterPanel({
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs leading-5 text-slate-500">
-                    Select up to {MAX_SELECTED_GENRES} genres.
+                    {genreOptions.some((option) => option.group)
+                      ? `Choose from shared, Movie, or Series genres. Select up to ${MAX_SELECTED_GENRES}.`
+                      : `Select up to ${MAX_SELECTED_GENRES} genres.`}
                   </p>
 
                   {filters.genres.length > 0 && (
@@ -309,40 +352,58 @@ function SearchFilterPanel({
                   className="mt-3 min-h-11 w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/15"
                 />
 
-                <div className="mt-3 space-y-1">
-                  {visibleGenreOptions.map((option) => {
-                    const isSelected = filters.genres.includes(option.value);
-                    const isDisabled =
-                      !isSelected &&
-                      filters.genres.length >= MAX_SELECTED_GENRES;
+                <div className="mt-3 space-y-4">
+                  {groupedGenreOptions.map(([groupName, options]) => (
+                    <div key={groupName || "genres"}>
+                      {groupName && (
+                        <p className="mb-1.5 px-3 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          {groupName}
+                        </p>
+                      )}
 
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={isSelected}
-                        disabled={isDisabled}
-                        onClick={() => toggleGenre(option.value)}
-                        className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-35 ${
-                          isSelected
-                            ? "bg-sky-500/15 text-sky-100"
-                            : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
-                        }`}
-                      >
-                        <span className="min-w-0 truncate">{option.label}</span>
-                        <span
-                          aria-hidden="true"
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[0.65rem] font-black ${
-                            isSelected
-                              ? "border-sky-300/50 bg-sky-400 text-slate-950"
-                              : "border-white/15 bg-slate-950 text-transparent"
-                          }`}
-                        >
-                          ✓
-                        </span>
-                      </button>
-                    );
-                  })}
+                      <div className="space-y-1">
+                        {options.map((option) => {
+                          const isSelected = filters.genres.includes(
+                            option.value,
+                          );
+
+                          const isDisabled =
+                            !isSelected &&
+                            filters.genres.length >= MAX_SELECTED_GENRES;
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              aria-pressed={isSelected}
+                              disabled={isDisabled}
+                              onClick={() => toggleGenre(option.value)}
+                              className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-35 ${
+                                isSelected
+                                  ? "bg-sky-500/15 text-sky-100"
+                                  : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
+                              }`}
+                            >
+                              <span className="min-w-0 truncate">
+                                {option.label}
+                              </span>
+
+                              <span
+                                aria-hidden="true"
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[0.65rem] font-black ${
+                                  isSelected
+                                    ? "border-sky-300/50 bg-sky-400 text-slate-950"
+                                    : "border-white/15 bg-slate-950 text-transparent"
+                                }`}
+                              >
+                                ✓
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
 
                   {visibleGenreOptions.length === 0 && (
                     <p className="px-3 py-5 text-center text-sm text-slate-500">
@@ -510,20 +571,21 @@ function SearchFilterPanel({
       </div>
 
       <div
-        className={`shrink-0 border-t border-white/10 bg-slate-950/85 px-4 pt-3 backdrop-blur-md ${
+        className={`shrink-0 border-t border-white/10 bg-slate-950/85 px-4 pt-4 backdrop-blur-md ${
           variant === "sheet"
             ? "pb-[max(1rem,env(safe-area-inset-bottom))]"
             : "pb-4"
         }`}
       >
         {hasPendingChanges && (
-  <p
-    role="status"
-    className="mb-3 text-xs font-medium leading-5 text-amber-300"
-  >
-    Changes are not applied yet. Press {applyLabel} to refresh the results.
-  </p>
-)}
+          <p
+            role="status"
+            className="mb-3 text-xs font-medium leading-5 text-amber-300"
+          >
+            Changes are not applied yet. Press {applyLabel} to refresh the
+            results.
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <button

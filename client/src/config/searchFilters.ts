@@ -1,9 +1,15 @@
 import type { SearchScope } from "../types/media";
 
+export type FilterOptionGroup =
+  | "Movies & series"
+  | "Movies"
+  | "Series";
+
 export interface FilterOption {
   label: string;
   value: string;
   description?: string;
+  group?: FilterOptionGroup;
 }
 
 export const movieGenreOptions: FilterOption[] = [
@@ -48,45 +54,179 @@ export const tvGenreOptions: FilterOption[] = [
 ];
 
 const animeGenreOptions: FilterOption[] = [
-  { label: "Action — Movies", value: "Action" },
-  { label: "Action & Adventure — Series", value: "Action & Adventure" },
-  { label: "Adventure — Movies", value: "Adventure" },
-  { label: "Comedy", value: "Comedy" },
-  { label: "Drama", value: "Drama" },
-  { label: "Family", value: "Family" },
-  { label: "Fantasy — Movies", value: "Fantasy" },
-  { label: "Horror — Movies", value: "Horror" },
-  { label: "Mystery", value: "Mystery" },
-  { label: "Romance — Movies", value: "Romance" },
-  { label: "Science Fiction — Movies", value: "Science Fiction" },
-  { label: "Sci-Fi & Fantasy — Series", value: "Sci-Fi & Fantasy" },
-  { label: "Thriller — Movies", value: "Thriller" },
+  {
+    label: "Comedy",
+    value: "Comedy",
+    group: "Movies & series",
+  },
+  {
+    label: "Drama",
+    value: "Drama",
+    group: "Movies & series",
+  },
+  {
+    label: "Family",
+    value: "Family",
+    group: "Movies & series",
+  },
+  {
+    label: "Mystery",
+    value: "Mystery",
+    group: "Movies & series",
+  },
+
+  {
+    label: "Action",
+    value: "Action",
+    group: "Movies",
+  },
+  {
+    label: "Adventure",
+    value: "Adventure",
+    group: "Movies",
+  },
+  {
+    label: "Fantasy",
+    value: "Fantasy",
+    group: "Movies",
+  },
+  {
+    label: "Horror",
+    value: "Horror",
+    group: "Movies",
+  },
+  {
+    label: "Romance",
+    value: "Romance",
+    group: "Movies",
+  },
+  {
+    label: "Science Fiction",
+    value: "Science Fiction",
+    group: "Movies",
+  },
+  {
+    label: "Thriller",
+    value: "Thriller",
+    group: "Movies",
+  },
+
+  {
+    label: "Action & Adventure",
+    value: "Action & Adventure",
+    group: "Series",
+  },
+  {
+    label: "Sci-Fi & Fantasy",
+    value: "Sci-Fi & Fantasy",
+    group: "Series",
+  },
 ];
 
 const kDramaGenreOptions: FilterOption[] = [
-  { label: "Action — Movies", value: "Action" },
-  { label: "Action & Adventure — Series", value: "Action & Adventure" },
-  { label: "Comedy", value: "Comedy" },
-  { label: "Crime", value: "Crime" },
-  { label: "Drama", value: "Drama" },
-  { label: "Family", value: "Family" },
-  { label: "History — Movies", value: "History" },
-  { label: "Mystery", value: "Mystery" },
-  { label: "Romance — Movies", value: "Romance" },
-  { label: "Thriller — Movies", value: "Thriller" },
-  { label: "War & Politics — Series", value: "War & Politics" },
+  {
+    label: "Comedy",
+    value: "Comedy",
+    group: "Movies & series",
+  },
+  {
+    label: "Crime",
+    value: "Crime",
+    group: "Movies & series",
+  },
+  {
+    label: "Drama",
+    value: "Drama",
+    group: "Movies & series",
+  },
+  {
+    label: "Family",
+    value: "Family",
+    group: "Movies & series",
+  },
+  {
+    label: "Mystery",
+    value: "Mystery",
+    group: "Movies & series",
+  },
+
+  {
+    label: "Action",
+    value: "Action",
+    group: "Movies",
+  },
+  {
+    label: "History",
+    value: "History",
+    group: "Movies",
+  },
+  {
+    label: "Romance",
+    value: "Romance",
+    group: "Movies",
+  },
+  {
+    label: "Thriller",
+    value: "Thriller",
+    group: "Movies",
+  },
+
+  {
+    label: "Action & Adventure",
+    value: "Action & Adventure",
+    group: "Series",
+  },
+  {
+    label: "War & Politics",
+    value: "War & Politics",
+    group: "Series",
+  },
 ];
 
-const combinedGenreOptions = Array.from(
-  new Map(
-    [...movieGenreOptions, ...tvGenreOptions].map((option) => [
-      option.value,
-      { label: option.value, value: option.value },
-    ]),
-  ).values(),
-).sort((firstOption, secondOption) =>
-  firstOption.label.localeCompare(secondOption.label),
+const movieGenreValues = new Set(
+  movieGenreOptions.map((option) => option.value),
 );
+
+const tvGenreValues = new Set(
+  tvGenreOptions.map((option) => option.value),
+);
+
+const combinedGenreOptions: FilterOption[] = Array.from(
+  new Set([
+    ...movieGenreOptions.map((option) => option.value),
+    ...tvGenreOptions.map((option) => option.value),
+  ]),
+)
+  .map((value) => {
+    const isMovieGenre = movieGenreValues.has(value);
+    const isSeriesGenre = tvGenreValues.has(value);
+
+    return {
+      label: value,
+      value,
+      group:
+        isMovieGenre && isSeriesGenre
+          ? ("Movies & series" as const)
+          : isMovieGenre
+            ? ("Movies" as const)
+            : ("Series" as const),
+    };
+  })
+  .sort((firstOption, secondOption) => {
+    const groupOrder = {
+      "Movies & series": 0,
+      Movies: 1,
+      Series: 2,
+    };
+
+    const groupDifference =
+      groupOrder[firstOption.group] -
+      groupOrder[secondOption.group];
+
+    return groupDifference !== 0
+      ? groupDifference
+      : firstOption.label.localeCompare(secondOption.label);
+  });
 
 export const languageOptions: FilterOption[] = [
   { label: "English", value: "en" },

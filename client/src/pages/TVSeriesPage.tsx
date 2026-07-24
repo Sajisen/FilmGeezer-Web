@@ -6,6 +6,7 @@ import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
 import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useTvCollections } from "../hooks/useTvCollections";
+import { buildSearchHref } from "../utils/searchLinks";
 import tvSeriesBanner from "../assets/images/tvseries-banner.png";
 
 function TVSeriesPage() {
@@ -68,6 +69,7 @@ function TVSeriesPage() {
               title="Trending & Currently Airing"
               description="Current TV series and shows receiving strong audience attention."
               items={collections.trendingAndCurrentlyAiring}
+              viewMoreHref={buildSearchHref({ scope: "tv", preset: "trending" })}
             />
           )}
 
@@ -76,6 +78,7 @@ function TVSeriesPage() {
               title="FilmGeezer TV Essentials"
               description="Recognisable, highly regarded series selected using rating, popularity, and audience confidence."
               items={collections.essentials}
+              viewMoreHref={buildSearchHref({ scope: "tv", preset: "essentials" })}
             />
           )}
 
@@ -84,6 +87,7 @@ function TVSeriesPage() {
               title="Action, Crime & Thriller"
               description="High-stakes adventures, investigations, dangerous conflicts, and suspense."
               items={collections.actionCrimeThriller}
+              viewMoreHref={buildSearchHref({ scope: "tv", genres: ["Action & Adventure", "Crime", "Mystery"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -92,6 +96,7 @@ function TVSeriesPage() {
               title="Comedy"
               description="Popular comedies and lighter series worth adding to your watch list."
               items={collections.comedy}
+              viewMoreHref={buildSearchHref({ scope: "tv", genres: ["Comedy"], minRating: "6" })}
             />
           )}
 
@@ -100,6 +105,7 @@ function TVSeriesPage() {
               title="Drama & Romance"
               description="Character-driven and emotional series, including relationship-focused stories."
               items={collections.dramaRomance}
+              viewMoreHref={buildSearchHref({ scope: "tv", genres: ["Drama"], minRating: "6" })}
             />
           )}
 
@@ -108,6 +114,7 @@ function TVSeriesPage() {
               title="Mystery & Science Fiction"
               description="Unexplained events, speculative worlds, fantasy, and science-fiction stories."
               items={collections.mysteryScienceFiction}
+              viewMoreHref={buildSearchHref({ scope: "tv", genres: ["Mystery", "Sci-Fi & Fantasy"], genreMode: "any", minRating: "6" })}
             />
           )}
         </>
