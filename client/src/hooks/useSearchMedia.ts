@@ -40,7 +40,12 @@ function hasActiveFilters(filters: SearchFilterValues) {
   return (
     filters.genres.length > 0 ||
     filters.language !== "all" ||
-    filters.minRating !== "all"
+    filters.minRating !== "all" ||
+    filters.format !== "all" ||
+    filters.releaseYearFrom !== null ||
+    filters.releaseYearTo !== null ||
+    filters.sortBy !== "best-match" ||
+    filters.establishedOnly
   );
 }
 
@@ -58,6 +63,11 @@ function createRequestKey(
     filters.genreMode,
     filters.language,
     filters.minRating,
+    filters.format,
+    filters.releaseYearFrom ?? "",
+    filters.releaseYearTo ?? "",
+    filters.sortBy,
+    filters.establishedOnly ? "1" : "0",
     preset,
     String(reloadKey),
   ].join("\u0000");
@@ -70,7 +80,17 @@ export function useSearchMedia(
   preset: SearchPreset = "default",
 ) {
   const trimmedQuery = query.trim();
-  const { genres, genreMode, language, minRating } = filters;
+  const {
+    genres,
+    genreMode,
+    language,
+    minRating,
+    format,
+    releaseYearFrom,
+    releaseYearTo,
+    sortBy,
+    establishedOnly,
+  } = filters;
 
   const [reloadKey, setReloadKey] = useState(0);
   const [requestState, setRequestState] =
@@ -86,8 +106,23 @@ export function useSearchMedia(
       genreMode,
       language,
       minRating,
+      format,
+      releaseYearFrom,
+      releaseYearTo,
+      sortBy,
+      establishedOnly,
     }),
-    [genreMode, genres, language, minRating],
+    [
+      establishedOnly,
+      format,
+      genreMode,
+      genres,
+      language,
+      minRating,
+      releaseYearFrom,
+      releaseYearTo,
+      sortBy,
+    ],
   );
 
   const shouldSearch =

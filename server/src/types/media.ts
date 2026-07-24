@@ -16,6 +16,11 @@ export interface MediaItem {
   durationLabel: string;
   status: string;
   language: string;
+
+  /** Internal Search metadata populated from TMDB list responses. */
+  voteCount?: number;
+  popularity?: number;
+  releaseDate?: string;
 }
 
 export interface MediaVideo {

@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
+  createDefaultSearchFilters,
+  getFormatLabel,
   getLanguageLabel,
   getRatingLabel,
+  getReleasePeriodLabel,
+  getSortLabel,
   languageOptions,
+  MAX_RELEASE_YEAR,
+  MIN_RELEASE_YEAR,
   ratingOptions,
+  sanitizeFormat,
   sanitizeGenres,
+  sortOptions,
+  supportsFormatFilter,
   supportsLanguageFilter,
 } from "../config/searchFilters";
 import ContentContainer from "../components/layout/ContentContainer";
@@ -22,15 +31,11 @@ import type { SearchScope } from "../types/media";
 import type {
   GenreMatchMode,
   SearchFilterValues,
+  SearchFormat,
   SearchPreset,
+  SearchSort,
 } from "../types/search";
 
-const emptyFilters: SearchFilterValues = {
-  genres: [],
-  genreMode: "all",
-  language: "all",
-  minRating: "all",
-};
 
 function getSearchScope(value: string | null): SearchScope {
   if (
@@ -43,6 +48,31 @@ function getSearchScope(value: string | null): SearchScope {
   }
 
   return "all";
+}
+
+
+function getSearchFormat(value: string | null): SearchFormat {
+  return value === "movie" || value === "tv" ? value : "all";
+}
+
+function getSearchSort(value: string | null): SearchSort {
+  return sortOptions.some((option) => option.value === value)
+    ? (value as SearchSort)
+    : "best-match";
+}
+
+function getReleaseYear(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const year = Number(value);
+
+  return Number.isInteger(year) &&
+    year >= MIN_RELEASE_YEAR &&
+    year <= MAX_RELEASE_YEAR
+    ? year
+    : null;
 }
 
 function getGenreMatchMode(value: string | null): GenreMatchMode {
@@ -143,7 +173,12 @@ function hasActiveFilters(filters: SearchFilterValues) {
   return (
     filters.genres.length > 0 ||
     filters.language !== "all" ||
-    filters.minRating !== "all"
+    filters.minRating !== "all" ||
+    filters.format !== "all" ||
+    filters.releaseYearFrom !== null ||
+    filters.releaseYearTo !== null ||
+    filters.sortBy !== "best-match" ||
+    filters.establishedOnly
   );
 }
 
@@ -155,6 +190,11 @@ function filtersEqual(
     firstFilters.genreMode === secondFilters.genreMode &&
     firstFilters.language === secondFilters.language &&
     firstFilters.minRating === secondFilters.minRating &&
+    firstFilters.format === secondFilters.format &&
+    firstFilters.releaseYearFrom === secondFilters.releaseYearFrom &&
+    firstFilters.releaseYearTo === secondFilters.releaseYearTo &&
+    firstFilters.sortBy === secondFilters.sortBy &&
+    firstFilters.establishedOnly === secondFilters.establishedOnly &&
     firstFilters.genres.length === secondFilters.genres.length &&
     firstFilters.genres.every(
       (genre, index) => genre === secondFilters.genres[index],
@@ -168,8 +208,14 @@ function getActiveFilterCount(
 ) {
   return (
     filters.genres.length +
+    Number(supportsFormatFilter(scope) && filters.format !== "all") +
+    Number(
+      filters.releaseYearFrom !== null || filters.releaseYearTo !== null,
+    ) +
     Number(supportsLanguageFilter(scope) && filters.language !== "all") +
-    Number(filters.minRating !== "all")
+    Number(filters.minRating !== "all") +
+    Number(filters.sortBy !== "best-match") +
+    Number(filters.establishedOnly)
   );
 }
 
@@ -260,6 +306,10 @@ function SearchPageContent({
       language: supportsLanguageFilter(nextScope)
         ? currentFilters.language
         : "all",
+      format: sanitizeFormat(
+        nextScope,
+        scope === "movie" || scope === "tv" ? "all" : currentFilters.format,
+      ),
     }));
   }
 
@@ -269,11 +319,11 @@ function SearchPageContent({
   }
 
   function resetDraftFilters() {
-    setFilters(emptyFilters);
+    setFilters(createDefaultSearchFilters(scope));
   }
 
   function clearAllSearchCriteria() {
-    onCommit("", "all", emptyFilters, "default");
+    onCommit("", "all", createDefaultSearchFilters("all"), "default");
   }
 
   function removeCommittedScope() {
@@ -283,6 +333,10 @@ function SearchPageContent({
       {
         ...committedFilters,
         genres: sanitizeGenres("all", committedFilters.genres),
+        format:
+          committedScope === "movie" || committedScope === "tv"
+            ? "all"
+            : committedFilters.format,
       },
       committedPreset,
     );
@@ -341,6 +395,55 @@ function SearchPageContent({
     );
   }
 
+  function removeCommittedFormat() {
+    onCommit(
+      committedQuery,
+      committedScope,
+      {
+        ...committedFilters,
+        format: sanitizeFormat(committedScope, "all"),
+      },
+      committedPreset,
+    );
+  }
+
+  function removeCommittedReleasePeriod() {
+    onCommit(
+      committedQuery,
+      committedScope,
+      {
+        ...committedFilters,
+        releaseYearFrom: null,
+        releaseYearTo: null,
+      },
+      committedPreset,
+    );
+  }
+
+  function removeCommittedSort() {
+    onCommit(
+      committedQuery,
+      committedScope,
+      {
+        ...committedFilters,
+        sortBy: "best-match",
+      },
+      committedPreset,
+    );
+  }
+
+  function removeCommittedEstablishedOnly() {
+    onCommit(
+      committedQuery,
+      committedScope,
+      {
+        ...committedFilters,
+        establishedOnly: false,
+      },
+      committedPreset,
+    );
+  }
+
   function removeCommittedPreset() {
     onCommit(
       committedQuery,
@@ -388,6 +491,31 @@ function SearchPageContent({
           },
         ]
       : []),
+    ...(supportsFormatFilter(committedScope) &&
+    committedFilters.format !== "all"
+      ? [
+          {
+            key: "format",
+            label: getFormatLabel(committedFilters.format),
+            removeLabel: `Remove ${getFormatLabel(committedFilters.format)} format`,
+            onRemove: removeCommittedFormat,
+          },
+        ]
+      : []),
+    ...(committedFilters.releaseYearFrom !== null ||
+    committedFilters.releaseYearTo !== null
+      ? [
+          {
+            key: "release-period",
+            label: getReleasePeriodLabel(
+              committedFilters.releaseYearFrom,
+              committedFilters.releaseYearTo,
+            ),
+            removeLabel: "Remove release period filter",
+            onRemove: removeCommittedReleasePeriod,
+          },
+        ]
+      : []),
     ...(supportsLanguageFilter(committedScope) &&
     committedFilters.language !== "all"
       ? [
@@ -410,6 +538,26 @@ function SearchPageContent({
               committedFilters.minRating,
             )} filter`,
             onRemove: removeCommittedRating,
+          },
+        ]
+      : []),
+    ...(committedFilters.sortBy !== "best-match"
+      ? [
+          {
+            key: "sort",
+            label: getSortLabel(committedFilters.sortBy),
+            removeLabel: `Remove ${getSortLabel(committedFilters.sortBy)} sorting`,
+            onRemove: removeCommittedSort,
+          },
+        ]
+      : []),
+    ...(committedFilters.establishedOnly
+      ? [
+          {
+            key: "established",
+            label: "Established titles",
+            removeLabel: "Show titles with any audience vote count",
+            onRemove: removeCommittedEstablishedOnly,
           },
         ]
       : []),
@@ -675,12 +823,33 @@ function SearchPage() {
     : "all";
 
   const committedRating = getRatingFilter(searchParams.get("rating"));
+  const requestedFormat = getSearchFormat(searchParams.get("format"));
+  const committedFormat = sanitizeFormat(committedScope, requestedFormat);
+  const requestedFromYear = getReleaseYear(searchParams.get("fromYear"));
+  const requestedToYear = getReleaseYear(searchParams.get("toYear"));
+  const committedFromYear =
+    requestedFromYear !== null &&
+    requestedToYear !== null &&
+    requestedFromYear > requestedToYear
+      ? requestedToYear
+      : requestedFromYear;
+  const committedToYear =
+    requestedFromYear !== null &&
+    requestedToYear !== null &&
+    requestedFromYear > requestedToYear
+      ? requestedFromYear
+      : requestedToYear;
 
   const committedFilters: SearchFilterValues = {
     genres: committedGenres,
     genreMode: getGenreMatchMode(searchParams.get("genreMode")),
     language: committedLanguage,
     minRating: committedRating,
+    format: committedFormat,
+    releaseYearFrom: committedFromYear,
+    releaseYearTo: committedToYear,
+    sortBy: getSearchSort(searchParams.get("sort")),
+    establishedOnly: searchParams.get("established") === "true",
   };
 
   function commitSearch(
@@ -717,6 +886,28 @@ function SearchPage() {
       nextParams.set("rating", filters.minRating);
     }
 
+    const sanitizedFormat = sanitizeFormat(scope, filters.format);
+
+    if (supportsFormatFilter(scope) && sanitizedFormat !== "all") {
+      nextParams.set("format", sanitizedFormat);
+    }
+
+    if (filters.releaseYearFrom !== null) {
+      nextParams.set("fromYear", String(filters.releaseYearFrom));
+    }
+
+    if (filters.releaseYearTo !== null) {
+      nextParams.set("toYear", String(filters.releaseYearTo));
+    }
+
+    if (filters.sortBy !== "best-match") {
+      nextParams.set("sort", filters.sortBy);
+    }
+
+    if (filters.establishedOnly) {
+      nextParams.set("established", "true");
+    }
+
     if (!trimmedQuery && preset !== "default") {
       nextParams.set("preset", preset);
     }
@@ -732,6 +923,11 @@ function SearchPage() {
     committedFilters.genreMode,
     committedFilters.language,
     committedFilters.minRating,
+    committedFilters.format,
+    committedFilters.releaseYearFrom ?? "",
+    committedFilters.releaseYearTo ?? "",
+    committedFilters.sortBy,
+    committedFilters.establishedOnly ? "1" : "0",
   ].join(":");
 
   return (

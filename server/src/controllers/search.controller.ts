@@ -2,7 +2,9 @@ import type { Request, Response } from "express";
 import {
   getSearchResults,
   type GenreMatchMode,
+  type SearchFormat,
   type SearchPreset,
+  type SearchSort,
 } from "../services/searchResults.service.js";
 import {
   TmdbRequestError,
@@ -11,6 +13,8 @@ import {
 import type { SearchScope } from "../types/media.js";
 
 const MAX_GENRES = 6;
+const MIN_RELEASE_YEAR = 1900;
+const MAX_RELEASE_YEAR = new Date().getFullYear() + 2;
 
 const ALLOWED_GENRES = new Set([
   "Action",
@@ -42,6 +46,14 @@ const ALLOWED_GENRES = new Set([
   "Western",
 ]);
 
+const ALLOWED_SORTS = new Set<SearchSort>([
+  "best-match",
+  "popularity-desc",
+  "rating-desc",
+  "release-desc",
+  "release-asc",
+]);
+
 function getQueryString(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
@@ -64,6 +76,16 @@ function getQueryStrings(value: unknown) {
   );
 }
 
+function parseYear(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const year = Number(value);
+
+  return Number.isInteger(year) ? year : Number.NaN;
+}
+
 export async function searchMedia(req: Request, res: Response) {
   const query = getQueryString(req.query.q) ?? "";
   const scopeText = getQueryString(req.query.scope) ?? "all";
@@ -72,6 +94,11 @@ export async function searchMedia(req: Request, res: Response) {
   const language = getQueryString(req.query.language)?.toLowerCase();
   const genreModeText = getQueryString(req.query.genreMode) ?? "all";
   const presetText = getQueryString(req.query.preset) ?? "default";
+  const formatText = getQueryString(req.query.format) ?? "all";
+  const fromYearText = getQueryString(req.query.fromYear);
+  const toYearText = getQueryString(req.query.toYear);
+  const sortText = getQueryString(req.query.sort) ?? "best-match";
+  const establishedText = getQueryString(req.query.established) ?? "false";
 
   const legacyGenre = getQueryString(req.query.genre);
   const genres = getQueryStrings(req.query.genres);
@@ -121,22 +148,17 @@ export async function searchMedia(req: Request, res: Response) {
     return;
   }
 
-  if (genres.some((genre) => genre.length > 50)) {
-    res.status(400).json({
-      status: "error",
-      message: "Each genre must not exceed 50 characters.",
-    });
-    return;
-  }
-
-  if (genres.some((genre) => !ALLOWED_GENRES.has(genre))) {
+  if (
+    genres.some(
+      (genre) => genre.length > 50 || !ALLOWED_GENRES.has(genre),
+    )
+  ) {
     res.status(400).json({
       status: "error",
       message: "One or more selected genres are not supported.",
     });
     return;
   }
-
 
   if (
     presetText !== "default" &&
@@ -154,6 +176,30 @@ export async function searchMedia(req: Request, res: Response) {
     res.status(400).json({
       status: "error",
       message: "Genre matching mode must be all or any.",
+    });
+    return;
+  }
+
+  if (formatText !== "all" && formatText !== "movie" && formatText !== "tv") {
+    res.status(400).json({
+      status: "error",
+      message: "Format must be all, movie, or tv.",
+    });
+    return;
+  }
+
+  if (!ALLOWED_SORTS.has(sortText as SearchSort)) {
+    res.status(400).json({
+      status: "error",
+      message: "The selected sort order is not supported.",
+    });
+    return;
+  }
+
+  if (establishedText !== "true" && establishedText !== "false") {
+    res.status(400).json({
+      status: "error",
+      message: "Established titles must be true or false.",
     });
     return;
   }
@@ -180,9 +226,37 @@ export async function searchMedia(req: Request, res: Response) {
     }
   }
 
+  const releaseYearFrom = parseYear(fromYearText);
+  const releaseYearTo = parseYear(toYearText);
+
+  if (
+    Number.isNaN(releaseYearFrom) ||
+    Number.isNaN(releaseYearTo) ||
+    (releaseYearFrom !== undefined &&
+      (releaseYearFrom < MIN_RELEASE_YEAR ||
+        releaseYearFrom > MAX_RELEASE_YEAR)) ||
+    (releaseYearTo !== undefined &&
+      (releaseYearTo < MIN_RELEASE_YEAR ||
+        releaseYearTo > MAX_RELEASE_YEAR)) ||
+    (releaseYearFrom !== undefined &&
+      releaseYearTo !== undefined &&
+      releaseYearFrom > releaseYearTo)
+  ) {
+    res.status(400).json({
+      status: "error",
+      message: `Release years must be between ${MIN_RELEASE_YEAR} and ${MAX_RELEASE_YEAR}, with the start year before the end year.`,
+    });
+    return;
+  }
+
   const scope = scopeText as SearchScope;
   const genreMode = genreModeText as GenreMatchMode;
   const preset = presetText as SearchPreset;
+  const sortBy = sortText as SearchSort;
+  const requestedFormat = formatText as SearchFormat;
+  const format: SearchFormat =
+    scope === "movie" ? "movie" : scope === "tv" ? "tv" : requestedFormat;
+  const establishedOnly = establishedText === "true";
 
   if (
     !query &&
@@ -190,6 +264,11 @@ export async function searchMedia(req: Request, res: Response) {
     genres.length === 0 &&
     !language &&
     minRating === undefined &&
+    format === "all" &&
+    releaseYearFrom === undefined &&
+    releaseYearTo === undefined &&
+    sortBy === "best-match" &&
+    !establishedOnly &&
     preset === "default"
   ) {
     res.status(200).json({
@@ -202,6 +281,11 @@ export async function searchMedia(req: Request, res: Response) {
         genreMode,
         language: null,
         minRating: null,
+        format,
+        releaseYearFrom: null,
+        releaseYearTo: null,
+        sortBy,
+        establishedOnly,
       },
       page: 1,
       totalPages: 0,
@@ -219,6 +303,11 @@ export async function searchMedia(req: Request, res: Response) {
       genreMode,
       language,
       minRating,
+      format,
+      releaseYearFrom,
+      releaseYearTo,
+      sortBy,
+      establishedOnly,
     });
 
     res.status(200).json({
@@ -231,6 +320,11 @@ export async function searchMedia(req: Request, res: Response) {
         genreMode,
         language: language ?? null,
         minRating: minRating ?? null,
+        format,
+        releaseYearFrom: releaseYearFrom ?? null,
+        releaseYearTo: releaseYearTo ?? null,
+        sortBy,
+        establishedOnly,
       },
       page: data.page,
       totalPages: data.totalPages,

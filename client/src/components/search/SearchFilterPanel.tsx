@@ -1,10 +1,19 @@
 import { useId, useMemo, useState } from "react";
 import {
+  formatOptions,
+  getFixedFormat,
+  getFormatLabel,
   getGenreOptions,
   getLanguageLabel,
   getRatingLabel,
+  getReleasePeriodLabel,
+  getSortLabel,
   languageOptions,
+  MAX_RELEASE_YEAR,
+  MIN_RELEASE_YEAR,
   ratingOptions,
+  sortOptions,
+  supportsFormatFilter,
   supportsLanguageFilter,
   type FilterOption,
 } from "../../config/searchFilters";
@@ -23,16 +32,15 @@ interface SearchFilterPanelProps {
   className?: string;
 }
 
-type FilterSection = "genres" | "language" | "rating";
+type FilterSection =
+  | "genres"
+  | "format"
+  | "release"
+  | "language"
+  | "rating"
+  | "sort";
 
 const MAX_SELECTED_GENRES = 6;
-
-const GENRE_GROUP_ORDER = [
-  "Movies & series",
-  "Movies",
-  "Series",
-  "",
-] as const;
 
 function toggleArrayValue(values: string[], value: string) {
   return values.includes(value)
@@ -41,11 +49,10 @@ function toggleArrayValue(values: string[], value: string) {
 }
 
 function getGenreGroupOrder(groupName: string) {
-  const groupIndex = GENRE_GROUP_ORDER.indexOf(
-    groupName as (typeof GENRE_GROUP_ORDER)[number],
-  );
+  const groupOrder = ["Movies & series", "Movies", "Series", ""];
+  const index = groupOrder.indexOf(groupName);
 
-  return groupIndex === -1 ? GENRE_GROUP_ORDER.length : groupIndex;
+  return index === -1 ? groupOrder.length : index;
 }
 
 function ChevronIcon({ isOpen }: { isOpen: boolean }) {
@@ -165,6 +172,114 @@ function MatchModeButton({
   );
 }
 
+interface ReleaseYearRangeProps {
+  idPrefix: string;
+  fromYear: number | null;
+  toYear: number | null;
+  onChange: (fromYear: number | null, toYear: number | null) => void;
+}
+
+function ReleaseYearRange({
+  idPrefix,
+  fromYear,
+  toYear,
+  onChange,
+}: ReleaseYearRangeProps) {
+  const minimumValue = fromYear ?? MIN_RELEASE_YEAR;
+  const maximumValue = toYear ?? MAX_RELEASE_YEAR;
+  const totalSpan = MAX_RELEASE_YEAR - MIN_RELEASE_YEAR;
+  const leftPosition = ((minimumValue - MIN_RELEASE_YEAR) / totalSpan) * 100;
+  const rightPosition = ((maximumValue - MIN_RELEASE_YEAR) / totalSpan) * 100;
+
+  function changeMinimum(value: number) {
+    const boundedValue = Math.min(value, maximumValue);
+
+    onChange(
+      boundedValue === MIN_RELEASE_YEAR ? null : boundedValue,
+      toYear,
+    );
+  }
+
+  function changeMaximum(value: number) {
+    const boundedValue = Math.max(value, minimumValue);
+
+    onChange(
+      fromYear,
+      boundedValue === MAX_RELEASE_YEAR ? null : boundedValue,
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+            From
+          </p>
+          <p className="mt-1 text-base font-bold text-white">
+            {fromYear ?? "Any"}
+          </p>
+        </div>
+
+        <div className="h-px flex-1 bg-gradient-to-r from-sky-500/15 via-sky-300/50 to-sky-500/15" />
+
+        <div className="text-right">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+            To
+          </p>
+          <p className="mt-1 text-base font-bold text-white">
+            {toYear ?? "Any"}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative mt-5 h-9">
+        <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-slate-800" />
+        <div
+          className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-gradient-to-r from-sky-600 via-sky-400 to-cyan-300"
+          style={{
+            left: `${leftPosition}%`,
+            width: `${Math.max(0, rightPosition - leftPosition)}%`,
+          }}
+        />
+
+        <label htmlFor={`${idPrefix}-from`} className="sr-only">
+          Earliest release year
+        </label>
+        <input
+          id={`${idPrefix}-from`}
+          type="range"
+          min={MIN_RELEASE_YEAR}
+          max={MAX_RELEASE_YEAR}
+          step={1}
+          value={minimumValue}
+          onChange={(event) => changeMinimum(Number(event.target.value))}
+          className="release-year-range-input release-year-range-input--from"
+        />
+
+        <label htmlFor={`${idPrefix}-to`} className="sr-only">
+          Latest release year
+        </label>
+        <input
+          id={`${idPrefix}-to`}
+          type="range"
+          min={MIN_RELEASE_YEAR}
+          max={MAX_RELEASE_YEAR}
+          step={1}
+          value={maximumValue}
+          onChange={(event) => changeMaximum(Number(event.target.value))}
+          className="release-year-range-input release-year-range-input--to"
+        />
+      </div>
+
+      <div className="mt-1 flex justify-between text-[0.65rem] font-medium text-slate-600">
+        <span>{MIN_RELEASE_YEAR}</span>
+        <span>{MAX_RELEASE_YEAR}</span>
+      </div>
+    </div>
+  );
+}
+
 function SearchFilterPanel({
   scope,
   filters,
@@ -183,6 +298,10 @@ function SearchFilterPanel({
       return "genres";
     }
 
+    if (filters.releaseYearFrom !== null || filters.releaseYearTo !== null) {
+      return "release";
+    }
+
     if (filters.language !== "all") {
       return "language";
     }
@@ -191,11 +310,17 @@ function SearchFilterPanel({
       return "rating";
     }
 
+    if (filters.sortBy !== "best-match") {
+      return "sort";
+    }
+
     return null;
   });
 
   const genreOptions = useMemo(() => getGenreOptions(scope), [scope]);
   const canFilterLanguage = supportsLanguageFilter(scope);
+  const canFilterFormat = supportsFormatFilter(scope);
+  const fixedFormat = getFixedFormat(scope);
 
   const visibleGenreOptions = useMemo(() => {
     const normalizedSearch = genreSearch.trim().toLowerCase();
@@ -229,8 +354,14 @@ function SearchFilterPanel({
 
   const activeFilterCount =
     filters.genres.length +
+    Number(canFilterFormat && filters.format !== "all") +
+    Number(
+      filters.releaseYearFrom !== null || filters.releaseYearTo !== null,
+    ) +
     Number(canFilterLanguage && filters.language !== "all") +
-    Number(filters.minRating !== "all");
+    Number(filters.minRating !== "all") +
+    Number(filters.sortBy !== "best-match") +
+    Number(filters.establishedOnly);
 
   const fixedLanguageLabel =
     scope === "anime" ? "Japanese (fixed)" : "Korean (fixed)";
@@ -270,6 +401,15 @@ function SearchFilterPanel({
         ? filters.genres[0]
         : `${filters.genres.length} selected · Match ${filters.genreMode}`;
 
+  const formatSummary = fixedFormat
+    ? `${getFormatLabel(fixedFormat)} (fixed)`
+    : getFormatLabel(filters.format);
+
+  const releaseSummary = getReleasePeriodLabel(
+    filters.releaseYearFrom,
+    filters.releaseYearTo,
+  );
+
   const languageSummary = canFilterLanguage
     ? filters.language === "all"
       ? "Any original language"
@@ -277,20 +417,14 @@ function SearchFilterPanel({
     : fixedLanguageLabel;
 
   const ratingSummary = getRatingLabel(filters.minRating);
+  const sortSummary = getSortLabel(filters.sortBy);
 
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className}`}>
       {variant === "sidebar" && (
-        <div className="shrink-0 border-b border-white/10 px-5 py-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-                Refine
-              </p>
-              <h2 className="mt-1 text-base font-bold text-white">
-                Filter results
-              </h2>
-            </div>
+        <div className="shrink-0 border-b border-white/10 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-white">Refine results</h2>
 
             {activeFilterCount > 0 && (
               <span className="rounded-full border border-sky-400/25 bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-200">
@@ -301,7 +435,7 @@ function SearchFilterPanel({
         </div>
       )}
 
-      <div className="search-filter-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div className="search-filter-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-3">
         <div className="space-y-3">
           <section>
             <FilterSectionButton
@@ -366,7 +500,6 @@ function SearchFilterPanel({
                           const isSelected = filters.genres.includes(
                             option.value,
                           );
-
                           const isDisabled =
                             !isSelected &&
                             filters.genres.length >= MAX_SELECTED_GENRES;
@@ -444,6 +577,112 @@ function SearchFilterPanel({
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <FilterSectionButton
+              id={`${baseId}-format-trigger`}
+              controlsId={`${baseId}-format-panel`}
+              title="Format"
+              summary={formatSummary}
+              isOpen={openSection === "format"}
+              disabled={!canFilterFormat}
+              onClick={() => toggleSection("format")}
+            />
+
+            {canFilterFormat && openSection === "format" && (
+              <div
+                id={`${baseId}-format-panel`}
+                role="region"
+                aria-labelledby={`${baseId}-format-trigger`}
+                className="mt-2 space-y-1 rounded-2xl border border-white/10 bg-slate-950/55 p-2"
+              >
+                {formatOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={filters.format === option.value}
+                    onClick={() => updateFilters({ format: option.value })}
+                    className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition ${
+                      filters.format === option.value
+                        ? "bg-sky-500/15 text-white"
+                        : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
+                    }`}
+                  >
+                    <span>
+                      <span className="block text-sm font-semibold">
+                        {option.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {option.description}
+                      </span>
+                    </span>
+
+                    <span
+                      aria-hidden="true"
+                      className={`h-3 w-3 shrink-0 rounded-full border ${
+                        filters.format === option.value
+                          ? "border-sky-200 bg-sky-400"
+                          : "border-white/20"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <FilterSectionButton
+              id={`${baseId}-release-trigger`}
+              controlsId={`${baseId}-release-panel`}
+              title="Release period"
+              summary={releaseSummary}
+              isOpen={openSection === "release"}
+              onClick={() => toggleSection("release")}
+            />
+
+            {openSection === "release" && (
+              <div
+                id={`${baseId}-release-panel`}
+                role="region"
+                aria-labelledby={`${baseId}-release-trigger`}
+                className="mt-2 rounded-2xl border border-white/10 bg-slate-950/55 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs leading-5 text-slate-500">
+                    Drag either handle to choose an open or closed year range.
+                  </p>
+
+                  {(filters.releaseYearFrom !== null ||
+                    filters.releaseYearTo !== null) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateFilters({
+                          releaseYearFrom: null,
+                          releaseYearTo: null,
+                        })
+                      }
+                      className="min-h-9 rounded-full px-3 text-xs font-semibold text-sky-300 transition hover:bg-sky-500/10 hover:text-sky-200"
+                    >
+                      Any year
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-4">
+                  <ReleaseYearRange
+                    idPrefix={`${baseId}-release-year`}
+                    fromYear={filters.releaseYearFrom}
+                    toYear={filters.releaseYearTo}
+                    onChange={(releaseYearFrom, releaseYearTo) =>
+                      updateFilters({ releaseYearFrom, releaseYearTo })
+                    }
+                  />
+                </div>
               </div>
             )}
           </section>
@@ -567,11 +806,105 @@ function SearchFilterPanel({
               </div>
             )}
           </section>
+
+          <section>
+            <FilterSectionButton
+              id={`${baseId}-sort-trigger`}
+              controlsId={`${baseId}-sort-panel`}
+              title="Sort results"
+              summary={sortSummary}
+              isOpen={openSection === "sort"}
+              onClick={() => toggleSection("sort")}
+            />
+
+            {openSection === "sort" && (
+              <div
+                id={`${baseId}-sort-panel`}
+                role="region"
+                aria-labelledby={`${baseId}-sort-trigger`}
+                className="mt-2 space-y-1 rounded-2xl border border-white/10 bg-slate-950/55 p-2"
+              >
+                {sortOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={filters.sortBy === option.value}
+                    onClick={() => updateFilters({ sortBy: option.value })}
+                    className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition ${
+                      filters.sortBy === option.value
+                        ? "bg-sky-500/15 text-white"
+                        : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
+                    }`}
+                  >
+                    <span>
+                      <span className="block text-sm font-semibold">
+                        {option.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {option.description}
+                      </span>
+                    </span>
+
+                    <span
+                      aria-hidden="true"
+                      className={`h-3 w-3 shrink-0 rounded-full border ${
+                        filters.sortBy === option.value
+                          ? "border-sky-200 bg-sky-400"
+                          : "border-white/20"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={filters.establishedOnly}
+              onClick={() =>
+                updateFilters({
+                  establishedOnly: !filters.establishedOnly,
+                })
+              }
+              className={`flex min-h-20 w-full items-center justify-between gap-4 rounded-2xl border px-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                filters.establishedOnly
+                  ? "border-sky-400/30 bg-sky-500/10"
+                  : "border-white/10 bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.045]"
+              }`}
+            >
+              <span>
+                <span className="block text-sm font-semibold text-white">
+                  Established titles
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-slate-400">
+                  Hide titles with too few audience votes for a reliable score.
+                </span>
+              </span>
+
+              <span
+                aria-hidden="true"
+                className={`relative h-7 w-12 shrink-0 rounded-full border transition ${
+                  filters.establishedOnly
+                    ? "border-sky-300/40 bg-sky-500"
+                    : "border-white/15 bg-slate-800"
+                }`}
+              >
+                <span
+                  className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition ${
+                    filters.establishedOnly ? "left-6" : "left-1"
+                  }`}
+                />
+              </span>
+            </button>
+          </section>
         </div>
       </div>
 
       <div
-        className={`shrink-0 border-t border-white/10 bg-slate-950/85 px-4 pt-4 backdrop-blur-md ${
+        className={`shrink-0 border-t border-white/10 bg-slate-950/85 px-4 pt-3 backdrop-blur-md ${
           variant === "sheet"
             ? "pb-[max(1rem,env(safe-area-inset-bottom))]"
             : "pb-4"

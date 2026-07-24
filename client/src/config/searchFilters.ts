@@ -1,4 +1,9 @@
 import type { SearchScope } from "../types/media";
+import type {
+  SearchFilterValues,
+  SearchFormat,
+  SearchSort,
+} from "../types/search";
 
 export type FilterOptionGroup =
   | "Movies & series"
@@ -11,6 +16,9 @@ export interface FilterOption {
   description?: string;
   group?: FilterOptionGroup;
 }
+
+export const MIN_RELEASE_YEAR = 1900;
+export const MAX_RELEASE_YEAR = new Date().getFullYear() + 2;
 
 export const movieGenreOptions: FilterOption[] = [
   { label: "Action", value: "Action" },
@@ -54,62 +62,22 @@ export const tvGenreOptions: FilterOption[] = [
 ];
 
 const animeGenreOptions: FilterOption[] = [
-  {
-    label: "Comedy",
-    value: "Comedy",
-    group: "Movies & series",
-  },
-  {
-    label: "Drama",
-    value: "Drama",
-    group: "Movies & series",
-  },
-  {
-    label: "Family",
-    value: "Family",
-    group: "Movies & series",
-  },
-  {
-    label: "Mystery",
-    value: "Mystery",
-    group: "Movies & series",
-  },
+  { label: "Comedy", value: "Comedy", group: "Movies & series" },
+  { label: "Drama", value: "Drama", group: "Movies & series" },
+  { label: "Family", value: "Family", group: "Movies & series" },
+  { label: "Mystery", value: "Mystery", group: "Movies & series" },
 
-  {
-    label: "Action",
-    value: "Action",
-    group: "Movies",
-  },
-  {
-    label: "Adventure",
-    value: "Adventure",
-    group: "Movies",
-  },
-  {
-    label: "Fantasy",
-    value: "Fantasy",
-    group: "Movies",
-  },
-  {
-    label: "Horror",
-    value: "Horror",
-    group: "Movies",
-  },
-  {
-    label: "Romance",
-    value: "Romance",
-    group: "Movies",
-  },
+  { label: "Action", value: "Action", group: "Movies" },
+  { label: "Adventure", value: "Adventure", group: "Movies" },
+  { label: "Fantasy", value: "Fantasy", group: "Movies" },
+  { label: "Horror", value: "Horror", group: "Movies" },
+  { label: "Romance", value: "Romance", group: "Movies" },
   {
     label: "Science Fiction",
     value: "Science Fiction",
     group: "Movies",
   },
-  {
-    label: "Thriller",
-    value: "Thriller",
-    group: "Movies",
-  },
+  { label: "Thriller", value: "Thriller", group: "Movies" },
 
   {
     label: "Action & Adventure",
@@ -124,52 +92,16 @@ const animeGenreOptions: FilterOption[] = [
 ];
 
 const kDramaGenreOptions: FilterOption[] = [
-  {
-    label: "Comedy",
-    value: "Comedy",
-    group: "Movies & series",
-  },
-  {
-    label: "Crime",
-    value: "Crime",
-    group: "Movies & series",
-  },
-  {
-    label: "Drama",
-    value: "Drama",
-    group: "Movies & series",
-  },
-  {
-    label: "Family",
-    value: "Family",
-    group: "Movies & series",
-  },
-  {
-    label: "Mystery",
-    value: "Mystery",
-    group: "Movies & series",
-  },
+  { label: "Comedy", value: "Comedy", group: "Movies & series" },
+  { label: "Crime", value: "Crime", group: "Movies & series" },
+  { label: "Drama", value: "Drama", group: "Movies & series" },
+  { label: "Family", value: "Family", group: "Movies & series" },
+  { label: "Mystery", value: "Mystery", group: "Movies & series" },
 
-  {
-    label: "Action",
-    value: "Action",
-    group: "Movies",
-  },
-  {
-    label: "History",
-    value: "History",
-    group: "Movies",
-  },
-  {
-    label: "Romance",
-    value: "Romance",
-    group: "Movies",
-  },
-  {
-    label: "Thriller",
-    value: "Thriller",
-    group: "Movies",
-  },
+  { label: "Action", value: "Action", group: "Movies" },
+  { label: "History", value: "History", group: "Movies" },
+  { label: "Romance", value: "Romance", group: "Movies" },
+  { label: "Thriller", value: "Thriller", group: "Movies" },
 
   {
     label: "Action & Adventure",
@@ -220,8 +152,7 @@ const combinedGenreOptions: FilterOption[] = Array.from(
     };
 
     const groupDifference =
-      groupOrder[firstOption.group] -
-      groupOrder[secondOption.group];
+      groupOrder[firstOption.group] - groupOrder[secondOption.group];
 
     return groupDifference !== 0
       ? groupDifference
@@ -266,6 +197,76 @@ export const ratingOptions: FilterOption[] = [
   },
 ];
 
+export const formatOptions: Array<{
+  label: string;
+  value: SearchFormat;
+  description: string;
+}> = [
+  {
+    label: "All formats",
+    value: "all",
+    description: "Include Movies and Series",
+  },
+  {
+    label: "Movies",
+    value: "movie",
+    description: "Show feature-length and film results",
+  },
+  {
+    label: "Series",
+    value: "tv",
+    description: "Show episodic TV and streaming series",
+  },
+];
+
+export const sortOptions: Array<{
+  label: string;
+  value: SearchSort;
+  description: string;
+}> = [
+  {
+    label: "Best match",
+    value: "best-match",
+    description: "Prioritize title relevance, then popularity",
+  },
+  {
+    label: "Most popular",
+    value: "popularity-desc",
+    description: "Show widely watched and discussed titles first",
+  },
+  {
+    label: "Highest rated",
+    value: "rating-desc",
+    description: "Show stronger audience scores first",
+  },
+  {
+    label: "Newest first",
+    value: "release-desc",
+    description: "Show recent releases and first-air dates first",
+  },
+  {
+    label: "Oldest first",
+    value: "release-asc",
+    description: "Show earlier releases and first-air dates first",
+  },
+];
+
+export function createDefaultSearchFilters(
+  scope: SearchScope = "all",
+): SearchFilterValues {
+  return {
+    genres: [],
+    genreMode: "all",
+    language: "all",
+    minRating: "all",
+    format: getFixedFormat(scope) ?? "all",
+    releaseYearFrom: null,
+    releaseYearTo: null,
+    sortBy: "best-match",
+    establishedOnly: false,
+  };
+}
+
 export function getGenreOptions(scope: SearchScope) {
   if (scope === "movie") {
     return movieGenreOptions;
@@ -288,6 +289,29 @@ export function getGenreOptions(scope: SearchScope) {
 
 export function supportsLanguageFilter(scope: SearchScope) {
   return scope !== "anime" && scope !== "k-drama";
+}
+
+export function supportsFormatFilter(scope: SearchScope) {
+  return scope === "all" || scope === "anime" || scope === "k-drama";
+}
+
+export function getFixedFormat(scope: SearchScope): SearchFormat | null {
+  if (scope === "movie") {
+    return "movie";
+  }
+
+  if (scope === "tv") {
+    return "tv";
+  }
+
+  return null;
+}
+
+export function sanitizeFormat(
+  scope: SearchScope,
+  format: SearchFormat,
+): SearchFormat {
+  return getFixedFormat(scope) ?? format;
 }
 
 export function isGenreAllowed(scope: SearchScope, genre: string) {
@@ -316,4 +340,39 @@ export function getRatingLabel(value: string) {
     ratingOptions.find((option) => option.value === value)?.label ??
     `Rating ${value}+`
   );
+}
+
+export function getFormatLabel(format: SearchFormat) {
+  return (
+    formatOptions.find((option) => option.value === format)?.label ??
+    "All formats"
+  );
+}
+
+export function getSortLabel(sortBy: SearchSort) {
+  return (
+    sortOptions.find((option) => option.value === sortBy)?.label ??
+    "Best match"
+  );
+}
+
+export function getReleasePeriodLabel(
+  releaseYearFrom: number | null,
+  releaseYearTo: number | null,
+) {
+  if (releaseYearFrom === null && releaseYearTo === null) {
+    return "Any release year";
+  }
+
+  if (releaseYearFrom !== null && releaseYearTo !== null) {
+    return releaseYearFrom === releaseYearTo
+      ? String(releaseYearFrom)
+      : `${releaseYearFrom}–${releaseYearTo}`;
+  }
+
+  if (releaseYearFrom !== null) {
+    return `From ${releaseYearFrom}`;
+  }
+
+  return `Up to ${releaseYearTo}`;
 }

@@ -4,16 +4,29 @@ import {
   getTmdbCatalog,
   searchTmdbMedia,
   type TmdbBrowseResult,
+  type TmdbCatalogFilters,
 } from "./tmdb.service.js";
 
 export type GenreMatchMode = "all" | "any";
 export type SearchPreset = "default" | "trending" | "essentials";
+export type SearchFormat = "all" | "movie" | "tv";
+export type SearchSort =
+  | "best-match"
+  | "popularity-desc"
+  | "rating-desc"
+  | "release-desc"
+  | "release-asc";
 
 export interface SearchResultsFilters {
   genres: string[];
   genreMode: GenreMatchMode;
   language?: string;
   minRating?: number;
+  format: SearchFormat;
+  releaseYearFrom?: number;
+  releaseYearTo?: number;
+  sortBy: SearchSort;
+  establishedOnly: boolean;
 }
 
 export interface SearchResultsPage {
@@ -45,6 +58,7 @@ const RESULT_PAGE_SIZE = 24;
 const SOURCE_BATCH_SIZE = 4;
 const MAX_SOURCE_PAGES_PER_EXPANSION = 24;
 const MAX_SOURCE_PAGES_PER_POOL = 80;
+const MAX_SORTED_TITLE_SOURCE_PAGES = 20;
 const SEARCH_POOL_TTL_MS = 10 * 60 * 1000;
 const MAX_SEARCH_POOLS = 80;
 
@@ -158,6 +172,32 @@ function matchesGenres(item: MediaItem, filters: SearchResultsFilters) {
     : selectedGenres.some((genre) => itemGenres.has(genre));
 }
 
+function getItemYear(item: MediaItem) {
+  const dateYear = Number(item.releaseDate?.slice(0, 4));
+
+  if (Number.isInteger(dateYear) && dateYear > 0) {
+    return dateYear;
+  }
+
+  const displayedYear = Number(item.year);
+  return Number.isInteger(displayedYear) ? displayedYear : null;
+}
+
+function getEstablishedVoteThreshold(
+  item: MediaItem,
+  scope: SearchScope,
+) {
+  if (scope === "anime") {
+    return item.mediaType === "movie" ? 50 : 40;
+  }
+
+  if (scope === "k-drama") {
+    return item.mediaType === "movie" ? 50 : 30;
+  }
+
+  return item.mediaType === "movie" ? 200 : 100;
+}
+
 function applyApplicationFilters(
   items: MediaItem[],
   scope: SearchScope,
@@ -165,13 +205,21 @@ function applyApplicationFilters(
 ) {
   return items.filter((item) => {
     if (scope === "movie") {
-      if (item.mediaType !== "movie" || isPublicAnime(item) || isPublicKDrama(item)) {
+      if (
+        item.mediaType !== "movie" ||
+        isPublicAnime(item) ||
+        isPublicKDrama(item)
+      ) {
         return false;
       }
     }
 
     if (scope === "tv") {
-      if (item.mediaType !== "tv" || isPublicAnime(item) || isPublicKDrama(item)) {
+      if (
+        item.mediaType !== "tv" ||
+        isPublicAnime(item) ||
+        isPublicKDrama(item)
+      ) {
         return false;
       }
     }
@@ -181,6 +229,10 @@ function applyApplicationFilters(
     }
 
     if (scope === "k-drama" && !isPublicKDrama(item)) {
+      return false;
+    }
+
+    if (filters.format !== "all" && item.mediaType !== filters.format) {
       return false;
     }
 
@@ -202,8 +254,84 @@ function applyApplicationFilters(
       return false;
     }
 
+    const itemYear = getItemYear(item);
+
+    if (
+      filters.releaseYearFrom !== undefined &&
+      (itemYear === null || itemYear < filters.releaseYearFrom)
+    ) {
+      return false;
+    }
+
+    if (
+      filters.releaseYearTo !== undefined &&
+      (itemYear === null || itemYear > filters.releaseYearTo)
+    ) {
+      return false;
+    }
+
+    if (
+      filters.establishedOnly &&
+      (item.voteCount ?? 0) < getEstablishedVoteThreshold(item, scope)
+    ) {
+      return false;
+    }
+
     return true;
   });
+}
+
+function compareItems(
+  firstItem: MediaItem,
+  secondItem: MediaItem,
+  sortBy: SearchSort,
+) {
+  if (sortBy === "popularity-desc") {
+    return (secondItem.popularity ?? 0) - (firstItem.popularity ?? 0);
+  }
+
+  if (sortBy === "rating-desc") {
+    const ratingDifference = secondItem.rating - firstItem.rating;
+
+    return ratingDifference !== 0
+      ? ratingDifference
+      : (secondItem.voteCount ?? 0) - (firstItem.voteCount ?? 0);
+  }
+
+  if (sortBy === "release-desc" || sortBy === "release-asc") {
+    const firstTime = firstItem.releaseDate
+      ? Date.parse(firstItem.releaseDate)
+      : Number.NaN;
+    const secondTime = secondItem.releaseDate
+      ? Date.parse(secondItem.releaseDate)
+      : Number.NaN;
+
+    if (Number.isNaN(firstTime) && Number.isNaN(secondTime)) {
+      return 0;
+    }
+
+    if (Number.isNaN(firstTime)) {
+      return 1;
+    }
+
+    if (Number.isNaN(secondTime)) {
+      return -1;
+    }
+
+    return sortBy === "release-desc"
+      ? secondTime - firstTime
+      : firstTime - secondTime;
+  }
+
+  return 0;
+}
+
+function sortItems(items: MediaItem[], sortBy: SearchSort) {
+  return sortBy === "best-match"
+    ? items
+    : [...items].sort((firstItem, secondItem) =>
+        compareItems(firstItem, secondItem, sortBy),
+      );
 }
 
 function interleaveItems(firstItems: MediaItem[], secondItems: MediaItem[]) {
@@ -254,6 +382,53 @@ function createEmptySourcePage(page: number): TmdbBrowseResult {
     results: [],
     hasMore: false,
   };
+}
+
+function getDiscoverSort(
+  mediaType: MediaType,
+  sortBy: SearchSort,
+): TmdbCatalogFilters["sortBy"] {
+  if (sortBy === "rating-desc") {
+    return "vote_average.desc";
+  }
+
+  if (sortBy === "release-desc") {
+    return mediaType === "movie"
+      ? "primary_release_date.desc"
+      : "first_air_date.desc";
+  }
+
+  if (sortBy === "release-asc") {
+    return mediaType === "movie"
+      ? "primary_release_date.asc"
+      : "first_air_date.asc";
+  }
+
+  return "popularity.desc";
+}
+
+function getDiscoveryVoteThreshold(
+  mediaType: MediaType,
+  scope: SearchScope,
+  filters: SearchResultsFilters,
+) {
+  if (filters.establishedOnly) {
+    if (scope === "anime") {
+      return mediaType === "movie" ? 50 : 40;
+    }
+
+    if (scope === "k-drama") {
+      return mediaType === "movie" ? 50 : 30;
+    }
+
+    return mediaType === "movie" ? 200 : 100;
+  }
+
+  if (filters.sortBy === "rating-desc") {
+    return mediaType === "movie" ? 25 : 15;
+  }
+
+  return undefined;
 }
 
 async function loadDiscoveryPageForMediaType(
@@ -309,8 +484,15 @@ async function loadDiscoveryPageForMediaType(
       filters.minRating ??
       (preset === "essentials" ? essentialsMinimumRating : undefined),
     minVoteCount:
-      preset === "essentials" ? essentialsMinimumVotes : undefined,
-    sortBy: preset === "essentials" ? "vote_count.desc" : "popularity.desc",
+      preset === "essentials"
+        ? essentialsMinimumVotes
+        : getDiscoveryVoteThreshold(mediaType, scope, filters),
+    sortBy:
+      preset === "essentials"
+        ? "vote_count.desc"
+        : getDiscoverSort(mediaType, filters.sortBy),
+    releaseYearFrom: filters.releaseYearFrom,
+    releaseYearTo: filters.releaseYearTo,
     page: sourcePage,
   });
 }
@@ -322,6 +504,20 @@ async function loadTrendingPageForMediaType(
   return getTmdbBrowseList(mediaType, "trending", sourcePage);
 }
 
+function getRequestedMediaTypes(criteria: SearchCriteria): MediaType[] {
+  const { scope, filters } = criteria;
+
+  if (scope === "movie" || scope === "tv") {
+    return [scope];
+  }
+
+  if (filters.format === "movie" || filters.format === "tv") {
+    return [filters.format];
+  }
+
+  return ["movie", "tv"];
+}
+
 async function loadLogicalSourcePage(
   criteria: SearchCriteria,
   sourcePage: number,
@@ -329,7 +525,18 @@ async function loadLogicalSourcePage(
   const { query, scope, preset, filters } = criteria;
 
   if (query) {
-    return searchTmdbMedia(query, scope, sourcePage);
+    const searchScope =
+      scope === "all" && filters.format !== "all" ? filters.format : scope;
+
+    const response = await searchTmdbMedia(query, searchScope, sourcePage);
+
+    return {
+      ...response,
+      results: sortItems(
+        applyApplicationFilters(response.results, scope, filters),
+        filters.sortBy,
+      ),
+    };
   }
 
   async function loadPage(mediaType: MediaType) {
@@ -344,8 +551,15 @@ async function loadLogicalSourcePage(
         );
   }
 
-  if (scope === "movie" || scope === "tv") {
-    return loadPage(scope);
+  const mediaTypes = getRequestedMediaTypes(criteria);
+
+  if (mediaTypes.length === 1) {
+    const response = await loadPage(mediaTypes[0]);
+
+    return {
+      ...response,
+      results: applyApplicationFilters(response.results, scope, filters),
+    };
   }
 
   const [moviePage, tvPage] = await Promise.all([
@@ -353,11 +567,16 @@ async function loadLogicalSourcePage(
     loadPage("tv"),
   ]);
 
+  const mixedResults = sortItems(
+    interleaveItems(moviePage.results, tvPage.results),
+    filters.sortBy,
+  );
+
   return {
     page: sourcePage,
     totalPages: Math.max(moviePage.totalPages, tvPage.totalPages),
     totalResults: moviePage.totalResults + tvPage.totalResults,
-    results: interleaveItems(moviePage.results, tvPage.results),
+    results: applyApplicationFilters(mixedResults, scope, filters),
     hasMore: Boolean(moviePage.hasMore || tvPage.hasMore),
   };
 }
@@ -371,6 +590,11 @@ function createPoolKey(criteria: SearchCriteria) {
     genreMode: criteria.filters.genreMode,
     language: criteria.filters.language?.toLowerCase() ?? "",
     minRating: criteria.filters.minRating ?? null,
+    format: criteria.filters.format,
+    releaseYearFrom: criteria.filters.releaseYearFrom ?? null,
+    releaseYearTo: criteria.filters.releaseYearTo ?? null,
+    sortBy: criteria.filters.sortBy,
+    establishedOnly: criteria.filters.establishedOnly,
   });
 }
 
@@ -464,13 +688,7 @@ async function expandSearchPool(
         response.totalPages,
         MAX_SOURCE_PAGES_PER_POOL,
       );
-      const filteredItems = applyApplicationFilters(
-        response.results,
-        criteria.scope,
-        criteria.filters,
-      );
-
-      appendUniqueItems(pool, filteredItems);
+      appendUniqueItems(pool, response.results);
     });
 
     scannedPages += pages.length;
@@ -489,18 +707,75 @@ async function expandSearchPool(
   pool.expiresAt = Date.now() + SEARCH_POOL_TTL_MS;
 }
 
+async function buildStableSortedTitlePool(
+  pool: SearchPoolState,
+  criteria: SearchCriteria,
+) {
+  while (!pool.exhausted) {
+    const knownLastPage = Math.min(
+      pool.sourceTotalPages ?? MAX_SORTED_TITLE_SOURCE_PAGES,
+      MAX_SORTED_TITLE_SOURCE_PAGES,
+    );
+
+    if (pool.nextSourcePage > knownLastPage) {
+      pool.exhausted = true;
+      break;
+    }
+
+    const batchSize = Math.min(
+      SOURCE_BATCH_SIZE,
+      knownLastPage - pool.nextSourcePage + 1,
+    );
+    const pages = Array.from(
+      { length: batchSize },
+      (_, index) => pool.nextSourcePage + index,
+    );
+    const responses = await Promise.all(
+      pages.map((page) => loadLogicalSourcePage(criteria, page)),
+    );
+
+    responses.forEach((response) => {
+      pool.sourceTotalPages = Math.min(
+        response.totalPages,
+        MAX_SORTED_TITLE_SOURCE_PAGES,
+      );
+      appendUniqueItems(pool, response.results);
+    });
+
+    pool.nextSourcePage = pages[pages.length - 1] + 1;
+
+    if (
+      pool.nextSourcePage >
+      Math.min(
+        pool.sourceTotalPages ?? MAX_SORTED_TITLE_SOURCE_PAGES,
+        MAX_SORTED_TITLE_SOURCE_PAGES,
+      )
+    ) {
+      pool.exhausted = true;
+    }
+  }
+
+  pool.items = sortItems(pool.items, criteria.filters.sortBy);
+  pool.expiresAt = Date.now() + SEARCH_POOL_TTL_MS;
+}
+
 async function ensureSearchPool(
   pool: SearchPoolState,
   criteria: SearchCriteria,
   targetItemCount: number,
 ) {
+  const needsStableTitleSort =
+    Boolean(criteria.query) && criteria.filters.sortBy !== "best-match";
+
   while (pool.items.length < targetItemCount && !pool.exhausted) {
     if (pool.pending) {
       await pool.pending;
       continue;
     }
 
-    const request = expandSearchPool(pool, criteria, targetItemCount);
+    const request = needsStableTitleSort
+      ? buildStableSortedTitlePool(pool, criteria)
+      : expandSearchPool(pool, criteria, targetItemCount);
     pool.pending = request;
 
     try {

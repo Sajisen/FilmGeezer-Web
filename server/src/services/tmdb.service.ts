@@ -75,7 +75,16 @@ export interface TmdbCatalogFilters {
   language?: string;
   minRating?: number;
   minVoteCount?: number;
-  sortBy?: "popularity.desc" | "vote_count.desc" | "vote_average.desc";
+  sortBy?:
+    | "popularity.desc"
+    | "vote_count.desc"
+    | "vote_average.desc"
+    | "primary_release_date.desc"
+    | "primary_release_date.asc"
+    | "first_air_date.desc"
+    | "first_air_date.asc";
+  releaseYearFrom?: number;
+  releaseYearTo?: number;
   page?: number;
 }
 
@@ -321,6 +330,11 @@ function mapSearchResult(
     durationLabel: isMovie ? "Movie" : "TV Series",
     status: "Unknown",
     language: result.original_language?.toUpperCase() || "Unknown",
+    voteCount: result.vote_count ?? 0,
+    popularity: result.popularity ?? 0,
+    releaseDate: isMovie
+      ? result.release_date ?? ""
+      : result.first_air_date ?? "",
   };
 }
 
@@ -354,6 +368,11 @@ function mapListResult(
     durationLabel: isMovie ? "Movie" : "TV Series",
     status: "Unknown",
     language: result.original_language?.toUpperCase() || "Unknown",
+    voteCount: result.vote_count ?? 0,
+    popularity: result.popularity ?? 0,
+    releaseDate: isMovie
+      ? result.release_date ?? ""
+      : result.first_air_date ?? "",
   };
 }
 
@@ -2664,6 +2683,24 @@ export async function getTmdbCatalog(
     discoverParams.set(
       "vote_count.gte",
       mediaType === "movie" ? "20" : "10",
+    );
+  }
+
+  if (filters.releaseYearFrom !== undefined) {
+    discoverParams.set(
+      mediaType === "movie"
+        ? "primary_release_date.gte"
+        : "first_air_date.gte",
+      `${filters.releaseYearFrom}-01-01`,
+    );
+  }
+
+  if (filters.releaseYearTo !== undefined) {
+    discoverParams.set(
+      mediaType === "movie"
+        ? "primary_release_date.lte"
+        : "first_air_date.lte",
+      `${filters.releaseYearTo}-12-31`,
     );
   }
 

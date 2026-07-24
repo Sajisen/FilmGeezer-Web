@@ -261,3 +261,72 @@ body {
     gap: 1.25rem;
   }
 }
+
+/* Search release-year dual range */
+.release-year-range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 2.25rem;
+  margin: 0;
+  pointer-events: none;
+  appearance: none;
+  background: transparent;
+  outline: none;
+}
+
+.release-year-range-input::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  background: transparent;
+}
+
+.release-year-range-input::-moz-range-track {
+  height: 0.5rem;
+  background: transparent;
+}
+
+.release-year-range-input::-webkit-slider-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: -0.375rem;
+  pointer-events: auto;
+  appearance: none;
+  border: 3px solid rgb(2 6 23);
+  border-radius: 9999px;
+  background: rgb(56 189 248);
+  box-shadow: 0 0 0 1px rgb(125 211 252 / 0.6),
+    0 4px 14px rgb(14 165 233 / 0.35);
+  cursor: grab;
+}
+
+.release-year-range-input::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  pointer-events: auto;
+  border: 3px solid rgb(2 6 23);
+  border-radius: 9999px;
+  background: rgb(56 189 248);
+  box-shadow: 0 0 0 1px rgb(125 211 252 / 0.6),
+    0 4px 14px rgb(14 165 233 / 0.35);
+  cursor: grab;
+}
+
+.release-year-range-input:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgb(125 211 252 / 0.3),
+    0 0 0 1px rgb(125 211 252 / 0.9),
+    0 4px 14px rgb(14 165 233 / 0.35);
+}
+
+.release-year-range-input:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgb(125 211 252 / 0.3),
+    0 0 0 1px rgb(125 211 252 / 0.9),
+    0 4px 14px rgb(14 165 233 / 0.35);
+}
+
+.release-year-range-input--from {
+  z-index: 20;
+}
+
+.release-year-range-input--to {
+  z-index: 30;
+}

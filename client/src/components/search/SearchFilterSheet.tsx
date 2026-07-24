@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { createDefaultSearchFilters } from "../../config/searchFilters";
 import type { SearchScope } from "../../types/media";
 import type { SearchFilterValues } from "../../types/search";
 import { CloseIcon } from "../navigation/NavigationIcons";
@@ -20,6 +21,11 @@ function areFiltersEqual(
     firstFilters.genreMode === secondFilters.genreMode &&
     firstFilters.language === secondFilters.language &&
     firstFilters.minRating === secondFilters.minRating &&
+    firstFilters.format === secondFilters.format &&
+    firstFilters.releaseYearFrom === secondFilters.releaseYearFrom &&
+    firstFilters.releaseYearTo === secondFilters.releaseYearTo &&
+    firstFilters.sortBy === secondFilters.sortBy &&
+    firstFilters.establishedOnly === secondFilters.establishedOnly &&
     firstFilters.genres.length === secondFilters.genres.length &&
     firstFilters.genres.every(
       (genre, index) => genre === secondFilters.genres[index],
@@ -114,12 +120,7 @@ function SearchFilterSheet({
   }, [onClose]);
 
   function resetDraftFilters() {
-    setDraftFilters({
-      genres: [],
-      genreMode: "all",
-      language: "all",
-      minRating: "all",
-    });
+    setDraftFilters(createDefaultSearchFilters(scope));
   }
 
   return createPortal(
