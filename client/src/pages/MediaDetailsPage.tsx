@@ -8,7 +8,7 @@ import WatchlistButton from "../components/WatchlistButton";
 import { getMediaByTmdbId } from "../services/mediaService";
 import { getProviderLinksByMedia } from "../services/providerLinkService";
 import type { MediaDetails } from "../types/media";
-import type { ProviderLink } from "../types/providerLink";
+import type { ProviderLinksPayload } from "../types/providerLink";
 import { getLanguageName } from "../utils/language";
 import MediaDetailsContainer from "../components/details/MediaDetailsContainer";
 import MediaTrailerSection from "../components/details/MediaTrailerSection";
@@ -31,7 +31,7 @@ interface ProviderLinksRequestState {
   mediaType: string | null;
   tmdbId: string | null;
   requestKey: number;
-  links: ProviderLink[];
+  data: ProviderLinksPayload | null;
   errorMessage: string;
 }
 
@@ -47,7 +47,7 @@ const initialProviderRequestState: ProviderLinksRequestState = {
   mediaType: null,
   tmdbId: null,
   requestKey: -1,
-  links: [],
+  data: null,
   errorMessage: "",
 };
 
@@ -210,7 +210,7 @@ function MediaDetailsPage() {
       requestedTmdbId: string,
     ) {
       try {
-        const links = await getProviderLinksByMedia(
+        const data = await getProviderLinksByMedia(
           requestedMediaType,
           requestedTmdbId,
           controller.signal,
@@ -227,7 +227,7 @@ function MediaDetailsPage() {
 
           requestKey: linksReloadKey,
 
-          links,
+          data,
           errorMessage: "",
         });
       } catch (error: unknown) {
@@ -242,7 +242,7 @@ function MediaDetailsPage() {
 
           requestKey: linksReloadKey,
 
-          links: [],
+          data: null,
 
           errorMessage:
             error instanceof Error
@@ -284,9 +284,9 @@ function MediaDetailsPage() {
     ? mediaRequestState.errorMessage
     : "";
 
-  const providerLinks = providerRequestMatches
-    ? providerRequestState.links
-    : [];
+  const providerLinksData = providerRequestMatches
+    ? providerRequestState.data
+    : null;
 
   const providerErrorMessage = providerRequestMatches
     ? providerRequestState.errorMessage
@@ -698,7 +698,7 @@ function MediaDetailsPage() {
       />
 
       <ProviderLinksSection
-        links={providerLinks}
+        data={providerLinksData}
         isLoading={isProviderLinksLoading}
         errorMessage={providerErrorMessage}
         onRetry={retryProviderLinks}
