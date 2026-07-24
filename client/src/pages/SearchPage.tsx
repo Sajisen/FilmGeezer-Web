@@ -588,7 +588,6 @@ function SearchPageContent({
               searchText={searchText}
               scope={scope}
               filters={filters}
-              canSubmit={canSubmit}
               hasPendingChanges={hasPendingSearchChanges}
               onSearchTextChange={setSearchText}
               onScopeChange={handleScopeChange}
