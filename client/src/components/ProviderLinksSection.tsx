@@ -113,7 +113,6 @@ function LinkGroup({
   headingLabel,
 }: LinkGroupProps) {
   const usesGridLayout = layout === "grid";
-  let alternativeCounter = 0;
 
   return (
     <section
@@ -138,10 +137,12 @@ function LinkGroup({
           usesGridLayout ? "grid gap-3 md:grid-cols-2" : "space-y-3"
         }`}
       >
-        {group.links.map((link) => {
+        {group.links.map((link, index) => {
           const alternativeNumber = link.isMain
             ? null
-            : (alternativeCounter += 1);
+            : group.links
+                .slice(0, index + 1)
+                .filter((currentLink) => !currentLink.isMain).length;
 
           return (
             <LinkCard
@@ -169,8 +170,10 @@ function ProviderLinksSection({
   onRetry,
 }: ProviderLinksSectionProps) {
   const groups = data?.groups ?? [];
-  const isMovieLinks = data?.kind === "movie" || (!data && mediaType === "movie");
-  const isSeriesLinks = data?.kind === "series" || (!data && mediaType === "tv");
+  const isMovieLinks =
+    data?.kind === "movie" || (!data && mediaType === "movie");
+  const isSeriesLinks =
+    data?.kind === "series" || (!data && mediaType === "tv");
   const linkGroupLayout: LinkGroupLayout = isSeriesLinks ? "grid" : "stacked";
 
   return (

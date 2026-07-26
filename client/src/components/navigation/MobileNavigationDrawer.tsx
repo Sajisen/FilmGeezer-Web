@@ -39,7 +39,9 @@ function MobileNavigationDrawer({
   onClose,
   onPlannedFeature,
 }: MobileNavigationDrawerProps) {
-  const [isEntered, setIsEntered] = useState(false);
+  const [isEntered, setIsEntered] = useState(() =>
+  prefersReducedMotion(),
+);
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
@@ -89,29 +91,25 @@ function MobileNavigationDrawer({
     [onPlannedFeature],
   );
 
-  useEffect(() => {
-    if (prefersReducedMotion()) {
-      setIsEntered(true);
+useEffect(() => {
+  const shouldAnimate = !prefersReducedMotion();
 
-      return () => {
-        if (closeTimerRef.current !== null) {
-          window.clearTimeout(closeTimerRef.current);
-        }
-      };
+  const animationFrame = shouldAnimate
+    ? window.requestAnimationFrame(() => {
+        setIsEntered(true);
+      })
+    : null;
+
+  return () => {
+    if (animationFrame !== null) {
+      window.cancelAnimationFrame(animationFrame);
     }
 
-    const animationFrame = window.requestAnimationFrame(() => {
-      setIsEntered(true);
-    });
-
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-
-      if (closeTimerRef.current !== null) {
-        window.clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+  };
+}, []);
 
   useEffect(() => {
     previouslyFocusedElementRef.current =
