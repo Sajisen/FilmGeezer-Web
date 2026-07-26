@@ -1,7 +1,9 @@
 import type {
   BrowseCategory,
+  MediaDetails,
   MediaItem,
   MediaType,
+  MediaVideo,
   SearchScope,
 } from "../types/media.js";
 
@@ -15,6 +17,11 @@ import type {
   TmdbMultiSearchResponse,
   TmdbSearchResult,
   TmdbTvDetails,
+  TmdbWatchProvider,
+  TmdbWatchProvidersResponse,
+  TmdbMovieCreditsResponse,
+  TmdbTvAggregateCreditsResponse,
+  TmdbTvSeasonDetails,
 } from "../types/tmdb.js";
 
 import {
@@ -22,6 +29,35 @@ import {
   isSuitableForPublicKDrama,
   type CategoryMediaCandidate,
 } from "../utils/categoryMedia.js";
+
+export interface TmdbFeaturedCreditCandidate {
+  personId: number;
+  performerName: string;
+  characterName: string;
+  profileUrl: string;
+  order: number;
+  episodeCount: number;
+}
+
+export type TmdbRelatedMediaSource = "recommendations" | "similar";
+
+export interface TmdbRelatedMediaCandidate extends CategoryMediaCandidate {
+  popularity: number;
+  voteAverage: number;
+  voteCount: number;
+  hasBackdrop: boolean;
+  source: TmdbRelatedMediaSource;
+  sourceOrder: number;
+}
+
+import type {
+  WatchAvailability,
+  WatchProviderItem,
+} from "../types/watchAvailability.js";
+
+import type {
+  SeasonDetails,
+} from "../types/season.js";
 
 export interface TmdbBrowseResult {
   page: number;
@@ -34,8 +70,21 @@ export interface TmdbBrowseResult {
 export interface TmdbCatalogFilters {
   search?: string;
   genre?: string;
+  genres?: string[];
+  genreMode?: "all" | "any";
   language?: string;
   minRating?: number;
+  minVoteCount?: number;
+  sortBy?:
+    | "popularity.desc"
+    | "vote_count.desc"
+    | "vote_average.desc"
+    | "primary_release_date.desc"
+    | "primary_release_date.asc"
+    | "first_air_date.desc"
+    | "first_air_date.asc";
+  releaseYearFrom?: number;
+  releaseYearTo?: number;
   page?: number;
 }
 
@@ -52,6 +101,7 @@ export class UnknownGenreError extends Error {
   }
 }
 
+const MAX_RELIABLE_FUTURE_YEAR = new Date().getUTCFullYear() + 1;
 const genreMapCache: Partial<Record<MediaType, Map<number, string>>> = {};
 
 const TMDB_API_BASE_URL = "https://api.themoviedb.org/3";
@@ -202,7 +252,7 @@ function findGenreIdByName(
 
 function buildImageUrl(
   filePath: string | null,
-  size: "w500" | "original",
+  size: "w500" | "w780" | "original",
   fallbackUrl: string,
 ) {
   if (!filePath) {
@@ -281,6 +331,11 @@ function mapSearchResult(
     durationLabel: isMovie ? "Movie" : "TV Series",
     status: "Unknown",
     language: result.original_language?.toUpperCase() || "Unknown",
+    voteCount: result.vote_count ?? 0,
+    popularity: result.popularity ?? 0,
+    releaseDate: isMovie
+      ? result.release_date ?? ""
+      : result.first_air_date ?? "",
   };
 }
 
@@ -314,6 +369,11 @@ function mapListResult(
     durationLabel: isMovie ? "Movie" : "TV Series",
     status: "Unknown",
     language: result.original_language?.toUpperCase() || "Unknown",
+    voteCount: result.vote_count ?? 0,
+    popularity: result.popularity ?? 0,
+    releaseDate: isMovie
+      ? result.release_date ?? ""
+      : result.first_air_date ?? "",
   };
 }
 
@@ -361,45 +421,183 @@ function buildBrowsePath(
   return `/${mediaType}/${category}?language=en-US&page=${page}`;
 }
 
-function mapMovieDetails(movie: TmdbMovieDetails): MediaItem {
+function mapDetailsVideos(
+  videos: TmdbMovieDetails["videos"] | TmdbTvDetails["videos"],
+) {
+  const mappedVideos: MediaVideo[] = (videos?.results ?? [])
+    .filter(
+      (video) =>
+        video.site === "YouTube" &&
+        (video.type === "Trailer" || video.type === "Teaser"),
+    )
+    .map((video) => ({
+      id: video.id,
+      key: video.key,
+      name: video.name,
+
+      site: "YouTube" as const,
+
+      type: video.type as "Trailer" | "Teaser",
+
+      official: video.official,
+
+      language: video.iso_639_1?.toUpperCase() || "Unknown",
+
+      publishedAt: video.published_at ?? "",
+    }))
+    .sort((firstVideo, secondVideo) => {
+      const firstScore =
+        (firstVideo.type === "Trailer" ? 4 : 0) +
+        (firstVideo.official ? 2 : 0) +
+        (firstVideo.language === "EN" ? 1 : 0);
+
+      const secondScore =
+        (secondVideo.type === "Trailer" ? 4 : 0) +
+        (secondVideo.official ? 2 : 0) +
+        (secondVideo.language === "EN" ? 1 : 0);
+
+      if (secondScore !== firstScore) {
+        return secondScore - firstScore;
+      }
+
+      return secondVideo.publishedAt.localeCompare(firstVideo.publishedAt);
+    });
+
+  return mappedVideos.slice(0, 10);
+}
+
+function mapMovieDetails(movie: TmdbMovieDetails): MediaDetails {
+  const videos = mapDetailsVideos(movie.videos);
+
   return {
     tmdbId: movie.id,
     title: movie.title,
+
+    originalTitle: movie.original_title || movie.title,
+
     mediaType: "movie",
+
     year: getYear(movie.release_date),
+
+    fullReleaseDate: movie.release_date || "",
+
     rating: formatRating(movie.vote_average),
+
+    voteCount: movie.vote_count ?? 0,
+
     posterUrl: buildImageUrl(movie.poster_path, "w500", POSTER_FALLBACK_URL),
+
     backdropUrl: buildImageUrl(
       movie.backdrop_path,
       "original",
       BACKDROP_FALLBACK_URL,
     ),
+
     overview: movie.overview || "No overview is currently available.",
+
     genres: movie.genres.map((genre) => genre.name),
+
     durationLabel: formatRuntime(movie.runtime),
+
+    runtimeMinutes: movie.runtime,
+
+    numberOfSeasons: null,
+    numberOfEpisodes: null,
+    seasons: [],
+
     status: movie.status || "Unknown",
+
     language: movie.original_language?.toUpperCase() || "Unknown",
+
+    tagline: movie.tagline || "",
+
+    homepageUrl: movie.homepage || "",
+
+    imdbId: movie.external_ids?.imdb_id || "",
+
+    videos,
+
+    primaryTrailer: videos[0] ?? null,
   };
 }
 
-function mapTvDetails(show: TmdbTvDetails): MediaItem {
+function mapTvDetails(show: TmdbTvDetails): MediaDetails {
+  const videos = mapDetailsVideos(show.videos);
+
+  const runtimeMinutes =
+    show.episode_run_time?.find((runtime) => runtime > 0) ?? null;
+
   return {
     tmdbId: show.id,
     title: show.name,
+
+    originalTitle: show.original_name || show.name,
+
     mediaType: "tv",
+
     year: getYear(show.first_air_date),
+
+    fullReleaseDate: show.first_air_date || "",
+
     rating: formatRating(show.vote_average),
+
+    voteCount: show.vote_count ?? 0,
+
     posterUrl: buildImageUrl(show.poster_path, "w500", POSTER_FALLBACK_URL),
+
     backdropUrl: buildImageUrl(
       show.backdrop_path,
       "original",
       BACKDROP_FALLBACK_URL,
     ),
+
     overview: show.overview || "No overview is currently available.",
+
     genres: show.genres.map((genre) => genre.name),
+
     durationLabel: formatSeasonCount(show.number_of_seasons),
+
+    runtimeMinutes,
+
+    numberOfSeasons: show.number_of_seasons,
+
+    numberOfEpisodes: show.number_of_episodes,
+
+    seasons: show.seasons
+      .filter((season) => season.season_number > 0)
+      .map((season) => ({
+        tmdbSeasonId: season.id,
+
+        seasonNumber: season.season_number,
+
+        name: season.name,
+
+        episodeCount: season.episode_count,
+
+        airDate: season.air_date || "",
+
+        overview: season.overview || "",
+
+        posterUrl: buildImageUrl(
+          season.poster_path,
+          "w500",
+          POSTER_FALLBACK_URL,
+        ),
+      })),
+
     status: show.status || "Unknown",
+
     language: show.original_language?.toUpperCase() || "Unknown",
+
+    tagline: show.tagline || "",
+
+    homepageUrl: show.homepage || "",
+
+    imdbId: show.external_ids?.imdb_id || "",
+
+    videos,
+
+    primaryTrailer: videos[0] ?? null,
   };
 }
 
@@ -2040,19 +2238,299 @@ export async function getTmdbKDramaPrimarySources(): Promise<TmdbKDramaPrimarySo
   };
 }
 
+function mapWatchProviders(
+  groups: Array<TmdbWatchProvider[] | undefined>,
+): WatchProviderItem[] {
+  const providerMap = new Map<number, TmdbWatchProvider>();
+
+  for (const group of groups) {
+    for (const provider of group ?? []) {
+      const existingProvider = providerMap.get(provider.provider_id);
+
+      if (
+        !existingProvider ||
+        provider.display_priority < existingProvider.display_priority
+      ) {
+        providerMap.set(provider.provider_id, provider);
+      }
+    }
+  }
+
+  return [...providerMap.values()]
+    .sort(
+      (firstProvider, secondProvider) =>
+        firstProvider.display_priority - secondProvider.display_priority,
+    )
+    .map((provider) => ({
+      providerId: provider.provider_id,
+
+      name: provider.provider_name,
+
+      logoUrl: provider.logo_path
+        ? `https://image.tmdb.org/t/p/w92${provider.logo_path}`
+        : "",
+    }));
+}
+
+export async function getTmdbWatchAvailability(
+  mediaType: MediaType,
+  tmdbId: number,
+  region: string,
+): Promise<WatchAvailability> {
+  const normalizedRegion = region.toUpperCase();
+
+  const data = await tmdbFetch<TmdbWatchProvidersResponse>(
+    `/${mediaType}/${tmdbId}/watch/providers`,
+  );
+
+  const regionalData = data.results[normalizedRegion];
+
+  if (!regionalData) {
+    return {
+      region: normalizedRegion,
+      link: "",
+      stream: [],
+      rent: [],
+      buy: [],
+    };
+  }
+
+  return {
+    region: normalizedRegion,
+
+    link: regionalData.link ?? "",
+
+    stream: mapWatchProviders([
+      regionalData.flatrate,
+      regionalData.free,
+      regionalData.ads,
+    ]),
+
+    rent: mapWatchProviders([regionalData.rent]),
+
+    buy: mapWatchProviders([regionalData.buy]),
+  };
+}
+
+function normalizeCharacterName(characterName: string) {
+  return characterName.replace(/\s+/g, " ").trim();
+}
+
+function isUsableCharacterName(characterName: string) {
+  const normalizedName = characterName.trim().toLocaleLowerCase();
+
+  if (!normalizedName) {
+    return false;
+  }
+
+  return !["self", "himself", "herself", "themselves"].includes(normalizedName);
+}
+
+function buildCharacterProfileUrl(profilePath: string | null) {
+  return profilePath ? `https://image.tmdb.org/t/p/w342${profilePath}` : "";
+}
+
+export async function getTmdbFeaturedCreditCandidates(
+  mediaType: MediaType,
+  tmdbId: number,
+): Promise<TmdbFeaturedCreditCandidate[]> {
+  if (mediaType === "movie") {
+    const data = await tmdbFetch<TmdbMovieCreditsResponse>(
+      `/movie/${tmdbId}/credits?language=en-US`,
+    );
+
+    return data.cast
+      .map((member) => {
+        const characterName = normalizeCharacterName(member.character);
+
+        return {
+          personId: member.id,
+          performerName: member.name,
+          characterName,
+          profileUrl: buildCharacterProfileUrl(member.profile_path),
+          order: member.order,
+          episodeCount: 0,
+        };
+      })
+      .filter((candidate) => isUsableCharacterName(candidate.characterName))
+      .sort(
+        (firstCandidate, secondCandidate) =>
+          firstCandidate.order - secondCandidate.order,
+      );
+  }
+
+  const data = await tmdbFetch<TmdbTvAggregateCreditsResponse>(
+    `/tv/${tmdbId}/aggregate_credits?language=en-US`,
+  );
+
+  return data.cast
+    .map((member) => {
+      const characterNames = [
+        ...new Set(
+          [...member.roles]
+            .sort(
+              (firstRole, secondRole) =>
+                secondRole.episode_count - firstRole.episode_count,
+            )
+            .map((role) => normalizeCharacterName(role.character))
+            .filter(isUsableCharacterName),
+        ),
+      ];
+
+      return {
+        personId: member.id,
+        performerName: member.name,
+
+        characterName: characterNames.slice(0, 2).join(" / "),
+
+        profileUrl: buildCharacterProfileUrl(member.profile_path),
+
+        order: member.order,
+
+        episodeCount: member.total_episode_count ?? 0,
+      };
+    })
+    .filter((candidate) => isUsableCharacterName(candidate.characterName))
+    .sort((firstCandidate, secondCandidate) => {
+      if (firstCandidate.order !== secondCandidate.order) {
+        return firstCandidate.order - secondCandidate.order;
+      }
+
+      return secondCandidate.episodeCount - firstCandidate.episodeCount;
+    });
+}
+
+export async function getTmdbSeasonDetails(
+  tmdbId: number,
+  seasonNumber: number,
+): Promise<SeasonDetails> {
+  const season =
+    await tmdbFetch<TmdbTvSeasonDetails>(
+      `/tv/${tmdbId}/season/${seasonNumber}?language=en-US`,
+    );
+
+  const episodes = (
+    season.episodes ?? []
+  )
+    .map((episode) => ({
+      tmdbEpisodeId: episode.id,
+
+      episodeNumber:
+        episode.episode_number,
+
+      name:
+        episode.name ||
+        `Episode ${episode.episode_number}`,
+
+      overview:
+        episode.overview || "",
+
+      airDate:
+        episode.air_date || "",
+
+      runtimeMinutes:
+        episode.runtime &&
+        episode.runtime > 0
+          ? episode.runtime
+          : null,
+
+      stillUrl: buildImageUrl(
+        episode.still_path,
+        "w780",
+        BACKDROP_FALLBACK_URL,
+      ),
+
+      rating: formatRating(
+        episode.vote_average ?? 0,
+      ),
+
+      voteCount:
+        episode.vote_count ?? 0,
+    }))
+    .sort(
+      (
+        firstEpisode,
+        secondEpisode,
+      ) =>
+        firstEpisode.episodeNumber -
+        secondEpisode.episodeNumber,
+    );
+
+  const ratedEpisodes =
+    episodes.filter(
+      (episode) =>
+        episode.rating > 0 &&
+        episode.voteCount > 0,
+    );
+
+  const averageRating =
+    ratedEpisodes.length > 0
+      ? Number(
+          (
+            ratedEpisodes.reduce(
+              (
+                currentTotal,
+                episode,
+              ) =>
+                currentTotal +
+                episode.rating,
+
+              0,
+            ) /
+            ratedEpisodes.length
+          ).toFixed(1),
+        )
+      : 0;
+
+  return {
+    tmdbSeasonId: season.id,
+
+    seasonNumber:
+      season.season_number,
+
+    name:
+      season.name ||
+      `Season ${season.season_number}`,
+
+    overview:
+      season.overview || "",
+
+    airDate:
+      season.air_date || "",
+
+    posterUrl: buildImageUrl(
+      season.poster_path,
+      "w500",
+      POSTER_FALLBACK_URL,
+    ),
+
+    episodeCount:
+      episodes.length,
+
+    averageRating,
+
+    ratedEpisodeCount:
+      ratedEpisodes.length,
+
+    episodes,
+  };
+}
+
 export async function getTmdbMediaDetails(
   mediaType: MediaType,
   tmdbId: number,
-): Promise<MediaItem> {
+): Promise<MediaDetails> {
   if (mediaType === "movie") {
     const movie = await tmdbFetch<TmdbMovieDetails>(
-      `/movie/${tmdbId}?language=en-US`,
+      `/movie/${tmdbId}?language=en-US&append_to_response=videos,external_ids`,
     );
 
     return mapMovieDetails(movie);
   }
 
-  const show = await tmdbFetch<TmdbTvDetails>(`/tv/${tmdbId}?language=en-US`);
+  const show = await tmdbFetch<TmdbTvDetails>(
+    `/tv/${tmdbId}?language=en-US&append_to_response=videos,external_ids`,
+  );
 
   return mapTvDetails(show);
 }
@@ -2085,19 +2563,69 @@ export async function getTmdbCatalog(
 ): Promise<TmdbBrowseResult> {
   const page = filters.page ?? 1;
   const search = filters.search?.trim();
-  const genre = filters.genre?.trim();
   const language = filters.language?.trim().toLowerCase();
+  const genreMode = filters.genreMode === "any" ? "any" : "all";
+
+  const requestedGenres = Array.from(
+    new Set(
+      [
+        ...(filters.genres ?? []),
+        ...(filters.genre ? [filters.genre] : []),
+      ]
+        .map((genre) => genre.trim())
+        .filter(Boolean),
+    ),
+  );
 
   const genreMap = await getGenreMap(mediaType);
 
-  /*
-   * TMDB title searching uses /search/movie or /search/tv.
-   */
-  if (search) {
-    if (genre && findGenreIdByName(genreMap, genre) === null) {
-      throw new UnknownGenreError(genre);
+  const genreIds = requestedGenres.map((genreName) => {
+    const genreId = findGenreIdByName(genreMap, genreName);
+
+    if (genreId === null) {
+      throw new UnknownGenreError(genreName);
     }
 
+    return genreId;
+  });
+
+  function applyRequestedFilters(items: MediaItem[]) {
+    return items.filter((item) => {
+      if (requestedGenres.length > 0) {
+        const itemGenres = new Set(
+          item.genres.map((genre) => genre.toLowerCase()),
+        );
+
+        const genreMatches =
+          genreMode === "all"
+            ? requestedGenres.every((genre) =>
+                itemGenres.has(genre.toLowerCase()),
+              )
+            : requestedGenres.some((genre) =>
+                itemGenres.has(genre.toLowerCase()),
+              );
+
+        if (!genreMatches) {
+          return false;
+        }
+      }
+
+      if (language && item.language.toLowerCase() !== language) {
+        return false;
+      }
+
+      if (
+        filters.minRating !== undefined &&
+        item.rating < filters.minRating
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  if (search) {
     const searchParams = new URLSearchParams({
       query: search,
       include_adult: "false",
@@ -2109,63 +2637,37 @@ export async function getTmdbCatalog(
       `/search/${mediaType}?${searchParams.toString()}`,
     );
 
-    let results = data.results.map((item) =>
+    const mappedResults = data.results.map((item) =>
       mapListResult(item, mediaType, genreMap),
     );
-
-    /*
-     * Search endpoints do not directly support all Discover filters,
-     * so additional filters are applied to the returned search page.
-     */
-    if (genre) {
-      results = results.filter((item) =>
-        item.genres.some(
-          (itemGenre) => itemGenre.toLowerCase() === genre.toLowerCase(),
-        ),
-      );
-    }
-
-    if (language) {
-      results = results.filter(
-        (item) => item.language.toLowerCase() === language,
-      );
-    }
-
-    if (filters.minRating !== undefined) {
-      results = results.filter((item) => item.rating >= filters.minRating!);
-    }
 
     return {
       page: data.page,
       totalPages: data.total_pages,
       totalResults: data.total_results,
-      results,
+      results: applyRequestedFilters(mappedResults),
+      hasMore: data.page < data.total_pages,
     };
   }
 
-  /*
-   * Without a title search, use TMDB Discover so filters
-   * are handled by TMDB across its catalogue.
-   */
   const discoverParams = new URLSearchParams({
     include_adult: "false",
     language: "en-US",
     page: String(page),
-    sort_by: "popularity.desc",
+    sort_by: filters.sortBy ?? "popularity.desc",
   });
 
   if (mediaType === "movie") {
     discoverParams.set("include_video", "false");
+  } else {
+    discoverParams.set("include_null_first_air_dates", "false");
   }
 
-  if (genre) {
-    const genreId = findGenreIdByName(genreMap, genre);
-
-    if (genreId === null) {
-      throw new UnknownGenreError(genre);
-    }
-
-    discoverParams.set("with_genres", String(genreId));
+  if (genreIds.length > 0) {
+    discoverParams.set(
+      "with_genres",
+      genreIds.join(genreMode === "all" ? "," : "|"),
+    );
   }
 
   if (language) {
@@ -2174,6 +2676,44 @@ export async function getTmdbCatalog(
 
   if (filters.minRating !== undefined) {
     discoverParams.set("vote_average.gte", String(filters.minRating));
+  }
+
+  if (filters.minVoteCount !== undefined) {
+    discoverParams.set("vote_count.gte", String(filters.minVoteCount));
+  } else if (filters.minRating !== undefined) {
+    discoverParams.set(
+      "vote_count.gte",
+      mediaType === "movie" ? "20" : "10",
+    );
+  }
+
+  const releaseYearTo =
+    filters.sortBy ===
+      (mediaType === "movie"
+        ? "primary_release_date.desc"
+        : "first_air_date.desc")
+      ? Math.min(
+          filters.releaseYearTo ?? MAX_RELIABLE_FUTURE_YEAR,
+          MAX_RELIABLE_FUTURE_YEAR,
+        )
+      : filters.releaseYearTo;
+
+  if (filters.releaseYearFrom !== undefined) {
+    discoverParams.set(
+      mediaType === "movie"
+        ? "primary_release_date.gte"
+        : "first_air_date.gte",
+      `${filters.releaseYearFrom}-01-01`,
+    );
+  }
+
+  if (releaseYearTo !== undefined) {
+    discoverParams.set(
+      mediaType === "movie"
+        ? "primary_release_date.lte"
+        : "first_air_date.lte",
+      `${releaseYearTo}-12-31`,
+    );
   }
 
   const data = await tmdbFetch<TmdbListResponse>(
@@ -2187,5 +2727,109 @@ export async function getTmdbCatalog(
     results: data.results.map((item) =>
       mapListResult(item, mediaType, genreMap),
     ),
+    hasMore: data.page < data.total_pages,
   };
 }
+
+function mapRelatedMediaCandidate(
+  result: TmdbListResult,
+  mediaType: MediaType,
+  genreMap: Map<number, string>,
+  source: TmdbRelatedMediaSource,
+  sourceOrder: number,
+): TmdbRelatedMediaCandidate {
+  return {
+    item: mapListResult(result, mediaType, genreMap),
+    isAdult: result.adult === true,
+    isVideo: result.video === true,
+    hasPoster: Boolean(result.poster_path),
+    originCountries: result.origin_country ?? [],
+    popularity: result.popularity ?? 0,
+    voteAverage: result.vote_average ?? 0,
+    voteCount: result.vote_count ?? 0,
+    hasBackdrop: Boolean(result.backdrop_path),
+    source,
+    sourceOrder,
+  };
+}
+
+export async function getTmdbRelatedMediaCandidates(
+  mediaType: MediaType,
+  tmdbId: number,
+): Promise<TmdbRelatedMediaCandidate[]> {
+  const genreMap = await getGenreMap(mediaType);
+
+  const [recommendationsPageOne, similarPageOne] = await Promise.all([
+    tmdbFetch<TmdbListResponse>(
+      `/${mediaType}/${tmdbId}/recommendations?language=en-US&page=1`,
+    ),
+    tmdbFetch<TmdbListResponse>(
+      `/${mediaType}/${tmdbId}/similar?language=en-US&page=1`,
+    ),
+  ]);
+
+  const optionalPageRequests: Array<
+    Promise<{
+      source: TmdbRelatedMediaSource;
+      page: number;
+      data: TmdbListResponse;
+    }>
+  > = [];
+
+  if (recommendationsPageOne.total_pages >= 2) {
+    optionalPageRequests.push(
+      tmdbFetch<TmdbListResponse>(
+        `/${mediaType}/${tmdbId}/recommendations?language=en-US&page=2`,
+      ).then((data) => ({
+        source: "recommendations",
+        page: 2,
+        data,
+      })),
+    );
+  }
+
+  if (similarPageOne.total_pages >= 2) {
+    optionalPageRequests.push(
+      tmdbFetch<TmdbListResponse>(
+        `/${mediaType}/${tmdbId}/similar?language=en-US&page=2`,
+      ).then((data) => ({
+        source: "similar",
+        page: 2,
+        data,
+      })),
+    );
+  }
+
+  const additionalPages = await Promise.all(optionalPageRequests);
+
+  const pages: Array<{
+    source: TmdbRelatedMediaSource;
+    page: number;
+    data: TmdbListResponse;
+  }> = [
+    {
+      source: "recommendations",
+      page: 1,
+      data: recommendationsPageOne,
+    },
+    {
+      source: "similar",
+      page: 1,
+      data: similarPageOne,
+    },
+    ...additionalPages,
+  ];
+
+  return pages.flatMap(({ source, page, data }) =>
+    data.results.map((result, index) =>
+      mapRelatedMediaCandidate(
+        result,
+        mediaType,
+        genreMap,
+        source,
+        (page - 1) * 20 + index,
+      ),
+    ),
+  );
+}
+

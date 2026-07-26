@@ -1,10 +1,58 @@
 import type { Request, Response } from "express";
 import {
-  searchTmdbMedia,
+  getSearchResults,
+  type GenreMatchMode,
+  type SearchFormat,
+  type SearchPreset,
+  type SearchSort,
+} from "../services/searchResults.service.js";
+import {
   TmdbRequestError,
   UnknownGenreError,
 } from "../services/tmdb.service.js";
 import type { SearchScope } from "../types/media.js";
+
+const MAX_GENRES = 6;
+const MIN_RELEASE_YEAR = 1870;
+const MAX_RELEASE_YEAR = new Date().getUTCFullYear() + 1;
+
+const ALLOWED_GENRES = new Set([
+  "Action",
+  "Action & Adventure",
+  "Adventure",
+  "Animation",
+  "Comedy",
+  "Crime",
+  "Documentary",
+  "Drama",
+  "Family",
+  "Fantasy",
+  "History",
+  "Horror",
+  "Kids",
+  "Music",
+  "Mystery",
+  "News",
+  "Reality",
+  "Romance",
+  "Science Fiction",
+  "Sci-Fi & Fantasy",
+  "Soap",
+  "Talk",
+  "Thriller",
+  "TV Movie",
+  "War",
+  "War & Politics",
+  "Western",
+]);
+
+const ALLOWED_SORTS = new Set<SearchSort>([
+  "best-match",
+  "popularity-desc",
+  "rating-desc",
+  "release-desc",
+  "release-asc",
+]);
 
 function getQueryString(value: unknown): string | undefined {
   if (typeof value !== "string") {
@@ -12,25 +60,54 @@ function getQueryString(value: unknown): string | undefined {
   }
 
   const trimmedValue = value.trim();
-
   return trimmedValue || undefined;
+}
+
+function getQueryStrings(value: unknown) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+
+  return Array.from(
+    new Set(
+      values
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function parseYear(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const year = Number(value);
+
+  return Number.isInteger(year) ? year : Number.NaN;
 }
 
 export async function searchMedia(req: Request, res: Response) {
   const query = getQueryString(req.query.q) ?? "";
-
   const scopeText = getQueryString(req.query.scope) ?? "all";
-
-  const genre = getQueryString(req.query.genre);
-
-  const language = getQueryString(req.query.language);
-
   const pageText = getQueryString(req.query.page);
-
   const minRatingText = getQueryString(req.query.minRating);
+  const language = getQueryString(req.query.language)?.toLowerCase();
+  const genreModeText = getQueryString(req.query.genreMode) ?? "all";
+  const presetText = getQueryString(req.query.preset) ?? "default";
+  const formatText = getQueryString(req.query.format) ?? "all";
+  const fromYearText = getQueryString(req.query.fromYear);
+  const toYearText = getQueryString(req.query.toYear);
+  const sortText = getQueryString(req.query.sort) ?? "best-match";
+  const establishedText = getQueryString(req.query.established) ?? "false";
+
+  const legacyGenre = getQueryString(req.query.genre);
+  const genres = getQueryStrings(req.query.genres);
+
+  if (legacyGenre && !genres.includes(legacyGenre)) {
+    genres.push(legacyGenre);
+  }
 
   const page = pageText ? Number(pageText) : 1;
-
   const allowedScopes: SearchScope[] = [
     "all",
     "movie",
@@ -42,17 +119,95 @@ export async function searchMedia(req: Request, res: Response) {
   if (!allowedScopes.includes(scopeText as SearchScope)) {
     res.status(400).json({
       status: "error",
-
       message: "Search scope must be all, movie, tv, anime, or k-drama.",
     });
-
     return;
   }
 
-  if (!Number.isInteger(page) || page <= 0) {
+  if (!Number.isInteger(page) || page <= 0 || page > 100) {
     res.status(400).json({
       status: "error",
-      message: "Page must be a valid positive number.",
+      message: "Page must be a whole number between 1 and 100.",
+    });
+    return;
+  }
+
+  if (query.length > 100) {
+    res.status(400).json({
+      status: "error",
+      message: "Search text must not exceed 100 characters.",
+    });
+    return;
+  }
+
+  if (genres.length > MAX_GENRES) {
+    res.status(400).json({
+      status: "error",
+      message: `Select no more than ${MAX_GENRES} genres.`,
+    });
+    return;
+  }
+
+  if (
+    genres.some(
+      (genre) => genre.length > 50 || !ALLOWED_GENRES.has(genre),
+    )
+  ) {
+    res.status(400).json({
+      status: "error",
+      message: "One or more selected genres are not supported.",
+    });
+    return;
+  }
+
+  if (
+    presetText !== "default" &&
+    presetText !== "trending" &&
+    presetText !== "essentials"
+  ) {
+    res.status(400).json({
+      status: "error",
+      message: "Search preset must be default, trending, or essentials.",
+    });
+    return;
+  }
+
+  if (genreModeText !== "all" && genreModeText !== "any") {
+    res.status(400).json({
+      status: "error",
+      message: "Genre matching mode must be all or any.",
+    });
+    return;
+  }
+
+  if (formatText !== "all" && formatText !== "movie" && formatText !== "tv") {
+    res.status(400).json({
+      status: "error",
+      message: "Format must be all, movie, or tv.",
+    });
+    return;
+  }
+
+  if (!ALLOWED_SORTS.has(sortText as SearchSort)) {
+    res.status(400).json({
+      status: "error",
+      message: "The selected sort order is not supported.",
+    });
+    return;
+  }
+
+  if (establishedText !== "true" && establishedText !== "false") {
+    res.status(400).json({
+      status: "error",
+      message: "Established titles must be true or false.",
+    });
+    return;
+  }
+
+  if (language && !/^[a-z]{2}$/.test(language)) {
+    res.status(400).json({
+      status: "error",
+      message: "Language must be a two-letter language code.",
     });
     return;
   }
@@ -71,41 +226,66 @@ export async function searchMedia(req: Request, res: Response) {
     }
   }
 
-  if (query.length > 100) {
-    res.status(400).json({
-      status: "error",
-      message: "Search text must not exceed 100 characters.",
-    });
-    return;
-  }
+  const releaseYearFrom = parseYear(fromYearText);
+  const releaseYearTo = parseYear(toYearText);
 
-  if (genre && genre.length > 50) {
+  if (
+    Number.isNaN(releaseYearFrom) ||
+    Number.isNaN(releaseYearTo) ||
+    (releaseYearFrom !== undefined &&
+      (releaseYearFrom < MIN_RELEASE_YEAR ||
+        releaseYearFrom > MAX_RELEASE_YEAR)) ||
+    (releaseYearTo !== undefined &&
+      (releaseYearTo < MIN_RELEASE_YEAR ||
+        releaseYearTo > MAX_RELEASE_YEAR)) ||
+    (releaseYearFrom !== undefined &&
+      releaseYearTo !== undefined &&
+      releaseYearFrom > releaseYearTo)
+  ) {
     res.status(400).json({
       status: "error",
-      message: "Genre must not exceed 50 characters.",
-    });
-    return;
-  }
-
-  if (language && !/^[a-zA-Z]{2}$/.test(language)) {
-    res.status(400).json({
-      status: "error",
-      message: "Language must be a two-letter language code.",
+      message: `Release years must be between ${MIN_RELEASE_YEAR} and ${MAX_RELEASE_YEAR}, with the start year before the end year.`,
     });
     return;
   }
 
   const scope = scopeText as SearchScope;
+  const genreMode = genreModeText as GenreMatchMode;
+  const preset = presetText as SearchPreset;
+  const sortBy = sortText as SearchSort;
+  const requestedFormat = formatText as SearchFormat;
+  const format: SearchFormat =
+    scope === "movie" ? "movie" : scope === "tv" ? "tv" : requestedFormat;
+  const establishedOnly = establishedText === "true";
 
-  if (!query) {
+  if (
+    !query &&
+    scope === "all" &&
+    genres.length === 0 &&
+    !language &&
+    minRating === undefined &&
+    format === "all" &&
+    releaseYearFrom === undefined &&
+    releaseYearTo === undefined &&
+    sortBy === "best-match" &&
+    !establishedOnly &&
+    preset === "default"
+  ) {
     res.status(200).json({
       status: "success",
       query,
       scope,
+      preset,
       filters: {
-        genre: genre ?? null,
-        language: language?.toLowerCase() ?? null,
-        minRating: minRating ?? null,
+        genres,
+        genreMode,
+        language: null,
+        minRating: null,
+        format,
+        releaseYearFrom: null,
+        releaseYearTo: null,
+        sortBy,
+        establishedOnly,
       },
       page: 1,
       totalPages: 0,
@@ -118,27 +298,40 @@ export async function searchMedia(req: Request, res: Response) {
   }
 
   try {
-    const data = await searchTmdbMedia(query, scope, page, {
-      genre,
+    const data = await getSearchResults(query, scope, preset, page, {
+      genres,
+      genreMode,
       language,
       minRating,
+      format,
+      releaseYearFrom,
+      releaseYearTo,
+      sortBy,
+      establishedOnly,
     });
 
     res.status(200).json({
       status: "success",
       query,
       scope,
+      preset,
       filters: {
-        genre: genre ?? null,
-        language: language?.toLowerCase() ?? null,
+        genres,
+        genreMode,
+        language: language ?? null,
         minRating: minRating ?? null,
+        format,
+        releaseYearFrom: releaseYearFrom ?? null,
+        releaseYearTo: releaseYearTo ?? null,
+        sortBy,
+        establishedOnly,
       },
       page: data.page,
       totalPages: data.totalPages,
       totalResults: data.totalResults,
       count: data.results.length,
       results: data.results,
-      hasMore: data.hasMore ?? data.page < data.totalPages,
+      hasMore: data.hasMore,
     });
   } catch (error) {
     console.error("TMDB search error:", error);
@@ -146,7 +339,7 @@ export async function searchMedia(req: Request, res: Response) {
     if (error instanceof UnknownGenreError) {
       res.status(400).json({
         status: "error",
-        message: "The selected genre is not valid for this search scope.",
+        message: "One or more selected genres are not valid for this search.",
       });
       return;
     }

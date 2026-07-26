@@ -1,6 +1,10 @@
-import type { MediaItem, SearchScope } from "../types/media";
+import type {
+  MediaDetails,
+  MediaItem,
+  SearchScope,
+} from '../types/media'
 
-import type { SearchFilterValues } from "../types/search";
+import type { SearchFilterValues, SearchPreset } from "../types/search";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export interface SearchMediaResult {
@@ -17,9 +21,20 @@ interface SearchApiResponse {
   scope: SearchScope;
 
   filters: {
-    genre: string | null;
+    genres: string[];
+    genreMode: "all" | "any";
     language: string | null;
     minRating: number | null;
+    format: "all" | "movie" | "tv";
+    releaseYearFrom: number | null;
+    releaseYearTo: number | null;
+    sortBy:
+      | "best-match"
+      | "popularity-desc"
+      | "rating-desc"
+      | "release-desc"
+      | "release-asc";
+    establishedOnly: boolean;
   };
 
   page: number;
@@ -31,8 +46,8 @@ interface SearchApiResponse {
 }
 
 interface MediaDetailsApiResponse {
-  status: string;
-  result: MediaItem;
+  status: string
+  result: MediaDetails
 }
 
 interface ApiErrorResponse {
@@ -44,22 +59,39 @@ export async function searchMedia(
   query: string,
   scope: SearchScope = "all",
   filters: SearchFilterValues = {
-    genre: "all",
+    genres: [],
+    genreMode: "all",
     language: "all",
     minRating: "all",
+    format: "all",
+    releaseYearFrom: null,
+    releaseYearTo: null,
+    sortBy: "best-match",
+    establishedOnly: false,
   },
+  preset: SearchPreset = "default",
   page = 1,
   signal?: AbortSignal,
 ): Promise<SearchMediaResult> {
   const searchParams = new URLSearchParams({
-    q: query,
     scope,
     page: String(page),
+    genreMode: filters.genreMode,
   });
 
-  if (filters.genre !== "all") {
-    searchParams.set("genre", filters.genre);
+  if (preset !== "default") {
+    searchParams.set("preset", preset);
   }
+
+  const trimmedQuery = query.trim();
+
+  if (trimmedQuery) {
+    searchParams.set("q", trimmedQuery);
+  }
+
+  filters.genres.forEach((genre) => {
+    searchParams.append("genres", genre);
+  });
 
   if (filters.language !== "all") {
     searchParams.set("language", filters.language);
@@ -67,6 +99,26 @@ export async function searchMedia(
 
   if (filters.minRating !== "all") {
     searchParams.set("minRating", filters.minRating);
+  }
+
+  if (filters.format !== "all") {
+    searchParams.set("format", filters.format);
+  }
+
+  if (filters.releaseYearFrom !== null) {
+    searchParams.set("fromYear", String(filters.releaseYearFrom));
+  }
+
+  if (filters.releaseYearTo !== null) {
+    searchParams.set("toYear", String(filters.releaseYearTo));
+  }
+
+  if (filters.sortBy !== "best-match") {
+    searchParams.set("sort", filters.sortBy);
+  }
+
+  if (filters.establishedOnly) {
+    searchParams.set("established", "true");
   }
 
   const response = await fetch(
@@ -91,13 +143,9 @@ export async function searchMedia(
 
   return {
     page: searchData.page,
-
     totalPages: searchData.totalPages,
-
     totalResults: searchData.totalResults,
-
     hasMore: searchData.hasMore ?? searchData.page < searchData.totalPages,
-
     results: searchData.results,
   };
 }
@@ -106,7 +154,7 @@ export async function getMediaByTmdbId(
   mediaType: string | undefined,
   tmdbId: string | undefined,
   signal?: AbortSignal,
-): Promise<MediaItem | null> {
+): Promise<MediaDetails | null> {
   if (!mediaType || !tmdbId) {
     return null;
   }

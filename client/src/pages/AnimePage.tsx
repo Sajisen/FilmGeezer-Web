@@ -7,6 +7,7 @@ import ErrorState from "../components/states/ErrorState";
 import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useAnimeCollections } from "../hooks/useAnimeCollections";
 
+import { buildSearchHref } from "../utils/searchLinks";
 import animeBanner from "../assets/images/anime-banner.png";
 
 function AnimePage() {
@@ -70,6 +71,7 @@ function AnimePage() {
               title="Trending Anime"
               description="Anime movies and series receiving current audience attention."
               items={collections.trendingAnime}
+              viewMoreHref={buildSearchHref({ scope: "anime", preset: "trending" })}
             />
           )}
 
@@ -78,6 +80,7 @@ function AnimePage() {
               title="FilmGeezer Anime Essentials"
               description="Recognisable and highly regarded Anime selected using rating, popularity, and audience confidence."
               items={collections.essentials}
+              viewMoreHref={buildSearchHref({ scope: "anime", preset: "essentials" })}
             />
           )}
 
@@ -86,6 +89,7 @@ function AnimePage() {
               title="Action, Adventure & Thriller"
               description="High-energy battles, dangerous journeys, intense missions, and suspenseful stories."
               items={collections.actionAdventureThriller}
+              viewMoreHref={buildSearchHref({ scope: "anime", genres: ["Action", "Action & Adventure", "Adventure", "Thriller"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -94,6 +98,7 @@ function AnimePage() {
               title="Fantasy, Mystery & Science Fiction"
               description="Supernatural worlds, unexplained events, futuristic ideas, and imaginative adventures."
               items={collections.fantasyMysteryScienceFiction}
+              viewMoreHref={buildSearchHref({ scope: "anime", genres: ["Fantasy", "Mystery", "Science Fiction", "Sci-Fi & Fantasy"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -102,6 +107,7 @@ function AnimePage() {
               title="Romance & Drama"
               description="Emotional, character-driven, and relationship-focused Anime stories."
               items={collections.romanceDrama}
+              viewMoreHref={buildSearchHref({ scope: "anime", genres: ["Romance", "Drama"], genreMode: "any", minRating: "6" })}
             />
           )}
 
@@ -110,6 +116,7 @@ function AnimePage() {
               title="Comedy & Slice of Life"
               description="Funny, comforting, and everyday stories with lighter moments and memorable characters."
               items={collections.comedySliceOfLife}
+              viewMoreHref={buildSearchHref({ scope: "anime", genres: ["Comedy", "Drama"], genreMode: "any", minRating: "6" })}
             />
           )}
         </>

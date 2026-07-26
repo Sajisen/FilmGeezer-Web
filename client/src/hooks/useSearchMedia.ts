@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { searchMedia } from "../services/mediaService";
 import type { MediaItem, SearchScope } from "../types/media";
-import type { SearchFilterValues } from "../types/search";
+import type { SearchFilterValues, SearchPreset } from "../types/search";
 import { removeDuplicateMedia } from "../utils/media";
 
 interface SearchRequestState {
@@ -9,6 +9,7 @@ interface SearchRequestState {
   items: MediaItem[];
   page: number;
   totalPages: number;
+  totalResults: number;
   errorMessage: string;
   hasMore: boolean;
 }
@@ -24,6 +25,7 @@ const initialRequestState: SearchRequestState = {
   items: [],
   page: 1,
   totalPages: 0,
+  totalResults: 0,
   errorMessage: "",
   hasMore: false,
 };
@@ -34,18 +36,39 @@ const initialLoadMoreState: LoadMoreState = {
   errorMessage: "",
 };
 
+function hasActiveFilters(filters: SearchFilterValues) {
+  return (
+    filters.genres.length > 0 ||
+    filters.language !== "all" ||
+    filters.minRating !== "all" ||
+    filters.format !== "all" ||
+    filters.releaseYearFrom !== null ||
+    filters.releaseYearTo !== null ||
+    filters.sortBy !== "best-match" ||
+    filters.establishedOnly
+  );
+}
+
 function createRequestKey(
   query: string,
   scope: SearchScope,
   filters: SearchFilterValues,
+  preset: SearchPreset,
   reloadKey: number,
 ) {
   return [
     query,
     scope,
-    filters.genre,
+    filters.genres.join("|"),
+    filters.genreMode,
     filters.language,
     filters.minRating,
+    filters.format,
+    filters.releaseYearFrom ?? "",
+    filters.releaseYearTo ?? "",
+    filters.sortBy,
+    filters.establishedOnly ? "1" : "0",
+    preset,
     String(reloadKey),
   ].join("\u0000");
 }
@@ -54,15 +77,24 @@ export function useSearchMedia(
   query: string,
   scope: SearchScope,
   filters: SearchFilterValues,
+  preset: SearchPreset = "default",
 ) {
   const trimmedQuery = query.trim();
-  const { genre, language, minRating } = filters;
+  const {
+    genres,
+    genreMode,
+    language,
+    minRating,
+    format,
+    releaseYearFrom,
+    releaseYearTo,
+    sortBy,
+    establishedOnly,
+  } = filters;
 
   const [reloadKey, setReloadKey] = useState(0);
-
   const [requestState, setRequestState] =
     useState<SearchRequestState>(initialRequestState);
-
   const [loadMoreState, setLoadMoreState] =
     useState<LoadMoreState>(initialLoadMoreState);
 
@@ -70,24 +102,47 @@ export function useSearchMedia(
 
   const currentFilters = useMemo<SearchFilterValues>(
     () => ({
-      genre,
+      genres,
+      genreMode,
       language,
       minRating,
+      format,
+      releaseYearFrom,
+      releaseYearTo,
+      sortBy,
+      establishedOnly,
     }),
-    [genre, language, minRating],
+    [
+      establishedOnly,
+      format,
+      genreMode,
+      genres,
+      language,
+      minRating,
+      releaseYearFrom,
+      releaseYearTo,
+      sortBy,
+    ],
   );
+
+  const shouldSearch =
+    trimmedQuery.length > 0 ||
+    scope !== "all" ||
+    preset !== "default" ||
+    hasActiveFilters(currentFilters);
 
   const currentRequestKey = createRequestKey(
     trimmedQuery,
     scope,
     currentFilters,
+    preset,
     reloadKey,
   );
 
   useEffect(() => {
     loadMoreControllerRef.current?.abort();
 
-    if (!trimmedQuery) {
+    if (!shouldSearch) {
       return;
     }
 
@@ -99,6 +154,7 @@ export function useSearchMedia(
           trimmedQuery,
           scope,
           currentFilters,
+          preset,
           1,
           controller.signal,
         );
@@ -109,13 +165,11 @@ export function useSearchMedia(
 
         setRequestState({
           requestKey: currentRequestKey,
-
           items: data.results,
           page: data.page,
           totalPages: data.totalPages,
-
+          totalResults: data.totalResults,
           hasMore: data.hasMore,
-
           errorMessage: "",
         });
       } catch (error: unknown) {
@@ -125,12 +179,11 @@ export function useSearchMedia(
 
         setRequestState({
           requestKey: currentRequestKey,
-
           items: [],
           page: 1,
           totalPages: 0,
+          totalResults: 0,
           hasMore: false,
-
           errorMessage:
             error instanceof Error
               ? error.message
@@ -144,7 +197,14 @@ export function useSearchMedia(
     return () => {
       controller.abort();
     };
-  }, [currentFilters, currentRequestKey, scope, trimmedQuery]);
+  }, [
+    currentFilters,
+    currentRequestKey,
+    preset,
+    scope,
+    shouldSearch,
+    trimmedQuery,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -154,30 +214,30 @@ export function useSearchMedia(
 
   const requestMatchesCurrentSearch =
     requestState.requestKey === currentRequestKey;
-
   const loadMoreMatchesCurrentSearch =
     loadMoreState.requestKey === currentRequestKey;
 
   const items = requestMatchesCurrentSearch ? requestState.items : [];
-
   const page = requestMatchesCurrentSearch ? requestState.page : 1;
-
-  const hasMore = requestMatchesCurrentSearch ? requestState.hasMore : false;
-
+  const totalResults = requestMatchesCurrentSearch
+    ? requestState.totalResults
+    : 0;
+  const hasMore = requestMatchesCurrentSearch
+    ? requestState.hasMore
+    : false;
   const errorMessage = requestMatchesCurrentSearch
     ? requestState.errorMessage
     : "";
 
-  const isLoading = trimmedQuery.length > 0 && !requestMatchesCurrentSearch;
-
-  const isLoadingMore = loadMoreMatchesCurrentSearch && loadMoreState.isLoading;
-
+  const isLoading = shouldSearch && !requestMatchesCurrentSearch;
+  const isLoadingMore =
+    loadMoreMatchesCurrentSearch && loadMoreState.isLoading;
   const loadMoreErrorMessage = loadMoreMatchesCurrentSearch
     ? loadMoreState.errorMessage
     : "";
 
   async function loadMore() {
-    if (!trimmedQuery || isLoading || isLoadingMore || !hasMore) {
+    if (!shouldSearch || isLoading || isLoadingMore || !hasMore) {
       return;
     }
 
@@ -197,6 +257,7 @@ export function useSearchMedia(
         trimmedQuery,
         scope,
         currentFilters,
+        preset,
         page + 1,
         controller.signal,
       );
@@ -212,13 +273,10 @@ export function useSearchMedia(
 
         return {
           ...currentState,
-
           items: removeDuplicateMedia([...currentState.items, ...data.results]),
-
           page: data.page,
-
           totalPages: data.totalPages,
-
+          totalResults: data.totalResults,
           hasMore: data.hasMore,
         };
       });
@@ -250,6 +308,7 @@ export function useSearchMedia(
 
   return {
     items,
+    totalResults,
     isLoading,
     isLoadingMore,
     errorMessage,

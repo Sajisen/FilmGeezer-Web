@@ -6,14 +6,19 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react'
+import { Link } from 'react-router'
 import type { MediaItem } from '../types/media'
 import ContentContainer from './layout/ContentContainer'
 import MediaCard from './MediaCard'
+import { ArrowRightIcon } from './navigation/NavigationIcons'
 
 interface MediaRowProps {
   title: string
   description?: string
   items: MediaItem[]
+  contentClassName?: string
+  viewMoreHref?: string
+  viewMoreLabel?: string
 }
 
 interface ArrowIconProps {
@@ -57,6 +62,9 @@ function MediaRow({
   title,
   description,
   items,
+  contentClassName = "",
+  viewMoreHref,
+  viewMoreLabel = "View more",
 }: MediaRowProps) {
   const railRef =
     useRef<HTMLDivElement>(null)
@@ -215,21 +223,35 @@ function MediaRow({
       className="py-7 sm:py-8"
     >
       <ContentContainer>
-        <header className="mb-4 sm:mb-5">
-          <h2
-            id={headingId}
-            className="text-xl font-bold tracking-tight text-white sm:text-2xl"
-          >
-            {title}
-          </h2>
-
-          {description && (
-            <p
-              id={descriptionId}
-              className="mt-1 max-w-3xl text-sm leading-6 text-slate-400"
+        <div className={contentClassName}>
+        <header className="mb-4 flex items-start justify-between gap-4 sm:mb-5">
+          <div className="min-w-0">
+            <h2
+              id={headingId}
+              className="text-xl font-bold tracking-tight text-white sm:text-2xl"
             >
-              {description}
-            </p>
+              {title}
+            </h2>
+
+            {description && (
+              <p
+                id={descriptionId}
+                className="mt-1 max-w-3xl text-sm leading-6 text-slate-400"
+              >
+                {description}
+              </p>
+            )}
+          </div>
+
+          {viewMoreHref && (
+            <Link
+              to={viewMoreHref}
+              aria-label={`${viewMoreLabel}: ${title}`}
+              className="group inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-sky-400/20 bg-sky-500/10 px-3 text-xs font-semibold text-sky-200 transition hover:border-sky-300/40 hover:bg-sky-500/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:px-4 sm:text-sm"
+            >
+              <span>{viewMoreLabel}</span>
+              <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
           )}
         </header>
 
@@ -310,6 +332,7 @@ function MediaRow({
               </button>
             </>
           )}
+        </div>
         </div>
       </ContentContainer>
     </section>

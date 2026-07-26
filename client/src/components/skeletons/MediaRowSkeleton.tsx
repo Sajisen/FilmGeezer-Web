@@ -3,10 +3,12 @@ import MediaCardSkeleton from './MediaCardSkeleton'
 
 interface MediaRowSkeletonProps {
   cardCount?: number
+  contentClassName?: string
 }
 
 function MediaRowSkeleton({
   cardCount = 8,
+  contentClassName = "",
 }: MediaRowSkeletonProps) {
   return (
     <section
@@ -14,6 +16,7 @@ function MediaRowSkeleton({
       className="py-7 sm:py-8"
     >
       <ContentContainer>
+        <div className={contentClassName}>
         <header className="mb-4 space-y-2 sm:mb-5">
           <div className="skeleton-placeholder h-6 w-44 rounded-md sm:h-7 sm:w-56" />
 
@@ -31,6 +34,7 @@ function MediaRowSkeleton({
               <MediaCardSkeleton />
             </div>
           ))}
+        </div>
         </div>
       </ContentContainer>
     </section>
