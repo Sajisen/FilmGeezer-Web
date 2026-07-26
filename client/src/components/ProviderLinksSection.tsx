@@ -1,5 +1,6 @@
 import ExternalLink from "../features/externalNavigation/ExternalLink";
 import type {
+  ProviderLink,
   ProviderLinkGroup,
   ProviderLinksPayload,
 } from "../types/providerLink";
@@ -12,7 +13,62 @@ interface ProviderLinksSectionProps {
   onRetry?: () => void;
 }
 
-function LinkGroup({ group }: { group: ProviderLinkGroup }) {
+type LinkGroupLayout = "stacked" | "grid";
+
+interface LinkCardProps {
+  groupLabel: string;
+  link: ProviderLink;
+  layout: LinkGroupLayout;
+}
+
+function LinkCard({ groupLabel, link, layout }: LinkCardProps) {
+  const usesGridLayout = layout === "grid";
+
+  return (
+    <article
+      className={`rounded-2xl border border-white/10 bg-slate-900/75 p-4 transition hover:border-sky-400/25 ${
+        usesGridLayout
+          ? "flex h-full flex-col gap-4"
+          : "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+      }`}
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-semibold text-white">{link.label}</p>
+
+          {link.isMain && (
+            <span className="rounded-full border border-sky-300/20 bg-sky-500/15 px-2.5 py-1 text-xs font-semibold text-sky-200">
+              Recommended
+            </span>
+          )}
+        </div>
+      </div>
+
+      <ExternalLink
+        href={link.url}
+        destinationName="Telegram"
+        aria-label={`Open ${groupLabel} ${link.label} in Telegram`}
+        className={`inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-sky-500 px-5 text-sm font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 ${
+          usesGridLayout ? "mt-auto w-full sm:w-auto sm:self-start" : ""
+        }`}
+      >
+        Open in Telegram
+        <span aria-hidden="true" className="ml-2">
+          ↗
+        </span>
+      </ExternalLink>
+    </article>
+  );
+}
+
+interface LinkGroupProps {
+  group: ProviderLinkGroup;
+  layout: LinkGroupLayout;
+}
+
+function LinkGroup({ group, layout }: LinkGroupProps) {
+  const usesGridLayout = layout === "grid";
+
   return (
     <section
       aria-labelledby={`provider-group-${group.id}`}
@@ -31,40 +87,18 @@ function LinkGroup({ group }: { group: ProviderLinkGroup }) {
         </span>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div
+        className={`mt-4 ${
+          usesGridLayout ? "grid gap-3 md:grid-cols-2" : "space-y-3"
+        }`}
+      >
         {group.links.map((link) => (
-          <article
+          <LinkCard
             key={link.id}
-            className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-slate-900/75 p-4 transition hover:border-sky-400/25 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-semibold text-white">{link.label}</p>
-
-                {link.isMain && (
-                  <span className="rounded-full bg-sky-500/15 px-2.5 py-1 text-xs font-semibold text-sky-200">
-                    Main
-                  </span>
-                )}
-              </div>
-
-              <p className="mt-1 text-sm text-slate-400">
-                Opens securely in Telegram.
-              </p>
-            </div>
-
-            <ExternalLink
-              href={link.url}
-              destinationName="Telegram"
-              aria-label={`Open ${group.label} ${link.label} in Telegram`}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-sky-500 px-5 text-sm font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
-            >
-              Open link
-              <span aria-hidden="true" className="ml-2">
-                ↗
-              </span>
-            </ExternalLink>
-          </article>
+            groupLabel={group.label}
+            link={link}
+            layout={layout}
+          />
         ))}
       </div>
     </section>
@@ -79,6 +113,8 @@ function ProviderLinksSection({
 }: ProviderLinksSectionProps) {
   const groups = data?.groups ?? [];
   const isMovieLinks = data?.kind === "movie";
+  const linkGroupLayout: LinkGroupLayout =
+    data?.kind === "series" ? "grid" : "stacked";
 
   return (
     <section
@@ -99,8 +135,8 @@ function ProviderLinksSection({
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
               {isMovieLinks
-                ? "Choose a resolution, then open one of the available Telegram links."
-                : "Choose one of the available Telegram links for this series."}
+                ? "Choose a resolution, then select an available link. Each option opens in Telegram after confirmation."
+                : "Select an available link below. The recommended link is the best place to start, and every option opens in Telegram after confirmation."}
             </p>
           </header>
 
@@ -127,7 +163,7 @@ function ProviderLinksSection({
                           <div className="skeleton-placeholder h-3 w-40 max-w-full rounded-md" />
                         </div>
 
-                        <div className="skeleton-placeholder h-10 w-24 rounded-full" />
+                        <div className="skeleton-placeholder h-10 w-28 rounded-full" />
                       </div>
                     ))}
                   </div>
@@ -176,11 +212,15 @@ function ProviderLinksSection({
           {!isLoading && !errorMessage && groups.length > 0 && (
             <div
               className={`mt-6 grid gap-4 ${
-                groups.length > 1 ? "lg:grid-cols-2" : ""
+                isMovieLinks && groups.length > 1 ? "lg:grid-cols-2" : ""
               }`}
             >
               {groups.map((group) => (
-                <LinkGroup key={group.id} group={group} />
+                <LinkGroup
+                  key={group.id}
+                  group={group}
+                  layout={linkGroupLayout}
+                />
               ))}
             </div>
           )}
