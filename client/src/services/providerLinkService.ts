@@ -17,12 +17,15 @@ function isProviderLink(value: unknown): value is ProviderLink {
   }
 
   const link = value as Record<string, unknown>;
+  const hasValidSize =
+    link.size === undefined || typeof link.size === "string";
 
   return (
     typeof link.id === "string" &&
     typeof link.label === "string" &&
     typeof link.url === "string" &&
-    typeof link.isMain === "boolean"
+    typeof link.isMain === "boolean" &&
+    hasValidSize
   );
 }
 

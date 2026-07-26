@@ -1,13 +1,17 @@
 import ExternalLink from "../features/externalNavigation/ExternalLink";
+import type { MediaType } from "../types/media";
 import type {
   ProviderLink,
   ProviderLinkGroup,
   ProviderLinksPayload,
 } from "../types/providerLink";
+import TelegramIcon from "./icons/TelegramIcon";
 import MediaDetailsContainer from "./details/MediaDetailsContainer";
 
 interface ProviderLinksSectionProps {
   data: ProviderLinksPayload | null;
+  mediaTitle: string;
+  mediaType: MediaType;
   isLoading?: boolean;
   errorMessage?: string;
   onRetry?: () => void;
@@ -16,29 +20,62 @@ interface ProviderLinksSectionProps {
 type LinkGroupLayout = "stacked" | "grid";
 
 interface LinkCardProps {
+  mediaTitle: string;
+  mediaType: MediaType;
   groupLabel: string;
   link: ProviderLink;
+  alternativeNumber: number | null;
   layout: LinkGroupLayout;
 }
 
-function LinkCard({ groupLabel, link, layout }: LinkCardProps) {
+function getMediaTypeLabel(mediaType: MediaType) {
+  return mediaType === "movie" ? "Movie" : "TV Series";
+}
+
+function LinkCard({
+  mediaTitle,
+  mediaType,
+  groupLabel,
+  link,
+  alternativeNumber,
+  layout,
+}: LinkCardProps) {
   const usesGridLayout = layout === "grid";
+  const optionLabel = link.isMain
+    ? "Recommended"
+    : `Alt ${alternativeNumber ?? 1}`;
 
   return (
     <article
-      className={`rounded-2xl border border-white/10 bg-slate-900/75 p-4 transition hover:border-sky-400/25 ${
+      className={`rounded-2xl border border-white/10 bg-slate-900/75 p-4 transition hover:border-sky-400/30 hover:bg-slate-900/90 sm:p-5 ${
         usesGridLayout
-          ? "flex h-full flex-col gap-4"
+          ? "flex h-full flex-col gap-5"
           : "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       }`}
     >
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold text-white">{link.label}</p>
+        <h4 className="break-words text-base font-bold leading-6 text-white sm:text-lg">
+          {mediaTitle}
+        </h4>
 
-          {link.isMain && (
-            <span className="rounded-full border border-sky-300/20 bg-sky-500/15 px-2.5 py-1 text-xs font-semibold text-sky-200">
-              Recommended
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-slate-300">
+            {getMediaTypeLabel(mediaType)}
+          </span>
+
+          <span
+            className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold ${
+              link.isMain
+                ? "border-sky-300/25 bg-sky-500/15 text-sky-200"
+                : "border-white/10 bg-slate-950/65 text-slate-400"
+            }`}
+          >
+            {optionLabel}
+          </span>
+
+          {link.size && (
+            <span className="rounded-full border border-white/10 bg-slate-950/65 px-2.5 py-1 text-[0.68rem] font-semibold text-slate-300">
+              Size {link.size}
             </span>
           )}
         </div>
@@ -47,15 +84,14 @@ function LinkCard({ groupLabel, link, layout }: LinkCardProps) {
       <ExternalLink
         href={link.url}
         destinationName="Telegram"
-        aria-label={`Open ${groupLabel} ${link.label} in Telegram`}
-        className={`inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-sky-500 px-5 text-sm font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 ${
+        aria-label={`Open ${mediaTitle}, ${groupLabel}, ${optionLabel} in Telegram`}
+        className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-sky-500 px-5 text-sm font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 ${
           usesGridLayout ? "mt-auto w-full sm:w-auto sm:self-start" : ""
         }`}
       >
+        <TelegramIcon className="h-4 w-4" />
         Open in Telegram
-        <span aria-hidden="true" className="ml-2">
-          ↗
-        </span>
+        <span aria-hidden="true">↗</span>
       </ExternalLink>
     </article>
   );
@@ -63,11 +99,21 @@ function LinkCard({ groupLabel, link, layout }: LinkCardProps) {
 
 interface LinkGroupProps {
   group: ProviderLinkGroup;
+  mediaTitle: string;
+  mediaType: MediaType;
   layout: LinkGroupLayout;
+  headingLabel?: string;
 }
 
-function LinkGroup({ group, layout }: LinkGroupProps) {
+function LinkGroup({
+  group,
+  mediaTitle,
+  mediaType,
+  layout,
+  headingLabel,
+}: LinkGroupProps) {
   const usesGridLayout = layout === "grid";
+  let alternativeCounter = 0;
 
   return (
     <section
@@ -79,7 +125,7 @@ function LinkGroup({ group, layout }: LinkGroupProps) {
           id={`provider-group-${group.id}`}
           className="text-lg font-bold text-white"
         >
-          {group.label}
+          {headingLabel ?? group.label}
         </h3>
 
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-slate-400">
@@ -92,14 +138,23 @@ function LinkGroup({ group, layout }: LinkGroupProps) {
           usesGridLayout ? "grid gap-3 md:grid-cols-2" : "space-y-3"
         }`}
       >
-        {group.links.map((link) => (
-          <LinkCard
-            key={link.id}
-            groupLabel={group.label}
-            link={link}
-            layout={layout}
-          />
-        ))}
+        {group.links.map((link) => {
+          const alternativeNumber = link.isMain
+            ? null
+            : (alternativeCounter += 1);
+
+          return (
+            <LinkCard
+              key={link.id}
+              mediaTitle={mediaTitle}
+              mediaType={mediaType}
+              groupLabel={headingLabel ?? group.label}
+              link={link}
+              alternativeNumber={alternativeNumber}
+              layout={layout}
+            />
+          );
+        })}
       </div>
     </section>
   );
@@ -107,14 +162,16 @@ function LinkGroup({ group, layout }: LinkGroupProps) {
 
 function ProviderLinksSection({
   data,
+  mediaTitle,
+  mediaType,
   isLoading = false,
   errorMessage = "",
   onRetry,
 }: ProviderLinksSectionProps) {
   const groups = data?.groups ?? [];
-  const isMovieLinks = data?.kind === "movie";
-  const linkGroupLayout: LinkGroupLayout =
-    data?.kind === "series" ? "grid" : "stacked";
+  const isMovieLinks = data?.kind === "movie" || (!data && mediaType === "movie");
+  const isSeriesLinks = data?.kind === "series" || (!data && mediaType === "tv");
+  const linkGroupLayout: LinkGroupLayout = isSeriesLinks ? "grid" : "stacked";
 
   return (
     <section
@@ -133,10 +190,10 @@ function ProviderLinksSection({
               Available on FilmGeezer
             </h2>
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
               {isMovieLinks
-                ? "Choose a resolution, then select an available link. Each option opens in Telegram after confirmation."
-                : "Select an available link below. The recommended link is the best place to start, and every option opens in Telegram after confirmation."}
+                ? "Choose a resolution and start with the recommended Telegram link. File size appears when it is available."
+                : "Start with the recommended Telegram link. If it is unavailable, try one of the alternatives."}
             </p>
           </header>
 
@@ -156,14 +213,14 @@ function ProviderLinksSection({
                     {Array.from({ length: 2 }).map((__, rowIndex) => (
                       <div
                         key={rowIndex}
-                        className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4"
+                        className="rounded-2xl border border-white/10 bg-slate-900/70 p-4"
                       >
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="skeleton-placeholder h-4 w-32 rounded-md" />
-                          <div className="skeleton-placeholder h-3 w-40 max-w-full rounded-md" />
+                        <div className="skeleton-placeholder h-5 w-48 max-w-full rounded-md" />
+                        <div className="mt-3 flex gap-2">
+                          <div className="skeleton-placeholder h-6 w-20 rounded-full" />
+                          <div className="skeleton-placeholder h-6 w-24 rounded-full" />
                         </div>
-
-                        <div className="skeleton-placeholder h-10 w-28 rounded-full" />
+                        <div className="skeleton-placeholder mt-5 h-11 w-40 rounded-full" />
                       </div>
                     ))}
                   </div>
@@ -219,7 +276,10 @@ function ProviderLinksSection({
                 <LinkGroup
                   key={group.id}
                   group={group}
+                  mediaTitle={mediaTitle}
+                  mediaType={mediaType}
                   layout={linkGroupLayout}
+                  headingLabel={isSeriesLinks ? "Telegram links" : undefined}
                 />
               ))}
             </div>

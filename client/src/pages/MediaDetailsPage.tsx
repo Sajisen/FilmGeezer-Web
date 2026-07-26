@@ -18,6 +18,7 @@ import EpisodeExplorerSection from "../components/details/EpisodeExplorerSection
 import MediaDetailsQuickNav from "../components/details/MediaDetailsQuickNav";
 import MoreLikeThisSection from "../components/details/MoreLikeThisSection";
 import ExternalLink from "../features/externalNavigation/ExternalLink";
+import TelegramIcon from "../components/icons/TelegramIcon";
 
 interface MediaDetailsRequestState {
   mediaType: string | null;
@@ -475,12 +476,12 @@ function MediaDetailsPage() {
             src={selectedMedia.backdropUrl}
             alt=""
             aria-hidden="true"
-            className="h-full w-full scale-105 object-cover opacity-35 blur-[2px]"
+            className="h-full w-full scale-105 object-cover opacity-45 blur-[1px] saturate-125 contrast-110 sm:opacity-50"
           />
 
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/35 via-slate-950/80 to-slate-950" />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/20 via-slate-950/65 to-slate-950" />
 
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/75 to-slate-950/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/72 to-slate-950/15" />
         </div>
 
         <MediaDetailsContainer className="relative py-8 sm:py-10 lg:py-14">
@@ -579,13 +580,14 @@ function MediaDetailsPage() {
                 <WatchlistButton
                   itemTitle={selectedMedia.title}
                   variant="labeled"
-                  className="w-full sm:w-auto"
+                  className="w-full sm:min-w-[13.5rem]"
                 />
 
                 <a
                   href="#provider-links"
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-auto"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:min-w-[13.5rem]"
                 >
+                  <TelegramIcon className="h-5 w-5" />
                   FilmGeezer links
                 </a>
               </div>
@@ -699,6 +701,8 @@ function MediaDetailsPage() {
 
       <ProviderLinksSection
         data={providerLinksData}
+        mediaTitle={selectedMedia.title}
+        mediaType={selectedMedia.mediaType}
         isLoading={isProviderLinksLoading}
         errorMessage={providerErrorMessage}
         onRetry={retryProviderLinks}

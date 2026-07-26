@@ -12,6 +12,12 @@ interface LinkCandidate {
   id: string;
   url: string;
   isMain: boolean;
+  size?: string;
+}
+
+interface MovieQualityDetails {
+  url: string;
+  size?: string;
 }
 
 const MOVIE_QUALITIES: MovieQuality[] = ["720p", "1080p"];
@@ -71,6 +77,32 @@ function sanitizeTelegramUrl(value: unknown) {
   }
 }
 
+function sanitizeFileSize(value: unknown) {
+  const text = getNonEmptyString(value);
+
+  if (!text) {
+    return undefined;
+  }
+
+  const normalizedText = text
+    .replace(/,/g, ".")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const match = normalizedText.match(
+    /^(\d+(?:\.\d{1,2})?)\s*(KB|MB|GB|TB|KiB|MiB|GiB|TiB)$/i,
+  );
+
+  if (!match) {
+    return undefined;
+  }
+
+  const [, amount, rawUnit] = match;
+  const unit = rawUnit.toUpperCase().replace("IB", "iB");
+
+  return `${amount} ${unit}`;
+}
+
 function finalizeCandidates(candidates: LinkCandidate[]): PublicContentLink[] {
   const byUrl = new Map<string, LinkCandidate>();
 
@@ -78,12 +110,16 @@ function finalizeCandidates(candidates: LinkCandidate[]): PublicContentLink[] {
     const existingCandidate = byUrl.get(candidate.url);
 
     if (!existingCandidate) {
-      byUrl.set(candidate.url, candidate);
+      byUrl.set(candidate.url, { ...candidate });
       return;
     }
 
     if (candidate.isMain && !existingCandidate.isMain) {
       existingCandidate.isMain = true;
+    }
+
+    if (!existingCandidate.size && candidate.size) {
+      existingCandidate.size = candidate.size;
     }
   });
 
@@ -108,6 +144,7 @@ function finalizeCandidates(candidates: LinkCandidate[]): PublicContentLink[] {
     label: index === 0 ? "Main link" : `Alternative ${index}`,
     url: candidate.url,
     isMain: index === 0,
+    ...(candidate.size ? { size: candidate.size } : {}),
   }));
 }
 
@@ -160,7 +197,10 @@ function normalizeSeriesGroups(
     : [];
 }
 
-function getMovieQualityUrl(links: unknown, quality: MovieQuality) {
+function getMovieQualityDetails(
+  links: unknown,
+  quality: MovieQuality,
+): MovieQualityDetails | null {
   if (!isRecord(links)) {
     return null;
   }
@@ -168,14 +208,23 @@ function getMovieQualityUrl(links: unknown, quality: MovieQuality) {
   const value = links[quality];
 
   if (typeof value === "string") {
-    return sanitizeTelegramUrl(value);
+    const url = sanitizeTelegramUrl(value);
+    return url ? { url } : null;
   }
 
   if (!isRecord(value)) {
     return null;
   }
 
-  return sanitizeTelegramUrl(value.url);
+  const url = sanitizeTelegramUrl(value.url);
+
+  if (!url) {
+    return null;
+  }
+
+  const size = sanitizeFileSize(value.size);
+
+  return size ? { url, size } : { url };
 }
 
 function normalizeMovieGroups(
@@ -197,7 +246,10 @@ function normalizeMovieGroups(
         return 0;
       }
 
-      return Number(secondSource.is_main === true) - Number(firstSource.is_main === true);
+      return (
+        Number(secondSource.is_main === true) -
+        Number(firstSource.is_main === true)
+      );
     });
 
   activeSources.forEach(({ source, index }) => {
@@ -206,31 +258,33 @@ function normalizeMovieGroups(
     }
 
     MOVIE_QUALITIES.forEach((quality) => {
-      const url = getMovieQualityUrl(source.links, quality);
+      const details = getMovieQualityDetails(source.links, quality);
 
-      if (!url) {
+      if (!details) {
         return;
       }
 
       candidatesByQuality.get(quality)?.push({
         id: `${getSafePublicId(source.id, `movie-source-${index + 1}`)}-${quality}`,
-        url,
+        url: details.url,
         isMain: source.is_main === true,
+        ...(details.size ? { size: details.size } : {}),
       });
     });
   });
 
   MOVIE_QUALITIES.forEach((quality) => {
-    const url = getMovieQualityUrl(document.links, quality);
+    const details = getMovieQualityDetails(document.links, quality);
 
-    if (!url) {
+    if (!details) {
       return;
     }
 
     candidatesByQuality.get(quality)?.push({
       id: `movie-legacy-${quality}`,
-      url,
+      url: details.url,
       isMain: true,
+      ...(details.size ? { size: details.size } : {}),
     });
   });
 

@@ -45,6 +45,7 @@ export interface PublicContentLink {
   label: string;
   url: string;
   isMain: boolean;
+  size?: string;
 }
 
 export interface PublicContentLinkGroup {

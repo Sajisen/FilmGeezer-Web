@@ -7,6 +7,7 @@ export interface ProviderLink {
   label: string;
   url: string;
   isMain: boolean;
+  size?: string;
 }
 
 export interface ProviderLinkGroup {
