@@ -1,10 +1,16 @@
-import { MongoClient, type Db } from "mongodb";
+import {
+  MongoClient,
+  ServerApiVersion,
+  type Db,
+} from "mongodb";
+import { env } from "./env.js";
 
-const DEFAULT_DATABASE_NAME = "filmgeezer_bot";
-const DEFAULT_SERVER_SELECTION_TIMEOUT_MS = 8_000;
+const SERVER_SELECTION_TIMEOUT_MS = 8_000;
+const CONNECTION_WAIT_TIMEOUT_MS = 5_000;
+const MAX_IDLE_TIME_MS = 60_000;
 
 let mongoClient: MongoClient | null = null;
-let databasePromise: Promise<Db> | null = null;
+let mongoClientPromise: Promise<MongoClient> | null = null;
 
 export class DatabaseConfigurationError extends Error {
   constructor(message: string) {
@@ -13,63 +19,73 @@ export class DatabaseConfigurationError extends Error {
   }
 }
 
-function getMongoConfiguration() {
-  const uri = process.env.MONGODB_URI?.trim();
-  const databaseName =
-    process.env.MONGODB_DB_NAME?.trim() || DEFAULT_DATABASE_NAME;
+async function createMongoClient() {
+  const client = new MongoClient(env.MONGODB_URI, {
+    appName: "FilmGeezer-Web-API",
 
-  if (!uri) {
-    throw new DatabaseConfigurationError(
-      "MONGODB_URI is not configured for the FilmGeezer server.",
-    );
-  }
+    serverApi: {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
 
-  return {
-    uri,
-    databaseName,
-  };
-}
-
-async function createDatabaseConnection() {
-  const { uri, databaseName } = getMongoConfiguration();
-
-  mongoClient = new MongoClient(uri, {
     maxPoolSize: 10,
     minPoolSize: 0,
-    connectTimeoutMS: DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
-    serverSelectionTimeoutMS: DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
+    maxIdleTimeMS: MAX_IDLE_TIME_MS,
+    waitQueueTimeoutMS: CONNECTION_WAIT_TIMEOUT_MS,
+    connectTimeoutMS: SERVER_SELECTION_TIMEOUT_MS,
+    serverSelectionTimeoutMS: SERVER_SELECTION_TIMEOUT_MS,
   });
 
+  mongoClient = client;
+
   try {
-    await mongoClient.connect();
+    await client.connect();
 
-    const database = mongoClient.db(databaseName);
-    await database.command({ ping: 1 });
+    await client
+      .db(env.MONGODB_CONTENT_DB_NAME)
+      .command({ ping: 1 });
 
-    return database;
+    return client;
   } catch (error) {
-    await mongoClient.close().catch(() => undefined);
+    await client.close().catch(() => undefined);
+
     mongoClient = null;
+
     throw error;
   }
 }
 
-export function getMongoDatabase() {
-  if (!databasePromise) {
-    databasePromise = createDatabaseConnection().catch((error) => {
-      databasePromise = null;
+export function getMongoClient() {
+  if (!mongoClientPromise) {
+    mongoClientPromise = createMongoClient().catch((error) => {
+      mongoClientPromise = null;
       throw error;
     });
   }
 
-  return databasePromise;
+  return mongoClientPromise;
+}
+
+async function getDatabase(databaseName: string): Promise<Db> {
+  const client = await getMongoClient();
+
+  return client.db(databaseName);
+}
+
+export function getContentDatabase() {
+  return getDatabase(env.MONGODB_CONTENT_DB_NAME);
+}
+
+export function getWebDatabase() {
+  return getDatabase(env.MONGODB_WEB_DB_NAME);
 }
 
 export async function closeMongoConnection() {
   const client = mongoClient;
 
   mongoClient = null;
-  databasePromise = null;
+  mongoClientPromise = null;
 
   if (client) {
     await client.close();
