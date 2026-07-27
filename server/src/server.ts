@@ -1,9 +1,8 @@
-import "dotenv/config";
 import app from "./app.js";
 import { closeMongoConnection } from "./config/database.js";
+import { env } from "./config/env.js";
 
-const PORT = Number(process.env.PORT) || 5000;
-const HOST = process.env.HOST || "0.0.0.0";
+const { PORT, HOST } = env;
 
 const server = app.listen(PORT, HOST, () => {
   console.log("FilmGeezer API is running");

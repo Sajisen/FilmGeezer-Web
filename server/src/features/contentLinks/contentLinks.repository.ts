@@ -1,11 +1,11 @@
 import type { Collection } from "mongodb";
-import { getMongoDatabase } from "../../config/database.js";
+import { getContentDatabase } from "../../config/database.js";
+import { env } from "../../config/env.js";
 import type {
   ContentLinkMediaType,
   ContentLinksDocument,
 } from "./contentLinks.types.js";
 
-const DEFAULT_COLLECTION_NAME = "content_links";
 
 export class ContentLinksDataSourceError extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -17,12 +17,11 @@ export class ContentLinksDataSourceError extends Error {
 async function getContentLinksCollection(): Promise<
   Collection<ContentLinksDocument>
 > {
-  const database = await getMongoDatabase();
-  const collectionName =
-    process.env.MONGODB_CONTENT_LINKS_COLLECTION?.trim() ||
-    DEFAULT_COLLECTION_NAME;
+  const database = await getContentDatabase();
 
-  return database.collection<ContentLinksDocument>(collectionName);
+return database.collection<ContentLinksDocument>(
+  env.MONGODB_CONTENT_LINKS_COLLECTION,
+);
 }
 
 export async function findActiveContentLinksDocument(
