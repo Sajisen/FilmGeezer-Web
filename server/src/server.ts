@@ -2,6 +2,8 @@ import app from "./app.js";
 import { closeMongoConnection } from "./config/database.js";
 import { env } from "./config/env.js";
 
+import { initializeAuthStorage } from "./features/auth/auth.indexes.js";
+
 const { PORT, HOST } = env;
 
 const server = app.listen(PORT, HOST, () => {
@@ -9,6 +11,28 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`Local:   http://localhost:${PORT}`);
   console.log(`Listening on all network interfaces at port ${PORT}`);
 });
+
+void initializeAuthStorage()
+  .then(() => {
+    console.log("FilmGeezer authentication storage is ready.");
+  })
+  .catch((error) => {
+    console.error(
+      "FilmGeezer authentication storage could not be initialized.",
+      {
+        name:
+          error instanceof Error
+            ? error.name
+            : "UnknownError",
+
+        message:
+          env.NODE_ENV === "development" &&
+          error instanceof Error
+            ? error.message
+            : undefined,
+      },
+    );
+  });
 
 let isShuttingDown = false;
 
