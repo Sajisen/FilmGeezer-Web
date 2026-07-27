@@ -1,5 +1,9 @@
 import { MongoServerError } from "mongodb";
 
+import type {
+  PasswordRejectionReason,
+} from "./auth.password-quality.js";
+
 export class AuthAccountConflictError extends Error {
   readonly code = "AUTH_ACCOUNT_CONFLICT";
 
@@ -9,6 +13,22 @@ export class AuthAccountConflictError extends Error {
     );
 
     this.name = "AuthAccountConflictError";
+  }
+}
+
+export class AuthWeakPasswordError extends Error {
+  readonly code = "AUTH_WEAK_PASSWORD";
+
+  constructor(
+    readonly reason: PasswordRejectionReason,
+  ) {
+    super(
+      reason === "common-or-predictable"
+        ? "Choose a less common and less predictable password."
+        : "The password does not meet the account requirements.",
+    );
+
+    this.name = "AuthWeakPasswordError";
   }
 }
 
@@ -32,4 +52,17 @@ export function isMongoDuplicateKeyError(
     error instanceof MongoServerError &&
     error.code === 11_000
   );
+}
+
+export class AuthEmailDeliveryError extends Error {
+  readonly code = "AUTH_EMAIL_DELIVERY_ERROR";
+
+  constructor(
+    message = "The authentication email could not be delivered.",
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+
+    this.name = "AuthEmailDeliveryError";
+  }
 }

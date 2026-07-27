@@ -18,3 +18,19 @@ export const AUTH_INPUT_LIMITS = {
   passwordMinimumLength: 8,
   passwordMaximumLength: 128,
 } as const;
+
+export const AUTH_PASSWORD_QUALITY_POLICY = {
+  minimumAcceptedScore: 1,
+} as const;
+
+export const AUTH_EMAIL_VERIFICATION_POLICY = {
+  codeDigits: 6,
+
+  expiresAfterMilliseconds: 5 * 60 * 1_000,
+
+  maximumAttempts: 5,
+
+  resendCooldownMilliseconds: 60 * 1_000,
+
+  maximumSendsPerChallenge: 3,
+} as const;

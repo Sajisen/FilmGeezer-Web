@@ -145,6 +145,8 @@ export interface AuthChallengeDocument {
   _id: ObjectId;
   schemaVersion: number;
 
+  publicId: string;
+
   userId: ObjectId;
   purpose: AuthChallengePurpose;
 
@@ -152,6 +154,8 @@ export interface AuthChallengeDocument {
 
   attemptCount: number;
   maximumAttempts: number;
+
+  sendCount: number;
 
   createdAt: Date;
   lastSentAt: Date;

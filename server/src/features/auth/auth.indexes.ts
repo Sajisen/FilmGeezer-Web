@@ -3,14 +3,8 @@ import { getAuthCollections } from "./auth.collections.js";
 let authenticationStoragePromise: Promise<void> | null = null;
 
 async function createAuthenticationIndexes(): Promise<void> {
-  const {
-    users,
-    identities,
-    credentials,
-    sessions,
-    challenges,
-    auditEvents,
-  } = await getAuthCollections();
+  const { users, identities, credentials, sessions, challenges, auditEvents } =
+    await getAuthCollections();
 
   await Promise.all([
     users.createIndexes([
@@ -94,6 +88,13 @@ async function createAuthenticationIndexes(): Promise<void> {
     challenges.createIndexes([
       {
         key: {
+          publicId: 1,
+        },
+        name: "auth_challenges_public_id_unique",
+        unique: true,
+      },
+      {
+        key: {
           secretHash: 1,
         },
         name: "auth_challenges_secret_hash_unique",
@@ -155,11 +156,12 @@ async function createAuthenticationIndexes(): Promise<void> {
 
 export function initializeAuthStorage(): Promise<void> {
   if (!authenticationStoragePromise) {
-    authenticationStoragePromise =
-      createAuthenticationIndexes().catch((error) => {
+    authenticationStoragePromise = createAuthenticationIndexes().catch(
+      (error) => {
         authenticationStoragePromise = null;
         throw error;
-      });
+      },
+    );
   }
 
   return authenticationStoragePromise;

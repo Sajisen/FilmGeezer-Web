@@ -41,19 +41,20 @@ const environmentSchema = z.object({
     .min(1, "MONGODB_URI is required.")
     .refine(
       (value) =>
-        value.startsWith("mongodb://") ||
-        value.startsWith("mongodb+srv://"),
+        value.startsWith("mongodb://") || value.startsWith("mongodb+srv://"),
       "MONGODB_URI must begin with mongodb:// or mongodb+srv://.",
     ),
 
-  MONGODB_CONTENT_DB_NAME:
-    mongoDatabaseNameSchema.default("filmgeezer_bot"),
+  MONGODB_CONTENT_DB_NAME: mongoDatabaseNameSchema.default("filmgeezer_bot"),
 
-  MONGODB_WEB_DB_NAME:
-    mongoDatabaseNameSchema.default("filmgeezer_web"),
+  MONGODB_WEB_DB_NAME: mongoDatabaseNameSchema.default("filmgeezer_web"),
 
   MONGODB_CONTENT_LINKS_COLLECTION:
     mongoCollectionNameSchema.default("content_links"),
+
+  AUTH_CHALLENGE_PEPPER: z
+    .string()
+    .min(32, "AUTH_CHALLENGE_PEPPER must contain at least 32 characters."),
 });
 
 const environmentResult = environmentSchema.safeParse(process.env);
@@ -62,9 +63,7 @@ if (!environmentResult.success) {
   const issueList = environmentResult.error.issues
     .map((issue) => {
       const variableName =
-        issue.path.length > 0
-          ? issue.path.join(".")
-          : "environment";
+        issue.path.length > 0 ? issue.path.join(".") : "environment";
 
       return `- ${variableName}: ${issue.message}`;
     })

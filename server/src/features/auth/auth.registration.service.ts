@@ -1,15 +1,14 @@
 import { randomUUID } from "node:crypto";
-import {
-  ObjectId,
-  type TransactionOptions,
-} from "mongodb";
+import { ObjectId, type TransactionOptions } from "mongodb";
 import { getMongoClient } from "../../config/database.js";
 import {
   AuthAccountConflictError,
   AuthPersistenceError,
+  AuthWeakPasswordError,
   isMongoDuplicateKeyError,
 } from "./auth.errors.js";
 import { initializeAuthStorage } from "./auth.indexes.js";
+import { assessPasswordQuality } from "./auth.password-quality.js";
 import { hashPassword } from "./auth.password.js";
 import {
   parseRegistrationInput,
@@ -19,6 +18,11 @@ import { createAuthAuditEvent } from "./repositories/authAudit.repository.js";
 import { createAuthCredential } from "./repositories/authCredential.repository.js";
 import { createAuthIdentity } from "./repositories/authIdentity.repository.js";
 import { createPendingUser } from "./repositories/authUser.repository.js";
+import { generateEmailVerificationChallenge } from "./auth.challenge.js";
+import {
+  createEmailVerificationChallenge,
+  invalidateActiveChallenges,
+} from "./repositories/authChallenge.repository.js";
 
 const REGISTRATION_TRANSACTION_OPTIONS: TransactionOptions = {
   readPreference: "primary",
@@ -43,10 +47,34 @@ export interface RegisteredLocalUser {
   providerSubject: string;
 }
 
+export interface PreparedEmailVerification {
+  challengeId: string;
+  code: string;
+  expiresAt: Date;
+}
+
+export interface PreparedLocalRegistration {
+  user: RegisteredLocalUser;
+  verification: PreparedEmailVerification;
+}
+
 export async function registerLocalUser(
   input: RegistrationInput,
-): Promise<RegisteredLocalUser> {
+): Promise<PreparedLocalRegistration> {
   const registration = parseRegistrationInput(input);
+
+  const passwordQuality = assessPasswordQuality({
+    password: registration.password,
+    emailNormalized: registration.emailNormalized,
+    displayName: registration.displayName,
+  });
+
+  if (!passwordQuality.accepted) {
+    throw new AuthWeakPasswordError(
+      passwordQuality.rejectionReason ??
+        "common-or-predictable",
+    );
+  }
 
   await initializeAuthStorage();
 
@@ -68,10 +96,17 @@ export async function registerLocalUser(
   const userId = new ObjectId();
   const identityId = new ObjectId();
   const credentialId = new ObjectId();
+  const challengeId = new ObjectId();
   const auditEventId = new ObjectId();
 
   const providerSubject = randomUUID();
   const createdAt = new Date();
+
+  const verificationChallenge =
+    generateEmailVerificationChallenge(
+      userId,
+      createdAt,
+    );
 
   const client = await getMongoClient();
   const session = client.startSession();
@@ -112,6 +147,34 @@ export async function registerLocalUser(
           session,
         );
 
+        await invalidateActiveChallenges(
+          {
+            userId: user._id,
+            purpose: "verify-email",
+            invalidatedAt: createdAt,
+          },
+          session,
+        );
+
+        await createEmailVerificationChallenge(
+          {
+            challengeId,
+            publicId:
+              verificationChallenge.publicId,
+
+            userId: user._id,
+            secretHash:
+              verificationChallenge.secretHash,
+
+            createdAt:
+              verificationChallenge.createdAt,
+
+            expiresAt:
+              verificationChallenge.expiresAt,
+          },
+          session,
+        );
+
         await createAuthAuditEvent(
           {
             auditEventId,
@@ -121,6 +184,7 @@ export async function registerLocalUser(
             details: {
               provider: "local",
               initialStatus: "pending",
+              emailVerificationRequired: true,
             },
             createdAt,
           },
@@ -128,13 +192,25 @@ export async function registerLocalUser(
         );
 
         return {
-          userId: user._id.toHexString(),
-          email: user.emailDisplay,
-          displayName: user.displayName,
-          status: "pending",
-          provider: "local",
-          providerSubject,
-        } satisfies RegisteredLocalUser;
+          user: {
+            userId: user._id.toHexString(),
+            email: user.emailDisplay,
+            displayName: user.displayName,
+            status: "pending",
+            provider: "local",
+            providerSubject,
+          },
+
+          verification: {
+            challengeId:
+              verificationChallenge.publicId,
+
+            code: verificationChallenge.secret,
+
+            expiresAt:
+              verificationChallenge.expiresAt,
+          },
+        } satisfies PreparedLocalRegistration;
       },
       REGISTRATION_TRANSACTION_OPTIONS,
     );
@@ -153,7 +229,8 @@ export async function registerLocalUser(
 
     if (
       error instanceof AuthAccountConflictError ||
-      error instanceof AuthPersistenceError
+      error instanceof AuthPersistenceError ||
+      error instanceof AuthWeakPasswordError
     ) {
       throw error;
     }
