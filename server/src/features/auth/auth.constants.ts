@@ -15,6 +15,6 @@ export const AUTH_INPUT_LIMITS = {
   displayNameMinimumLength: 2,
   displayNameMaximumLength: 50,
 
-  passwordMinimumLength: 15,
+  passwordMinimumLength: 8,
   passwordMaximumLength: 128,
 } as const;
