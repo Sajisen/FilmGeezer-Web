@@ -8,3 +8,13 @@ export const AUTH_COLLECTION_NAMES = {
 } as const;
 
 export const AUTH_SCHEMA_VERSION = 1;
+
+export const AUTH_INPUT_LIMITS = {
+  emailMaximumLength: 254,
+
+  displayNameMinimumLength: 2,
+  displayNameMaximumLength: 50,
+
+  passwordMinimumLength: 15,
+  passwordMaximumLength: 128,
+} as const;
