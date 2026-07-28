@@ -41,9 +41,24 @@ const registrationDisplayNameSchema = z
    * after whitespace has been normalised.
    */
   .max(200, "Display name is too long.")
+  .superRefine((displayName, context) => {
+    /*
+     * Validate the original value before whitespace normalisation so
+     * tabs, line breaks, and other control characters are rejected
+     * rather than silently converted into ordinary spaces.
+     */
+    if (CONTROL_CHARACTER_PATTERN.test(displayName)) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Display name contains unsupported control characters.",
+      });
+    }
+  })
   .transform(normalizeDisplayName)
   .superRefine((displayName, context) => {
-    const characterCount = countUnicodeCodePoints(displayName);
+    const characterCount =
+      countUnicodeCodePoints(displayName);
 
     if (
       characterCount <
@@ -62,14 +77,6 @@ const registrationDisplayNameSchema = z
       context.addIssue({
         code: "custom",
         message: `Display name must contain no more than ${AUTH_INPUT_LIMITS.displayNameMaximumLength} characters.`,
-      });
-    }
-
-    if (CONTROL_CHARACTER_PATTERN.test(displayName)) {
-      context.addIssue({
-        code: "custom",
-        message:
-          "Display name contains unsupported control characters.",
       });
     }
   });

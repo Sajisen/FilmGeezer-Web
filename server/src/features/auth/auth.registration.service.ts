@@ -179,7 +179,7 @@ export async function registerLocalUser(
           {
             auditEventId,
             userId: user._id,
-            eventType: "registration-completed",
+            eventType: "registration-started",
             outcome: "success",
             details: {
               provider: "local",
