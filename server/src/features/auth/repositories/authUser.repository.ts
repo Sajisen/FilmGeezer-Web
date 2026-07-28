@@ -47,3 +47,41 @@ export async function createPendingUser(
 
   return user;
 }
+
+export interface ActivatePendingUserInput {
+  userId: ObjectId;
+  verifiedAt: Date;
+}
+
+export async function activatePendingUser(
+  input: ActivatePendingUserInput,
+  session: ClientSession,
+): Promise<boolean> {
+  const { users } =
+    await getAuthCollections();
+
+  const result = await users.updateOne(
+    {
+      _id: input.userId,
+
+      status: "pending",
+      emailVerifiedAt: null,
+
+      suspendedAt: null,
+      deletedAt: null,
+    },
+    {
+      $set: {
+        status: "active",
+        emailVerifiedAt:
+          input.verifiedAt,
+        updatedAt: input.verifiedAt,
+      },
+    },
+    {
+      session,
+    },
+  );
+
+  return result.modifiedCount === 1;
+}

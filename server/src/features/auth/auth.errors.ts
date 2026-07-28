@@ -80,3 +80,36 @@ export class AuthEmailDeliveryError extends Error {
     this.name = "AuthEmailDeliveryError";
   }
 }
+
+export const AUTH_EMAIL_VERIFICATION_REJECTION_REASONS =
+  [
+    "invalid-challenge",
+    "incorrect-code",
+    "expired",
+    "attempts-exceeded",
+    "already-used",
+    "account-unavailable",
+  ] as const;
+
+export type AuthEmailVerificationRejectionReason =
+  (typeof AUTH_EMAIL_VERIFICATION_REJECTION_REASONS)[number];
+
+export class AuthEmailVerificationError extends Error {
+  readonly code =
+    "AUTH_EMAIL_VERIFICATION_REJECTED";
+
+  constructor(
+    readonly reason:
+      AuthEmailVerificationRejectionReason,
+
+    readonly attemptsRemaining:
+      number | null = null,
+  ) {
+    super(
+      "The email verification request could not be completed.",
+    );
+
+    this.name =
+      "AuthEmailVerificationError";
+  }
+}

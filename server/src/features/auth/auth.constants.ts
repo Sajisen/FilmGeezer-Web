@@ -41,6 +41,22 @@ export const AUTH_REGISTRATION_POLICY = {
   maximumRequestsPerWindow: 10,
 } as const;
 
+export const AUTH_EMAIL_VERIFICATION_HTTP_POLICY = {
+  /*
+   * The body contains only a UUID and a six-digit verification code.
+   * Four kilobytes is comfortably larger than any legitimate request.
+   */
+  requestBodyLimit: "4kb",
+
+  /*
+   * The challenge itself allows only five incorrect code attempts.
+   * This additional IP limiter protects the route from broader abuse,
+   * malformed challenge IDs, and repeated requests across challenges.
+   */
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 20,
+} as const;
+
 export const AUTH_EMAIL_VERIFICATION_POLICY = {
   codeDigits: 6,
 

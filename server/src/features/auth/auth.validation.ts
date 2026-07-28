@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { AUTH_INPUT_LIMITS } from "./auth.constants.js";
+import {
+  AUTH_EMAIL_VERIFICATION_POLICY,
+  AUTH_INPUT_LIMITS,
+} from "./auth.constants.js";
 
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F]/u;
 const MULTIPLE_WHITESPACE_PATTERN = /\s+/gu;
@@ -154,4 +157,56 @@ export function parseRegistrationInput(
   value: unknown,
 ): NormalizedRegistrationInput {
   return registrationInputSchema.parse(value);
+}
+
+const EMAIL_VERIFICATION_CODE_PATTERN =
+  new RegExp(
+    `^\\d{${AUTH_EMAIL_VERIFICATION_POLICY.codeDigits}}$`,
+    "u",
+  );
+
+export const emailVerificationInputSchema = z
+  .object({
+    /*
+     * Registration challenges use randomUUID(), which produces a
+     * version-four UUID.
+     */
+    challengeId: z.uuid({
+      version: "v4",
+      error:
+        "Verification challenge ID is invalid.",
+    }),
+
+    /*
+     * Keep the code as a string so leading zeroes are preserved.
+     * Outer whitespace is ignored to support pasted codes.
+     */
+    code: z
+      .string({
+        error:
+          "Verification code must be text.",
+      })
+      .trim()
+      .regex(
+        EMAIL_VERIFICATION_CODE_PATTERN,
+        `Verification code must contain exactly ${AUTH_EMAIL_VERIFICATION_POLICY.codeDigits} digits.`,
+      ),
+  })
+  .strict();
+
+export type EmailVerificationInput = z.input<
+  typeof emailVerificationInputSchema
+>;
+
+export type NormalizedEmailVerificationInput =
+  z.output<
+    typeof emailVerificationInputSchema
+  >;
+
+export function parseEmailVerificationInput(
+  value: unknown,
+): NormalizedEmailVerificationInput {
+  return emailVerificationInputSchema.parse(
+    value,
+  );
 }

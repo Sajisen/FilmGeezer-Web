@@ -141,3 +141,176 @@ export async function recordEmailVerificationSendAttempt(
 
   return result.modifiedCount === 1;
 }
+
+export async function findEmailVerificationChallengeByPublicId(
+  publicId: string,
+): Promise<AuthChallengeDocument | null> {
+  const { challenges } =
+    await getAuthCollections();
+
+  return challenges.findOne({
+    publicId,
+    purpose: "verify-email",
+  });
+}
+
+export interface RecordFailedEmailVerificationAttemptInput {
+  challengeId: ObjectId;
+  attemptedAt: Date;
+}
+
+export interface RecordFailedEmailVerificationAttemptResult {
+  recorded: boolean;
+  attemptCount: number | null;
+  attemptsRemaining: number | null;
+  locked: boolean;
+}
+
+export async function recordFailedEmailVerificationAttempt(
+  input: RecordFailedEmailVerificationAttemptInput,
+): Promise<RecordFailedEmailVerificationAttemptResult> {
+  const { challenges } =
+    await getAuthCollections();
+
+  /*
+   * The conditional update prevents more than the configured number
+   * of incorrect attempts from being recorded.
+   */
+  const updateResult =
+    await challenges.updateOne(
+      {
+        _id: input.challengeId,
+        purpose: "verify-email",
+
+        consumedAt: null,
+        invalidatedAt: null,
+
+        expiresAt: {
+          $gt: input.attemptedAt,
+        },
+
+        attemptCount: {
+          $lt:
+            AUTH_EMAIL_VERIFICATION_POLICY
+              .maximumAttempts,
+        },
+      },
+      {
+        $inc: {
+          attemptCount: 1,
+        },
+      },
+    );
+
+  if (updateResult.modifiedCount !== 1) {
+    return {
+      recorded: false,
+      attemptCount: null,
+      attemptsRemaining: null,
+      locked: false,
+    };
+  }
+
+  const updatedChallenge =
+    await challenges.findOne(
+      {
+        _id: input.challengeId,
+      },
+      {
+        projection: {
+          attemptCount: 1,
+          maximumAttempts: 1,
+        },
+      },
+    );
+
+  if (!updatedChallenge) {
+    return {
+      recorded: true,
+      attemptCount: null,
+      attemptsRemaining: null,
+      locked: false,
+    };
+  }
+
+  const attemptsRemaining = Math.max(
+    0,
+    updatedChallenge.maximumAttempts -
+      updatedChallenge.attemptCount,
+  );
+
+  const locked = attemptsRemaining === 0;
+
+  if (locked) {
+    /*
+     * The attempt-count condition already makes the challenge unusable.
+     * invalidatedAt also records that terminal state explicitly.
+     */
+    await challenges.updateOne(
+      {
+        _id: input.challengeId,
+        consumedAt: null,
+        invalidatedAt: null,
+      },
+      {
+        $set: {
+          invalidatedAt:
+            input.attemptedAt,
+        },
+      },
+    );
+  }
+
+  return {
+    recorded: true,
+    attemptCount:
+      updatedChallenge.attemptCount,
+    attemptsRemaining,
+    locked,
+  };
+}
+
+export interface ConsumeEmailVerificationChallengeInput {
+  challengeId: ObjectId;
+  userId: ObjectId;
+  verifiedAt: Date;
+}
+
+export async function consumeEmailVerificationChallenge(
+  input: ConsumeEmailVerificationChallengeInput,
+  session: ClientSession,
+): Promise<boolean> {
+  const { challenges } =
+    await getAuthCollections();
+
+  const result = await challenges.updateOne(
+    {
+      _id: input.challengeId,
+      userId: input.userId,
+      purpose: "verify-email",
+
+      consumedAt: null,
+      invalidatedAt: null,
+
+      expiresAt: {
+        $gt: input.verifiedAt,
+      },
+
+      attemptCount: {
+        $lt:
+          AUTH_EMAIL_VERIFICATION_POLICY
+            .maximumAttempts,
+      },
+    },
+    {
+      $set: {
+        consumedAt: input.verifiedAt,
+      },
+    },
+    {
+      session,
+    },
+  );
+
+  return result.modifiedCount === 1;
+}

@@ -8,8 +8,10 @@ import {
 import { rateLimit } from "express-rate-limit";
 import {
   registerLocalAccount,
+  verifyLocalEmailAddress,
 } from "../controllers/auth.controller.js";
 import {
+  AUTH_EMAIL_VERIFICATION_HTTP_POLICY,
   AUTH_REGISTRATION_POLICY,
 } from "../features/auth/auth.constants.js";
 
@@ -57,6 +59,42 @@ const registrationRateLimit = rateLimit({
   },
 });
 
+const emailVerificationRateLimit =
+  rateLimit({
+    windowMs:
+      AUTH_EMAIL_VERIFICATION_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+
+    limit:
+      AUTH_EMAIL_VERIFICATION_HTTP_POLICY
+        .maximumRequestsPerWindow,
+
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+
+    identifier:
+      "filmgeezer-auth-email-verification",
+
+    passOnStoreError: false,
+
+    handler: (_req, res) => {
+      res.setHeader(
+        "Cache-Control",
+        "no-store",
+      );
+
+      res.status(429).json({
+        status: "error",
+
+        code:
+          "AUTH_VERIFICATION_RATE_LIMITED",
+
+        message:
+          "Too many verification attempts. Please wait before trying again.",
+      });
+    },
+  });
+
 function requireJsonContentType(
   req: Request,
   res: Response,
@@ -102,6 +140,24 @@ router.post(
   }),
 
   registerLocalAccount,
+);
+
+router.post(
+  "/verify-email",
+
+  emailVerificationRateLimit,
+
+  requireJsonContentType,
+
+  json({
+    limit:
+      AUTH_EMAIL_VERIFICATION_HTTP_POLICY
+        .requestBodyLimit,
+
+    strict: true,
+  }),
+
+  verifyLocalEmailAddress,
 );
 
 export default router;
