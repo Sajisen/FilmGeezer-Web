@@ -74,11 +74,11 @@ export async function createEmailVerificationChallenge(
     maximumAttempts:
       AUTH_EMAIL_VERIFICATION_POLICY.maximumAttempts,
 
-    sendCount: 1,
+    sendCount: 0,
 
-    createdAt: input.createdAt,
-    lastSentAt: input.createdAt,
-    expiresAt: input.expiresAt,
+createdAt: input.createdAt,
+lastSentAt: null,
+expiresAt: input.expiresAt,
 
     consumedAt: null,
     invalidatedAt: null,
@@ -89,4 +89,55 @@ export async function createEmailVerificationChallenge(
   });
 
   return challenge;
+}
+
+export interface RecordEmailVerificationSendAttemptInput {
+  publicId: string;
+  userId: ObjectId;
+  attemptedAt: Date;
+}
+
+export async function recordEmailVerificationSendAttempt(
+  input: RecordEmailVerificationSendAttemptInput,
+): Promise<boolean> {
+  const { challenges } = await getAuthCollections();
+
+  /*
+   * Record the attempt before contacting the email provider.
+   *
+   * This ensures that failed provider calls still count towards the
+   * resend limit and prevents a failing provider from being hammered
+   * repeatedly without cooldown or accounting.
+   */
+  const result = await challenges.updateOne(
+    {
+      publicId: input.publicId,
+      userId: input.userId,
+      purpose: "verify-email",
+
+      consumedAt: null,
+      invalidatedAt: null,
+
+      expiresAt: {
+        $gt: input.attemptedAt,
+      },
+
+      sendCount: {
+        $lt:
+          AUTH_EMAIL_VERIFICATION_POLICY
+            .maximumSendsPerChallenge,
+      },
+    },
+    {
+      $inc: {
+        sendCount: 1,
+      },
+
+      $set: {
+        lastSentAt: input.attemptedAt,
+      },
+    },
+  );
+
+  return result.modifiedCount === 1;
 }

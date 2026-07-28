@@ -15,6 +15,9 @@ import watchAvailabilityRoutes from "./routes/watchAvailability.routes.js";
 import featuredCharactersRoutes from "./routes/featuredCharacters.routes.js";
 import seasonDetailsRoutes from "./routes/seasonDetails.routes.js";
 import moreLikeThisRoutes from "./routes/moreLikeThis.routes.js";
+import authRoutes from "./routes/auth.routes.js";
+import { handleHttpError,} from "./middleware/httpError.middleware.js";
+
 
 const app = express();
 
@@ -24,7 +27,22 @@ app.use(
   }),
 );
 
-app.use(express.json());
+
+
+/*
+ * Authentication mounts before the general JSON parser because its
+ * route owns a stricter body-size limit and runs rate limiting first.
+ */
+app.use("/api/auth", authRoutes);
+
+app.use(
+  express.json({
+    limit: "64kb",
+    strict: true,
+  }),
+);
+
+
 
 app.use("/api", healthRoutes);
 app.use("/api", searchRoutes);
@@ -48,5 +66,7 @@ app.use((_req, res) => {
     message: "Route not found",
   });
 });
+
+app.use(handleHttpError);
 
 export default app;

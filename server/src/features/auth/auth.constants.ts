@@ -23,6 +23,24 @@ export const AUTH_PASSWORD_QUALITY_POLICY = {
   minimumAcceptedScore: 2,
 } as const;
 
+export const AUTH_REGISTRATION_POLICY = {
+  /*
+   * Registration bodies contain only an email, display name, and
+   * password. Eight kilobytes is comfortably larger than a legitimate
+   * request while preventing unnecessarily large authentication bodies.
+   */
+  requestBodyLimit: "8kb",
+
+  /*
+   * This is the initial per-process registration limiter.
+   *
+   * Ten attempts gives normal users enough room to correct mistakes
+   * while slowing automated registration abuse.
+   */
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 10,
+} as const;
+
 export const AUTH_EMAIL_VERIFICATION_POLICY = {
   codeDigits: 6,
 

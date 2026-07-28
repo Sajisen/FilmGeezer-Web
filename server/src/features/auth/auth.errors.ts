@@ -54,6 +54,20 @@ export function isMongoDuplicateKeyError(
   );
 }
 
+export class AuthEmailConfigurationError extends Error {
+  readonly code = "AUTH_EMAIL_CONFIGURATION_ERROR";
+
+  constructor(
+    message =
+      "The authentication email service is not configured.",
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+
+    this.name = "AuthEmailConfigurationError";
+  }
+}
+
 export class AuthEmailDeliveryError extends Error {
   readonly code = "AUTH_EMAIL_DELIVERY_ERROR";
 

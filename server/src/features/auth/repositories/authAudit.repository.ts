@@ -28,7 +28,7 @@ export interface CreateAuthAuditEventInput {
 
 export async function createAuthAuditEvent(
   input: CreateAuthAuditEventInput,
-  session: ClientSession,
+  session?: ClientSession,
 ): Promise<AuthAuditEventDocument> {
   const { auditEvents } = await getAuthCollections();
 
@@ -50,9 +50,10 @@ export async function createAuthAuditEvent(
     createdAt: input.createdAt,
   };
 
-  await auditEvents.insertOne(auditEvent, {
-    session,
-  });
+await auditEvents.insertOne(
+  auditEvent,
+  session ? { session } : undefined,
+);
 
   return auditEvent;
 }

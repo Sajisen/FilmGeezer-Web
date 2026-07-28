@@ -1,7 +1,5 @@
 import { env } from "../../config/env.js";
-import {
-  AuthEmailDeliveryError,
-} from "./auth.errors.js";
+import { AuthEmailConfigurationError } from "./auth.errors.js";
 
 export interface SendEmailVerificationInput {
   recipientEmail: string;
@@ -12,34 +10,31 @@ export interface SendEmailVerificationInput {
 }
 
 export interface AuthEmailService {
-  sendEmailVerification(
-    input: SendEmailVerificationInput,
-  ): Promise<void>;
+  sendEmailVerification(input: SendEmailVerificationInput): Promise<void>;
 }
 
-export const developmentAuthEmailService:
-  AuthEmailService = {
-    async sendEmailVerification(
-      input: SendEmailVerificationInput,
-    ): Promise<void> {
-      if (env.NODE_ENV === "production") {
-        throw new AuthEmailDeliveryError(
-          "The development email adapter cannot run in production.",
-        );
-      }
-
-      console.info(
-        "FilmGeezer development verification email",
-        {
-          recipientEmail: input.recipientEmail,
-          displayName: input.displayName,
-
-          verificationCode:
-            input.verificationCode,
-
-          expiresAt:
-            input.expiresAt.toISOString(),
-        },
+export const developmentAuthEmailService: AuthEmailService = {
+  async sendEmailVerification(
+    input: SendEmailVerificationInput,
+  ): Promise<void> {
+    if (env.NODE_ENV === "production") {
+      throw new AuthEmailConfigurationError(
+        "The development email adapter cannot run in production.",
       );
-    },
-  };
+    }
+
+    console.log(
+      [
+        "",
+        "==================================================",
+        "FilmGeezer development verification email",
+        "==================================================",
+        `Recipient: ${input.recipientEmail}`,
+        `Verification code: ${input.verificationCode}`,
+        `Expires at: ${input.expiresAt.toISOString()}`,
+        "==================================================",
+        "",
+      ].join("\n"),
+    );
+  },
+};

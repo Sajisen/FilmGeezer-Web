@@ -158,7 +158,7 @@ export interface AuthChallengeDocument {
   sendCount: number;
 
   createdAt: Date;
-  lastSentAt: Date;
+  lastSentAt: Date | null;
   expiresAt: Date;
 
   consumedAt: Date | null;
