@@ -7,15 +7,19 @@ import { z } from "zod";
 import {
   AuthEmailConfigurationError,
   AuthEmailVerificationError,
+  AuthEmailVerificationResendError,
   AuthPersistenceError,
   AuthWeakPasswordError,
 } from "../features/auth/auth.errors.js";
 import {
-  startLocalRegistration,
-} from "../features/auth/auth.registration-orchestration.service.js";
+  resendEmailVerificationCode,
+} from "../features/auth/auth.email-verification-resend.service.js";
 import {
   verifyEmailAddress,
 } from "../features/auth/auth.email-verification.service.js";
+import {
+  startLocalRegistration,
+} from "../features/auth/auth.registration-orchestration.service.js";
 
 const REGISTRATION_ACCEPTED_MESSAGE =
   "If this email address can be registered, a verification code will be sent shortly.";
@@ -52,20 +56,25 @@ function isRegistrationFieldName(
 function createRegistrationValidationDetails(
   error: z.ZodError,
 ): RegistrationValidationDetails {
-  const details: RegistrationValidationDetails = {
-    form: [],
+  const details:
+    RegistrationValidationDetails = {
+      form: [],
 
-    fields: {
-      email: [],
-      displayName: [],
-      password: [],
-    },
-  };
+      fields: {
+        email: [],
+        displayName: [],
+        password: [],
+      },
+    };
 
   for (const issue of error.issues) {
     const [fieldName] = issue.path;
 
-    if (isRegistrationFieldName(fieldName)) {
+    if (
+      isRegistrationFieldName(
+        fieldName,
+      )
+    ) {
       details.fields[fieldName].push(
         issue.message,
       );
@@ -73,12 +82,6 @@ function createRegistrationValidationDetails(
       continue;
     }
 
-    /*
-     * Errors without one of the known registration-field paths belong
-     * to the form as a whole. For example, Zod's strict-object error for
-     * an unsupported property such as `role` has no recognised field
-     * destination.
-     */
     details.form.push(issue.message);
   }
 
@@ -135,6 +138,43 @@ function createEmailVerificationValidationDetails(
       )
     ) {
       details.fields[fieldName].push(
+        issue.message,
+      );
+
+      continue;
+    }
+
+    details.form.push(issue.message);
+  }
+
+  return details;
+}
+
+interface EmailVerificationResendValidationDetails {
+  form: string[];
+
+  fields: {
+    challengeId: string[];
+  };
+}
+
+function createEmailVerificationResendValidationDetails(
+  error: z.ZodError,
+): EmailVerificationResendValidationDetails {
+  const details:
+    EmailVerificationResendValidationDetails = {
+      form: [],
+
+      fields: {
+        challengeId: [],
+      },
+    };
+
+  for (const issue of error.issues) {
+    const [fieldName] = issue.path;
+
+    if (fieldName === "challengeId") {
+      details.fields.challengeId.push(
         issue.message,
       );
 
@@ -380,10 +420,6 @@ export async function verifyLocalEmailAddress(
         return;
       }
 
-      /*
-       * Unknown, invalidated, and account-state failures use one generic
-       * public response.
-       */
       res.status(400).json({
         status: "error",
         code:
@@ -416,6 +452,189 @@ export async function verifyLocalEmailAddress(
 
         message:
           "Email verification is temporarily unavailable. Please try again shortly.",
+      });
+
+      return;
+    }
+
+    next(error);
+  }
+}
+
+export async function resendLocalEmailVerification(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  res.setHeader("Cache-Control", "no-store");
+
+  try {
+    const result =
+      await resendEmailVerificationCode(
+        req.body,
+      );
+
+    res.status(202).json({
+      status: "success",
+      code:
+        "AUTH_VERIFICATION_RESEND_ACCEPTED",
+
+      message:
+        "A new verification code has been prepared.",
+
+      verification: {
+        challengeId:
+          result.challengeId,
+
+        expiresAt:
+          result.expiresAt.toISOString(),
+
+        resendAvailableAt:
+          result.resendAvailableAt
+            .toISOString(),
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        status: "error",
+
+        code:
+          "AUTH_INVALID_EMAIL_VERIFICATION_RESEND_INPUT",
+
+        message:
+          "Check the resend details and try again.",
+
+        errors:
+          createEmailVerificationResendValidationDetails(
+            error,
+          ),
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof
+      AuthEmailVerificationResendError
+    ) {
+      if (error.reason === "cooldown") {
+        res.status(429).json({
+          status: "error",
+          code:
+            "AUTH_VERIFICATION_RESEND_COOLDOWN",
+
+          message:
+            "Please wait before requesting another verification code.",
+
+          retryAt:
+            error.retryAt?.toISOString() ??
+            null,
+        });
+
+        return;
+      }
+
+      if (
+        error.reason === "send-limit"
+      ) {
+        res.status(429).json({
+          status: "error",
+          code:
+            "AUTH_VERIFICATION_RESEND_LIMIT_REACHED",
+
+          message:
+            "No more codes can be sent during this verification window. Try again after the current code expires.",
+        });
+
+        return;
+      }
+
+      if (
+        error.reason === "already-used"
+      ) {
+        res.status(409).json({
+          status: "error",
+          code:
+            "AUTH_VERIFICATION_ALREADY_USED",
+
+          message:
+            "This email address has already been verified.",
+        });
+
+        return;
+      }
+
+      if (
+        error.reason === "superseded"
+      ) {
+        res.status(409).json({
+          status: "error",
+          code:
+            "AUTH_VERIFICATION_CHALLENGE_SUPERSEDED",
+
+          message:
+            "A newer verification code has already been issued. Use the most recently sent code.",
+        });
+
+        return;
+      }
+
+      res.status(400).json({
+        status: "error",
+        code:
+          "AUTH_VERIFICATION_RESEND_INVALID",
+
+        message:
+          "This verification request is invalid or no longer available.",
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof
+      AuthEmailConfigurationError
+    ) {
+      console.error(
+        "[auth-verification-resend] Email service is not configured.",
+        {
+          name: error.name,
+          code: error.code,
+        },
+      );
+
+      res.status(503).json({
+        status: "error",
+        code:
+          "AUTH_EMAIL_TEMPORARILY_UNAVAILABLE",
+
+        message:
+          "Verification email is temporarily unavailable. Please try again shortly.",
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof
+      AuthPersistenceError
+    ) {
+      console.error(
+        "[auth-verification-resend] Resend persistence failed.",
+        {
+          name: error.name,
+          code: error.code,
+        },
+      );
+
+      res.status(503).json({
+        status: "error",
+        code:
+          "AUTH_TEMPORARILY_UNAVAILABLE",
+
+        message:
+          "A new verification code cannot be prepared right now. Please try again shortly.",
       });
 
       return;

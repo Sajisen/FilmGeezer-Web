@@ -5,13 +5,17 @@ import {
   type Request,
   type Response,
 } from "express";
-import { rateLimit } from "express-rate-limit";
+import {
+  rateLimit,
+} from "express-rate-limit";
 import {
   registerLocalAccount,
+  resendLocalEmailVerification,
   verifyLocalEmailAddress,
 } from "../controllers/auth.controller.js";
 import {
   AUTH_EMAIL_VERIFICATION_HTTP_POLICY,
+  AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY,
   AUTH_REGISTRATION_POLICY,
 } from "../features/auth/auth.constants.js";
 
@@ -26,20 +30,12 @@ const registrationRateLimit = rateLimit({
     AUTH_REGISTRATION_POLICY
       .maximumRequestsPerWindow,
 
-  /*
-   * Send modern RateLimit response headers and omit the old
-   * X-RateLimit-* header family.
-   */
   standardHeaders: "draft-8",
   legacyHeaders: false,
 
   identifier:
     "filmgeezer-auth-registration",
 
-  /*
-   * Authentication protection should fail closed if a future shared
-   * rate-limit store becomes unavailable.
-   */
   passOnStoreError: false,
 
   handler: (_req, res) => {
@@ -95,6 +91,42 @@ const emailVerificationRateLimit =
     },
   });
 
+const emailVerificationResendRateLimit =
+  rateLimit({
+    windowMs:
+      AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+
+    limit:
+      AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY
+        .maximumRequestsPerWindow,
+
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+
+    identifier:
+      "filmgeezer-auth-email-verification-resend",
+
+    passOnStoreError: false,
+
+    handler: (_req, res) => {
+      res.setHeader(
+        "Cache-Control",
+        "no-store",
+      );
+
+      res.status(429).json({
+        status: "error",
+
+        code:
+          "AUTH_VERIFICATION_RESEND_RATE_LIMITED",
+
+        message:
+          "Too many resend requests. Please wait before trying again.",
+      });
+    },
+  });
+
 function requireJsonContentType(
   req: Request,
   res: Response,
@@ -111,7 +143,7 @@ function requireJsonContentType(
       code: "AUTH_JSON_REQUIRED",
 
       message:
-        "Registration requests must use application/json.",
+        "Authentication requests must use application/json.",
     });
 
     return;
@@ -158,6 +190,24 @@ router.post(
   }),
 
   verifyLocalEmailAddress,
+);
+
+router.post(
+  "/resend-verification",
+
+  emailVerificationResendRateLimit,
+
+  requireJsonContentType,
+
+  json({
+    limit:
+      AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY
+        .requestBodyLimit,
+
+    strict: true,
+  }),
+
+  resendLocalEmailVerification,
 );
 
 export default router;

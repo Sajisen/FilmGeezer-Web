@@ -57,14 +57,42 @@ export const AUTH_EMAIL_VERIFICATION_HTTP_POLICY = {
   maximumRequestsPerWindow: 20,
 } as const;
 
+export const AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY = {
+  /*
+   * Resend requests contain only the public challenge UUID.
+   */
+  requestBodyLimit: "4kb",
+
+  /*
+   * This route also has challenge-level cooldown and send limits.
+   * The IP limiter protects against broad probing with random UUIDs.
+   */
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 10,
+} as const;
+
 export const AUTH_EMAIL_VERIFICATION_POLICY = {
   codeDigits: 6,
 
   expiresAfterMilliseconds: 5 * 60 * 1_000,
 
+  /*
+   * Expired challenges remain available for a limited period so a user
+   * can request a replacement code using the unguessable public ID.
+   * `expiresAt` controls validity; `deleteAt` controls physical cleanup.
+   */
+  retentionAfterExpiryMilliseconds:
+    24 * 60 * 60 * 1_000,
+
   maximumAttempts: 5,
 
   resendCooldownMilliseconds: 60 * 1_000,
 
+  /*
+   * The first registration email counts as send 1. A still-current
+   * verification flow may therefore request at most two replacements.
+   * Once the five-minute challenge window has expired, a new flow may
+   * begin with a fresh send count.
+   */
   maximumSendsPerChallenge: 3,
 } as const;

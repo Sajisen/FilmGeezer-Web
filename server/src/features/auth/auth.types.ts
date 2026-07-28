@@ -1,12 +1,20 @@
 import type { ObjectId } from "mongodb";
 
-export const AUTH_PROVIDER_VALUES = ["local", "clerk"] as const;
+export const AUTH_PROVIDER_VALUES = [
+  "local",
+  "clerk",
+] as const;
 
-export type AuthProvider = (typeof AUTH_PROVIDER_VALUES)[number];
+export type AuthProvider =
+  (typeof AUTH_PROVIDER_VALUES)[number];
 
-export const AUTH_ROLE_VALUES = ["user", "admin"] as const;
+export const AUTH_ROLE_VALUES = [
+  "user",
+  "admin",
+] as const;
 
-export type AuthRole = (typeof AUTH_ROLE_VALUES)[number];
+export type AuthRole =
+  (typeof AUTH_ROLE_VALUES)[number];
 
 export const USER_STATUS_VALUES = [
   "pending",
@@ -15,7 +23,8 @@ export const USER_STATUS_VALUES = [
   "deleted",
 ] as const;
 
-export type UserStatus = (typeof USER_STATUS_VALUES)[number];
+export type UserStatus =
+  (typeof USER_STATUS_VALUES)[number];
 
 export const AUTH_CHALLENGE_PURPOSE_VALUES = [
   "verify-email",
@@ -25,14 +34,15 @@ export const AUTH_CHALLENGE_PURPOSE_VALUES = [
 export type AuthChallengePurpose =
   (typeof AUTH_CHALLENGE_PURPOSE_VALUES)[number];
 
-export const AUTH_SESSION_REVOCATION_REASON_VALUES = [
-  "logout",
-  "logout-all",
-  "password-changed",
-  "account-suspended",
-  "security-event",
-  "provider-migration",
-] as const;
+export const AUTH_SESSION_REVOCATION_REASON_VALUES =
+  [
+    "logout",
+    "logout-all",
+    "password-changed",
+    "account-suspended",
+    "security-event",
+    "provider-migration",
+  ] as const;
 
 export type AuthSessionRevocationReason =
   (typeof AUTH_SESSION_REVOCATION_REASON_VALUES)[number];
@@ -138,7 +148,9 @@ export interface AuthSessionDocument {
   expiresAt: Date;
 
   revokedAt: Date | null;
-  revocationReason: AuthSessionRevocationReason | null;
+  revocationReason:
+    | AuthSessionRevocationReason
+    | null;
 }
 
 export interface AuthChallengeDocument {
@@ -160,6 +172,13 @@ export interface AuthChallengeDocument {
   createdAt: Date;
   lastSentAt: Date | null;
   expiresAt: Date;
+
+  /*
+   * This is intentionally later than expiresAt. The challenge becomes
+   * unusable at expiresAt but remains available briefly for safe resend
+   * and audit decisions before MongoDB removes it.
+   */
+  deleteAt: Date;
 
   consumedAt: Date | null;
   invalidatedAt: Date | null;
@@ -183,7 +202,10 @@ export interface AuthAuditEventDocument {
   ipHash: string | null;
   userAgentSummary: string | null;
 
-  details: Record<string, AuthAuditDetailValue>;
+  details: Record<
+    string,
+    AuthAuditDetailValue
+  >;
 
   createdAt: Date;
 }

@@ -2,11 +2,16 @@ import {
   ObjectId,
   type ClientSession,
 } from "mongodb";
+
 import {
   AUTH_EMAIL_VERIFICATION_POLICY,
   AUTH_SCHEMA_VERSION,
 } from "../auth.constants.js";
-import { getAuthCollections } from "../auth.collections.js";
+
+import {
+  getAuthCollections,
+} from "../auth.collections.js";
+
 import type {
   AuthChallengeDocument,
   AuthChallengePurpose,
@@ -19,10 +24,14 @@ export interface InvalidateActiveChallengesInput {
 }
 
 export async function invalidateActiveChallenges(
-  input: InvalidateActiveChallengesInput,
+  input:
+    InvalidateActiveChallengesInput,
+
   session: ClientSession,
 ): Promise<void> {
-  const { challenges } = await getAuthCollections();
+  const {
+    challenges,
+  } = await getAuthCollections();
 
   await challenges.updateMany(
     {
@@ -33,7 +42,8 @@ export async function invalidateActiveChallenges(
     },
     {
       $set: {
-        invalidatedAt: input.invalidatedAt,
+        invalidatedAt:
+          input.invalidatedAt,
       },
     },
     {
@@ -51,42 +61,72 @@ export interface CreateEmailVerificationChallengeInput {
 
   createdAt: Date;
   expiresAt: Date;
+
+  sendCount?: number;
+  lastSentAt?: Date | null;
 }
 
 export async function createEmailVerificationChallenge(
-  input: CreateEmailVerificationChallengeInput,
+  input:
+    CreateEmailVerificationChallengeInput,
+
   session: ClientSession,
 ): Promise<AuthChallengeDocument> {
-  const { challenges } = await getAuthCollections();
+  const {
+    challenges,
+  } = await getAuthCollections();
 
-  const challenge: AuthChallengeDocument = {
-    _id: input.challengeId,
-    schemaVersion: AUTH_SCHEMA_VERSION,
+  const challenge:
+    AuthChallengeDocument = {
+      _id: input.challengeId,
 
-    publicId: input.publicId,
+      schemaVersion:
+        AUTH_SCHEMA_VERSION,
 
-    userId: input.userId,
-    purpose: "verify-email",
+      publicId: input.publicId,
 
-    secretHash: input.secretHash,
+      userId: input.userId,
 
-    attemptCount: 0,
-    maximumAttempts:
-      AUTH_EMAIL_VERIFICATION_POLICY.maximumAttempts,
+      purpose:
+        "verify-email",
 
-    sendCount: 0,
+      secretHash:
+        input.secretHash,
 
-createdAt: input.createdAt,
-lastSentAt: null,
-expiresAt: input.expiresAt,
+      attemptCount: 0,
 
-    consumedAt: null,
-    invalidatedAt: null,
-  };
+      maximumAttempts:
+        AUTH_EMAIL_VERIFICATION_POLICY
+          .maximumAttempts,
 
-  await challenges.insertOne(challenge, {
-    session,
-  });
+      sendCount:
+        input.sendCount ?? 0,
+
+      createdAt:
+        input.createdAt,
+
+      lastSentAt:
+        input.lastSentAt ?? null,
+
+      expiresAt:
+        input.expiresAt,
+
+      deleteAt: new Date(
+        input.expiresAt.getTime() +
+          AUTH_EMAIL_VERIFICATION_POLICY
+            .retentionAfterExpiryMilliseconds,
+      ),
+
+      consumedAt: null,
+      invalidatedAt: null,
+    };
+
+  await challenges.insertOne(
+    challenge,
+    {
+      session,
+    },
+  );
 
   return challenge;
 }
@@ -98,9 +138,12 @@ export interface RecordEmailVerificationSendAttemptInput {
 }
 
 export async function recordEmailVerificationSendAttempt(
-  input: RecordEmailVerificationSendAttemptInput,
+  input:
+    RecordEmailVerificationSendAttemptInput,
 ): Promise<boolean> {
-  const { challenges } = await getAuthCollections();
+  const {
+    challenges,
+  } = await getAuthCollections();
 
   /*
    * Record the attempt before contacting the email provider.
@@ -109,49 +152,103 @@ export async function recordEmailVerificationSendAttempt(
    * resend limit and prevents a failing provider from being hammered
    * repeatedly without cooldown or accounting.
    */
-  const result = await challenges.updateOne(
-    {
-      publicId: input.publicId,
-      userId: input.userId,
-      purpose: "verify-email",
+  const result =
+    await challenges.updateOne(
+      {
+        publicId:
+          input.publicId,
 
-      consumedAt: null,
-      invalidatedAt: null,
+        userId:
+          input.userId,
 
-      expiresAt: {
-        $gt: input.attemptedAt,
-      },
+        purpose:
+          "verify-email",
 
-      sendCount: {
-        $lt:
-          AUTH_EMAIL_VERIFICATION_POLICY
-            .maximumSendsPerChallenge,
-      },
-    },
-    {
-      $inc: {
-        sendCount: 1,
-      },
+        consumedAt: null,
+        invalidatedAt: null,
 
-      $set: {
-        lastSentAt: input.attemptedAt,
+        expiresAt: {
+          $gt:
+            input.attemptedAt,
+        },
+
+        sendCount: {
+          $lt:
+            AUTH_EMAIL_VERIFICATION_POLICY
+              .maximumSendsPerChallenge,
+        },
       },
-    },
+      {
+        $inc: {
+          sendCount: 1,
+        },
+
+        $set: {
+          lastSentAt:
+            input.attemptedAt,
+        },
+      },
+    );
+
+  return (
+    result.modifiedCount === 1
   );
-
-  return result.modifiedCount === 1;
 }
 
 export async function findEmailVerificationChallengeByPublicId(
   publicId: string,
-): Promise<AuthChallengeDocument | null> {
-  const { challenges } =
-    await getAuthCollections();
 
-  return challenges.findOne({
-    publicId,
-    purpose: "verify-email",
-  });
+  session?: ClientSession,
+): Promise<AuthChallengeDocument | null> {
+  const {
+    challenges,
+  } = await getAuthCollections();
+
+  return challenges.findOne(
+    {
+      publicId,
+
+      purpose:
+        "verify-email",
+    },
+
+    session
+      ? {
+          session,
+        }
+      : undefined,
+  );
+}
+
+export async function findLatestEmailVerificationChallengeForUser(
+  userId: ObjectId,
+
+  session?: ClientSession,
+): Promise<AuthChallengeDocument | null> {
+  const {
+    challenges,
+  } = await getAuthCollections();
+
+  return challenges.findOne(
+    {
+      userId,
+
+      purpose:
+        "verify-email",
+    },
+    {
+      sort: {
+        createdAt: -1,
+        _id: -1,
+      },
+
+      ...(session
+        ? {
+            session,
+          }
+        : {}),
+    },
+  );
 }
 
 export interface RecordFailedEmailVerificationAttemptInput {
@@ -161,16 +258,23 @@ export interface RecordFailedEmailVerificationAttemptInput {
 
 export interface RecordFailedEmailVerificationAttemptResult {
   recorded: boolean;
-  attemptCount: number | null;
-  attemptsRemaining: number | null;
+
+  attemptCount:
+    number | null;
+
+  attemptsRemaining:
+    number | null;
+
   locked: boolean;
 }
 
 export async function recordFailedEmailVerificationAttempt(
-  input: RecordFailedEmailVerificationAttemptInput,
+  input:
+    RecordFailedEmailVerificationAttemptInput,
 ): Promise<RecordFailedEmailVerificationAttemptResult> {
-  const { challenges } =
-    await getAuthCollections();
+  const {
+    challenges,
+  } = await getAuthCollections();
 
   /*
    * The conditional update prevents more than the configured number
@@ -179,14 +283,18 @@ export async function recordFailedEmailVerificationAttempt(
   const updateResult =
     await challenges.updateOne(
       {
-        _id: input.challengeId,
-        purpose: "verify-email",
+        _id:
+          input.challengeId,
+
+        purpose:
+          "verify-email",
 
         consumedAt: null,
         invalidatedAt: null,
 
         expiresAt: {
-          $gt: input.attemptedAt,
+          $gt:
+            input.attemptedAt,
         },
 
         attemptCount: {
@@ -202,11 +310,17 @@ export async function recordFailedEmailVerificationAttempt(
       },
     );
 
-  if (updateResult.modifiedCount !== 1) {
+  if (
+    updateResult.modifiedCount !== 1
+  ) {
     return {
       recorded: false,
+
       attemptCount: null,
-      attemptsRemaining: null,
+
+      attemptsRemaining:
+        null,
+
       locked: false,
     };
   }
@@ -214,11 +328,13 @@ export async function recordFailedEmailVerificationAttempt(
   const updatedChallenge =
     await challenges.findOne(
       {
-        _id: input.challengeId,
+        _id:
+          input.challengeId,
       },
       {
         projection: {
           attemptCount: 1,
+
           maximumAttempts: 1,
         },
       },
@@ -227,19 +343,28 @@ export async function recordFailedEmailVerificationAttempt(
   if (!updatedChallenge) {
     return {
       recorded: true,
+
       attemptCount: null,
-      attemptsRemaining: null,
+
+      attemptsRemaining:
+        null,
+
       locked: false,
     };
   }
 
-  const attemptsRemaining = Math.max(
-    0,
-    updatedChallenge.maximumAttempts -
-      updatedChallenge.attemptCount,
-  );
+  const attemptsRemaining =
+    Math.max(
+      0,
 
-  const locked = attemptsRemaining === 0;
+      updatedChallenge
+        .maximumAttempts -
+        updatedChallenge
+          .attemptCount,
+    );
+
+  const locked =
+    attemptsRemaining === 0;
 
   if (locked) {
     /*
@@ -248,9 +373,13 @@ export async function recordFailedEmailVerificationAttempt(
      */
     await challenges.updateOne(
       {
-        _id: input.challengeId,
+        _id:
+          input.challengeId,
+
         consumedAt: null,
-        invalidatedAt: null,
+
+        invalidatedAt:
+          null,
       },
       {
         $set: {
@@ -263,9 +392,13 @@ export async function recordFailedEmailVerificationAttempt(
 
   return {
     recorded: true,
+
     attemptCount:
-      updatedChallenge.attemptCount,
+      updatedChallenge
+        .attemptCount,
+
     attemptsRemaining,
+
     locked,
   };
 }
@@ -277,40 +410,53 @@ export interface ConsumeEmailVerificationChallengeInput {
 }
 
 export async function consumeEmailVerificationChallenge(
-  input: ConsumeEmailVerificationChallengeInput,
+  input:
+    ConsumeEmailVerificationChallengeInput,
+
   session: ClientSession,
 ): Promise<boolean> {
-  const { challenges } =
-    await getAuthCollections();
+  const {
+    challenges,
+  } = await getAuthCollections();
 
-  const result = await challenges.updateOne(
-    {
-      _id: input.challengeId,
-      userId: input.userId,
-      purpose: "verify-email",
+  const result =
+    await challenges.updateOne(
+      {
+        _id:
+          input.challengeId,
 
-      consumedAt: null,
-      invalidatedAt: null,
+        userId:
+          input.userId,
 
-      expiresAt: {
-        $gt: input.verifiedAt,
+        purpose:
+          "verify-email",
+
+        consumedAt: null,
+        invalidatedAt: null,
+
+        expiresAt: {
+          $gt:
+            input.verifiedAt,
+        },
+
+        attemptCount: {
+          $lt:
+            AUTH_EMAIL_VERIFICATION_POLICY
+              .maximumAttempts,
+        },
       },
+      {
+        $set: {
+          consumedAt:
+            input.verifiedAt,
+        },
+      },
+      {
+        session,
+      },
+    );
 
-      attemptCount: {
-        $lt:
-          AUTH_EMAIL_VERIFICATION_POLICY
-            .maximumAttempts,
-      },
-    },
-    {
-      $set: {
-        consumedAt: input.verifiedAt,
-      },
-    },
-    {
-      session,
-    },
+  return (
+    result.modifiedCount === 1
   );
-
-  return result.modifiedCount === 1;
 }
