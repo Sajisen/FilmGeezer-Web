@@ -7,7 +7,9 @@ import { z } from "zod";
 import {
   AuthEmailConfigurationError,
   AuthEmailVerificationError,
+  AuthEmailVerificationRequiredError,
   AuthEmailVerificationResendError,
+  AuthInvalidCredentialsError,
   AuthPersistenceError,
   AuthWeakPasswordError,
 } from "../features/auth/auth.errors.js";
@@ -20,6 +22,12 @@ import {
 import {
   startLocalRegistration,
 } from "../features/auth/auth.registration-orchestration.service.js";
+import {
+  loginLocalUser,
+} from "../features/auth/auth.login.service.js";
+import {
+  setAuthSessionCookie,
+} from "../features/auth/auth.session.js";
 
 const REGISTRATION_ACCEPTED_MESSAGE =
   "If this email address can be registered, a verification code will be sent shortly.";
@@ -175,6 +183,67 @@ function createEmailVerificationResendValidationDetails(
 
     if (fieldName === "challengeId") {
       details.fields.challengeId.push(
+        issue.message,
+      );
+
+      continue;
+    }
+
+    details.form.push(issue.message);
+  }
+
+  return details;
+}
+
+const LOGIN_FIELD_NAMES = [
+  "email",
+  "password",
+] as const;
+
+type LoginFieldName =
+  (typeof LOGIN_FIELD_NAMES)[number];
+
+interface LoginValidationDetails {
+  form: string[];
+
+  fields: Record<
+    LoginFieldName,
+    string[]
+  >;
+}
+
+function isLoginFieldName(
+  value: unknown,
+): value is LoginFieldName {
+  return (
+    typeof value === "string" &&
+    LOGIN_FIELD_NAMES.some(
+      (fieldName) =>
+        fieldName === value,
+    )
+  );
+}
+
+function createLoginValidationDetails(
+  error: z.ZodError,
+): LoginValidationDetails {
+  const details:
+    LoginValidationDetails = {
+      form: [],
+
+      fields: {
+        email: [],
+        password: [],
+      },
+    };
+
+  for (const issue of error.issues) {
+    const [fieldName] = issue.path;
+
+    if (
+      isLoginFieldName(fieldName)
+    ) {
+      details.fields[fieldName].push(
         issue.message,
       );
 
@@ -635,6 +704,151 @@ export async function resendLocalEmailVerification(
 
         message:
           "A new verification code cannot be prepared right now. Please try again shortly.",
+      });
+
+      return;
+    }
+
+    next(error);
+  }
+}
+
+export async function loginLocalAccount(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  res.setHeader(
+    "Cache-Control",
+    "no-store",
+  );
+
+  try {
+    const result =
+      await loginLocalUser(
+        req.body,
+        {
+          ipAddress:
+            req.ip ||
+            req.socket.remoteAddress ||
+            null,
+
+          userAgent:
+            req.get("user-agent") ??
+            null,
+        },
+      );
+
+    /*
+     * The opaque session token is sent only through the HttpOnly cookie.
+     * It is never included in the JSON response or stored in plaintext.
+     */
+    setAuthSessionCookie(
+      res,
+      result.session.token,
+      result.session.expiresAt,
+    );
+
+    res.status(200).json({
+      status: "success",
+      code: "AUTH_LOGIN_SUCCEEDED",
+
+      message:
+        "You are now signed in to FilmGeezer.",
+
+      user: result.user,
+
+      session: {
+        expiresAt:
+          result.session.expiresAt
+            .toISOString(),
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        status: "error",
+        code: "AUTH_INVALID_LOGIN_INPUT",
+
+        message:
+          "Check the sign-in details and try again.",
+
+        errors:
+          createLoginValidationDetails(
+            error,
+          ),
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof
+      AuthInvalidCredentialsError
+    ) {
+      res.status(401).json({
+        status: "error",
+        code: error.code,
+
+        message:
+          "The email address or password is incorrect.",
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof
+      AuthEmailVerificationRequiredError
+    ) {
+      res.status(403).json({
+        status: "error",
+        code: error.code,
+
+        message:
+          "Verify your email address before signing in.",
+
+        verification: {
+          challengeId:
+            error.verification
+              .challengeId,
+
+          expiresAt:
+            error.verification
+              .expiresAt
+              ?.toISOString() ??
+            null,
+
+          resendAvailableAt:
+            error.verification
+              .resendAvailableAt
+              ?.toISOString() ??
+            null,
+        },
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof
+      AuthPersistenceError
+    ) {
+      console.error(
+        "[auth-login] Login persistence failed.",
+        {
+          name: error.name,
+          code: error.code,
+        },
+      );
+
+      res.status(503).json({
+        status: "error",
+        code:
+          "AUTH_TEMPORARILY_UNAVAILABLE",
+
+        message:
+          "Sign in is temporarily unavailable. Please try again shortly.",
       });
 
       return;

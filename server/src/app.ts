@@ -16,14 +16,27 @@ import featuredCharactersRoutes from "./routes/featuredCharacters.routes.js";
 import seasonDetailsRoutes from "./routes/seasonDetails.routes.js";
 import moreLikeThisRoutes from "./routes/moreLikeThis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
-import { handleHttpError,} from "./middleware/httpError.middleware.js";
+import { handleHttpError } from "./middleware/httpError.middleware.js";
 
 
 const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://192.168.1.2:5173", "http://192.168.1.3:5173", "http://192.168.1.4:5173", "http://192.168.17.250:5173"],
+    origin: [
+      "http://localhost:5173",
+      "http://192.168.1.2:5173",
+      "http://192.168.1.3:5173",
+      "http://192.168.1.4:5173",
+      "http://192.168.17.250:5173",
+    ],
+
+    /*
+     * Browser authentication uses an HttpOnly session cookie. The future
+     * frontend auth service must therefore send requests with
+     * credentials: "include".
+     */
+    credentials: true,
   }),
 );
 

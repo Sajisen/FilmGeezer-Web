@@ -21,6 +21,10 @@ const mongoCollectionNameSchema = z
     "Collection name may contain letters, numbers, dots, underscores, and hyphens only.",
   );
 
+const secretPepperSchema = z
+  .string()
+  .min(32, "Secret pepper must contain at least 32 characters.");
+
 const environmentSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -52,9 +56,14 @@ const environmentSchema = z.object({
   MONGODB_CONTENT_LINKS_COLLECTION:
     mongoCollectionNameSchema.default("content_links"),
 
-  AUTH_CHALLENGE_PEPPER: z
-    .string()
-    .min(32, "AUTH_CHALLENGE_PEPPER must contain at least 32 characters."),
+  AUTH_CHALLENGE_PEPPER: secretPepperSchema,
+
+  /*
+   * Session tokens, CSRF material, and privacy-preserving IP hashes use a
+   * different pepper from short-lived verification challenges. Separating
+   * these secrets limits the impact of a future secret rotation or leak.
+   */
+  AUTH_SESSION_PEPPER: secretPepperSchema,
 });
 
 const environmentResult = environmentSchema.safeParse(process.env);

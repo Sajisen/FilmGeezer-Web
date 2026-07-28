@@ -24,53 +24,35 @@ export interface CreatePendingUserInput {
 }
 
 export async function createPendingUser(
-  input:
-    CreatePendingUserInput,
-
+  input: CreatePendingUserInput,
   session: ClientSession,
 ): Promise<FilmGeezerUserDocument> {
-  const {
-    users,
-  } = await getAuthCollections();
+  const { users } =
+    await getAuthCollections();
 
   const user:
     FilmGeezerUserDocument = {
-      _id:
-        input.userId,
-
+      _id: input.userId,
       schemaVersion:
         AUTH_SCHEMA_VERSION,
 
       emailNormalized:
         input.emailNormalized,
-
       emailDisplay:
         input.emailDisplay,
-
       displayName:
         input.displayName,
 
-      status:
-        "pending",
+      status: "pending",
+      roles: ["user"],
 
-      roles: [
-        "user",
-      ],
+      emailVerifiedAt: null,
+      lastLoginAt: null,
+      suspendedAt: null,
+      deletedAt: null,
 
-      emailVerifiedAt:
-        null,
-
-      suspendedAt:
-        null,
-
-      deletedAt:
-        null,
-
-      createdAt:
-        input.createdAt,
-
-      updatedAt:
-        input.createdAt,
+      createdAt: input.createdAt,
+      updatedAt: input.createdAt,
     };
 
   await users.insertOne(
@@ -83,33 +65,40 @@ export async function createPendingUser(
   return user;
 }
 
-export async function findPendingUserById(
-  userId: ObjectId,
-
+export async function findUserByNormalizedEmail(
+  emailNormalized: string,
   session?: ClientSession,
 ): Promise<FilmGeezerUserDocument | null> {
-  const {
-    users,
-  } = await getAuthCollections();
+  const { users } =
+    await getAuthCollections();
 
   return users.findOne(
     {
-      _id:
-        userId,
-
-      status:
-        "pending",
-
-      emailVerifiedAt:
-        null,
-
-      suspendedAt:
-        null,
-
-      deletedAt:
-        null,
+      emailNormalized,
     },
+    session
+      ? {
+          session,
+        }
+      : undefined,
+  );
+}
 
+export async function findPendingUserById(
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } =
+    await getAuthCollections();
+
+  return users.findOne(
+    {
+      _id: userId,
+      status: "pending",
+      emailVerifiedAt: null,
+      suspendedAt: null,
+      deletedAt: null,
+    },
     session
       ? {
           session,
@@ -124,41 +113,26 @@ export interface ActivatePendingUserInput {
 }
 
 export async function activatePendingUser(
-  input:
-    ActivatePendingUserInput,
-
+  input: ActivatePendingUserInput,
   session: ClientSession,
 ): Promise<boolean> {
-  const {
-    users,
-  } = await getAuthCollections();
+  const { users } =
+    await getAuthCollections();
 
   const result =
     await users.updateOne(
       {
-        _id:
-          input.userId,
-
-        status:
-          "pending",
-
-        emailVerifiedAt:
-          null,
-
-        suspendedAt:
-          null,
-
-        deletedAt:
-          null,
+        _id: input.userId,
+        status: "pending",
+        emailVerifiedAt: null,
+        suspendedAt: null,
+        deletedAt: null,
       },
       {
         $set: {
-          status:
-            "active",
-
+          status: "active",
           emailVerifiedAt:
             input.verifiedAt,
-
           updatedAt:
             input.verifiedAt,
         },
@@ -168,7 +142,49 @@ export async function activatePendingUser(
       },
     );
 
-  return (
-    result.modifiedCount === 1
-  );
+  return result.modifiedCount === 1;
+}
+
+export interface RecordSuccessfulLoginInput {
+  userId: ObjectId;
+  loggedInAt: Date;
+}
+
+export async function recordSuccessfulLogin(
+  input: RecordSuccessfulLoginInput,
+  session: ClientSession,
+): Promise<boolean> {
+  const { users } =
+    await getAuthCollections();
+
+  /*
+   * This write both rechecks the account state and serializes concurrent
+   * login transactions for the same user. The latter allows the active
+   * session limit to be enforced consistently inside the transaction.
+   */
+  const result =
+    await users.updateOne(
+      {
+        _id: input.userId,
+        status: "active",
+        emailVerifiedAt: {
+          $ne: null,
+        },
+        suspendedAt: null,
+        deletedAt: null,
+      },
+      {
+        $set: {
+          lastLoginAt:
+            input.loggedInAt,
+          updatedAt:
+            input.loggedInAt,
+        },
+      },
+      {
+        session,
+      },
+    );
+
+  return result.modifiedCount === 1;
 }

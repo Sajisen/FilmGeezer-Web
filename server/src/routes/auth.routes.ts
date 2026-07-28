@@ -9,6 +9,7 @@ import {
   rateLimit,
 } from "express-rate-limit";
 import {
+  loginLocalAccount,
   registerLocalAccount,
   resendLocalEmailVerification,
   verifyLocalEmailAddress,
@@ -16,6 +17,7 @@ import {
 import {
   AUTH_EMAIL_VERIFICATION_HTTP_POLICY,
   AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY,
+  AUTH_LOGIN_HTTP_POLICY,
   AUTH_REGISTRATION_POLICY,
 } from "../features/auth/auth.constants.js";
 
@@ -127,6 +129,39 @@ const emailVerificationResendRateLimit =
     },
   });
 
+const loginRateLimit = rateLimit({
+  windowMs:
+    AUTH_LOGIN_HTTP_POLICY
+      .rateLimitWindowMilliseconds,
+
+  limit:
+    AUTH_LOGIN_HTTP_POLICY
+      .maximumRequestsPerWindow,
+
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+
+  identifier:
+    "filmgeezer-auth-login",
+
+  passOnStoreError: false,
+
+  handler: (_req, res) => {
+    res.setHeader(
+      "Cache-Control",
+      "no-store",
+    );
+
+    res.status(429).json({
+      status: "error",
+      code: "AUTH_LOGIN_RATE_LIMITED",
+
+      message:
+        "Too many sign-in attempts. Please wait before trying again.",
+    });
+  },
+});
+
 function requireJsonContentType(
   req: Request,
   res: Response,
@@ -208,6 +243,24 @@ router.post(
   }),
 
   resendLocalEmailVerification,
+);
+
+router.post(
+  "/login",
+
+  loginRateLimit,
+
+  requireJsonContentType,
+
+  json({
+    limit:
+      AUTH_LOGIN_HTTP_POLICY
+        .requestBodyLimit,
+
+    strict: true,
+  }),
+
+  loginLocalAccount,
 );
 
 export default router;

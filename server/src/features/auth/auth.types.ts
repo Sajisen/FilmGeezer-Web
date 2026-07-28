@@ -34,15 +34,15 @@ export const AUTH_CHALLENGE_PURPOSE_VALUES = [
 export type AuthChallengePurpose =
   (typeof AUTH_CHALLENGE_PURPOSE_VALUES)[number];
 
-export const AUTH_SESSION_REVOCATION_REASON_VALUES =
-  [
-    "logout",
-    "logout-all",
-    "password-changed",
-    "account-suspended",
-    "security-event",
-    "provider-migration",
-  ] as const;
+export const AUTH_SESSION_REVOCATION_REASON_VALUES = [
+  "logout",
+  "logout-all",
+  "password-changed",
+  "account-suspended",
+  "security-event",
+  "provider-migration",
+  "session-limit",
+] as const;
 
 export type AuthSessionRevocationReason =
   (typeof AUTH_SESSION_REVOCATION_REASON_VALUES)[number];
@@ -97,6 +97,7 @@ export interface FilmGeezerUserDocument {
   roles: AuthRole[];
 
   emailVerifiedAt: Date | null;
+  lastLoginAt: Date | null;
   suspendedAt: Date | null;
   deletedAt: Date | null;
 
@@ -172,12 +173,6 @@ export interface AuthChallengeDocument {
   createdAt: Date;
   lastSentAt: Date | null;
   expiresAt: Date;
-
-  /*
-   * This is intentionally later than expiresAt. The challenge becomes
-   * unusable at expiresAt but remains available briefly for safe resend
-   * and audit decisions before MongoDB removes it.
-   */
   deleteAt: Date;
 
   consumedAt: Date | null;
