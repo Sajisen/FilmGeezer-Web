@@ -21,9 +21,6 @@ export const AUTH_INPUT_LIMITS = {
 
 export const AUTH_PASSWORD_QUALITY_POLICY = {
   minimumAcceptedScore: 2,
-
-  strongMinimumCharacterCount: 12,
-  strongMinimumScore: 3,
 } as const;
 
 export const AUTH_EMAIL_VERIFICATION_POLICY = {

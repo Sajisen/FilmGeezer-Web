@@ -43,11 +43,16 @@ const registrationDisplayNameSchema = z
   .max(200, "Display name is too long.")
   .superRefine((displayName, context) => {
     /*
-     * Validate the original value before whitespace normalisation so
-     * tabs, line breaks, and other control characters are rejected
-     * rather than silently converted into ordinary spaces.
+     * Check the original value before normalisation.
+     *
+     * Otherwise, tabs and line breaks could be converted into ordinary
+     * spaces before validation detects them.
      */
-    if (CONTROL_CHARACTER_PATTERN.test(displayName)) {
+    if (
+      CONTROL_CHARACTER_PATTERN.test(
+        displayName,
+      )
+    ) {
       context.addIssue({
         code: "custom",
         message:
