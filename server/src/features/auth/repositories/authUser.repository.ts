@@ -133,6 +133,15 @@ export async function activatePendingUser(
           status: "active",
           emailVerifiedAt:
             input.verifiedAt,
+
+          /*
+           * Successful verification immediately establishes the first
+           * authenticated session, so the activation time is also the
+           * account's first successful sign-in time.
+           */
+          lastLoginAt:
+            input.verifiedAt,
+
           updatedAt:
             input.verifiedAt,
         },

@@ -32,6 +32,21 @@ import {
 const REGISTRATION_ACCEPTED_MESSAGE =
   "If this email address can be registered, a verification code will be sent shortly.";
 
+function createAuthRequestMetadata(
+  request: Request,
+) {
+  return {
+    ipAddress:
+      request.ip ||
+      request.socket.remoteAddress ||
+      null,
+
+    userAgent:
+      request.get("user-agent") ??
+      null,
+  };
+}
+
 const REGISTRATION_FIELD_NAMES = [
   "email",
   "displayName",
@@ -389,17 +404,39 @@ export async function verifyLocalEmailAddress(
 
   try {
     const result =
-      await verifyEmailAddress(req.body);
+      await verifyEmailAddress(
+        req.body,
+        createAuthRequestMetadata(req),
+      );
+
+    /*
+     * Successful verification changes the visitor into an authenticated
+     * user. The opaque token is sent only through the HttpOnly cookie.
+     */
+    setAuthSessionCookie(
+      res,
+      result.session.token,
+      result.session.expiresAt,
+    );
 
     res.status(200).json({
       status: "success",
       code: "AUTH_EMAIL_VERIFIED",
 
       message:
-        "Your email address has been verified. You can now sign in.",
+        "Your email address has been verified and you are now signed in.",
 
       verifiedAt:
         result.verifiedAt.toISOString(),
+
+      user:
+        result.user,
+
+      session: {
+        expiresAt:
+          result.session.expiresAt
+            .toISOString(),
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -727,16 +764,7 @@ export async function loginLocalAccount(
     const result =
       await loginLocalUser(
         req.body,
-        {
-          ipAddress:
-            req.ip ||
-            req.socket.remoteAddress ||
-            null,
-
-          userAgent:
-            req.get("user-agent") ??
-            null,
-        },
+        createAuthRequestMetadata(req),
       );
 
     /*

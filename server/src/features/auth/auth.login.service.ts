@@ -9,7 +9,6 @@ import {
 
 import {
   AUTH_EMAIL_VERIFICATION_POLICY,
-  AUTH_SESSION_POLICY,
 } from "./auth.constants.js";
 
 import {
@@ -29,11 +28,17 @@ import {
 } from "./auth.password.js";
 
 import {
-  createAuthSessionSecrets,
   hashAuthIpAddress,
   summarizeAuthUserAgent,
   type AuthRequestMetadata,
 } from "./auth.session.js";
+
+import {
+  createLocalAuthSessionResult,
+  createPreparedLocalAuthSession,
+  prepareLocalAuthSession,
+  type LocalAuthSessionResult,
+} from "./auth.session-creation.service.js";
 
 import {
   parseLoginInput,
@@ -42,7 +47,6 @@ import {
 
 import type {
   AuthChallengeDocument,
-  AuthRole,
 } from "./auth.types.js";
 
 import {
@@ -61,11 +65,6 @@ import {
 import {
   findAuthIdentityByUserAndProvider,
 } from "./repositories/authIdentity.repository.js";
-
-import {
-  createAuthSession,
-  makeRoomForNewSession,
-} from "./repositories/authSession.repository.js";
 
 import {
   findUserByNormalizedEmail,
@@ -95,20 +94,8 @@ const LOGIN_TRANSACTION_OPTIONS:
 const DUMMY_PASSWORD_HASH =
   "$argon2id$v=19$m=19456,t=2,p=1$7fff7cXpK6SzkykonWnjuw$2AOO6h2HthwHj1nH4H6zkts//9OsIVzCyQ94lwre9ic";
 
-export interface LocalLoginResult {
-  user: {
-    userId: string;
-    provider: "local";
-    email: string;
-    displayName: string;
-    roles: AuthRole[];
-  };
-
-  session: {
-    token: string;
-    expiresAt: Date;
-  };
-}
+export type LocalLoginResult =
+  LocalAuthSessionResult;
 
 async function recordLoginFailure(
   input: {
@@ -336,20 +323,14 @@ export async function loginLocalUser(
         )
       : null;
 
-  const sessionSecrets =
-    createAuthSessionSecrets();
-
-  const sessionId =
-    new ObjectId();
+  const preparedSession =
+    prepareLocalAuthSession(
+      requestMetadata,
+      attemptedAt,
+    );
 
   const loginAuditEventId =
     new ObjectId();
-
-  const expiresAt = new Date(
-    attemptedAt.getTime() +
-      AUTH_SESSION_POLICY
-        .absoluteLifetimeMilliseconds,
-  );
 
   const client =
     await getMongoClient();
@@ -376,12 +357,9 @@ export async function loginLocalUser(
           }
 
           const sessionsRevokedForLimit =
-            await makeRoomForNewSession(
-              {
-                userId: user._id,
-                createdAt:
-                  attemptedAt,
-              },
+            await createPreparedLocalAuthSession(
+              user._id,
+              preparedSession,
               mongoSession,
             );
 
@@ -407,28 +385,6 @@ export async function loginLocalUser(
               );
             }
           }
-
-          await createAuthSession(
-            {
-              sessionId,
-              userId: user._id,
-
-              tokenHash:
-                sessionSecrets.tokenHash,
-
-              csrfSecretHash:
-                sessionSecrets
-                  .csrfSecretHash,
-
-              userAgentSummary,
-              ipHash,
-
-              createdAt:
-                attemptedAt,
-              expiresAt,
-            },
-            mongoSession,
-          );
 
           await createAuthAuditEvent(
             {
@@ -462,32 +418,10 @@ export async function loginLocalUser(
             mongoSession,
           );
 
-          return {
-            user: {
-              userId:
-                user._id.toHexString(),
-
-              provider:
-                "local",
-
-              email:
-                user.emailDisplay,
-
-              displayName:
-                user.displayName,
-
-              roles:
-                [...user.roles],
-            },
-
-            session: {
-              token:
-                sessionSecrets
-                  .sessionToken,
-
-              expiresAt,
-            },
-          } satisfies LocalLoginResult;
+          return createLocalAuthSessionResult(
+            user,
+            preparedSession,
+          );
         },
         LOGIN_TRANSACTION_OPTIONS,
       );

@@ -16,6 +16,17 @@ import {
 import {
   initializeAuthStorage,
 } from "./auth.indexes.js";
+
+import type {
+  AuthRequestMetadata,
+} from "./auth.session.js";
+
+import {
+  createLocalAuthSessionResult,
+  createPreparedLocalAuthSession,
+  prepareLocalAuthSession,
+  type LocalAuthSessionResult,
+} from "./auth.session-creation.service.js";
 import {
   parseEmailVerificationInput,
   type EmailVerificationInput,
@@ -29,7 +40,12 @@ import {
   recordFailedEmailVerificationAttempt,
 } from "./repositories/authChallenge.repository.js";
 import {
+  findAuthIdentityByUserAndProvider,
+} from "./repositories/authIdentity.repository.js";
+
+import {
   activatePendingUser,
+  findPendingUserById,
 } from "./repositories/authUser.repository.js";
 
 const EMAIL_VERIFICATION_TRANSACTION_OPTIONS:
@@ -47,7 +63,8 @@ const EMAIL_VERIFICATION_TRANSACTION_OPTIONS:
     maxCommitTimeMS: 5_000,
   };
 
-export interface VerifiedEmailResult {
+export interface VerifiedEmailResult
+  extends LocalAuthSessionResult {
   verifiedAt: Date;
 }
 
@@ -98,6 +115,7 @@ async function recordVerificationFailure(
 
 export async function verifyEmailAddress(
   input: EmailVerificationInput,
+  requestMetadata: AuthRequestMetadata,
 ): Promise<VerifiedEmailResult> {
   const verification =
     parseEmailVerificationInput(input);
@@ -244,27 +262,69 @@ export async function verifyEmailAddress(
   const verifiedAt = new Date();
 
   /*
-   * Stable IDs are created before withTransaction because the driver
-   * may retry the callback after certain transient transaction errors.
+   * Session secrets and stable identifiers are prepared before the
+   * transaction callback because the MongoDB driver may retry that
+   * callback after a transient transaction error.
    */
+  const preparedSession =
+    prepareLocalAuthSession(
+      requestMetadata,
+      verifiedAt,
+    );
+
   const verificationAuditEventId =
     new ObjectId();
 
   const registrationAuditEventId =
     new ObjectId();
 
-  const client = await getMongoClient();
-  const session = client.startSession();
+  const loginAuditEventId =
+    new ObjectId();
+
+  const client =
+    await getMongoClient();
+
+  const session =
+    client.startSession();
 
   try {
     const result =
       await session.withTransaction(
         async () => {
+          const pendingUser =
+            await findPendingUserById(
+              challenge.userId,
+              session,
+            );
+
+          if (!pendingUser) {
+            throw new AuthEmailVerificationError(
+              "account-unavailable",
+            );
+          }
+
+          const identity =
+            await findAuthIdentityByUserAndProvider(
+              pendingUser._id,
+              "local",
+              session,
+            );
+
+          if (!identity) {
+            throw new AuthPersistenceError(
+              "The local authentication identity could not be found.",
+            );
+          }
+
           const challengeWasConsumed =
             await consumeEmailVerificationChallenge(
               {
-                challengeId: challenge._id,
-                userId: challenge.userId,
+                challengeId:
+                  challenge._id,
+
+                userId:
+                  challenge.userId,
+
                 verifiedAt,
               },
               session,
@@ -279,7 +339,9 @@ export async function verifyEmailAddress(
           const userWasActivated =
             await activatePendingUser(
               {
-                userId: challenge.userId,
+                userId:
+                  pendingUser._id,
+
                 verifiedAt,
               },
               session,
@@ -295,23 +357,44 @@ export async function verifyEmailAddress(
             );
           }
 
+          const sessionsRevokedForLimit =
+            await createPreparedLocalAuthSession(
+              pendingUser._id,
+              preparedSession,
+              session,
+            );
+
           await createAuthAuditEvent(
             {
               auditEventId:
                 verificationAuditEventId,
 
-              userId: challenge.userId,
+              userId:
+                pendingUser._id,
 
               eventType:
                 "verification-succeeded",
 
-              outcome: "success",
+              outcome:
+                "success",
+
+              ipHash:
+                preparedSession.ipHash,
+
+              userAgentSummary:
+                preparedSession
+                  .userAgentSummary,
 
               details: {
-                purpose: "verify-email",
+                purpose:
+                  "verify-email",
+
+                sessionCreated:
+                  true,
               },
 
-              createdAt: verifiedAt,
+              createdAt:
+                verifiedAt,
             },
             session,
           );
@@ -321,24 +404,85 @@ export async function verifyEmailAddress(
               auditEventId:
                 registrationAuditEventId,
 
-              userId: challenge.userId,
+              userId:
+                pendingUser._id,
 
               eventType:
                 "registration-completed",
 
-              outcome: "success",
+              outcome:
+                "success",
+
+              ipHash:
+                preparedSession.ipHash,
+
+              userAgentSummary:
+                preparedSession
+                  .userAgentSummary,
 
               details: {
-                provider: "local",
-                finalStatus: "active",
+                provider:
+                  "local",
+
+                finalStatus:
+                  "active",
+
+                sessionCreated:
+                  true,
               },
 
-              createdAt: verifiedAt,
+              createdAt:
+                verifiedAt,
+            },
+            session,
+          );
+
+          await createAuthAuditEvent(
+            {
+              auditEventId:
+                loginAuditEventId,
+
+              userId:
+                pendingUser._id,
+
+              eventType:
+                "login-succeeded",
+
+              outcome:
+                "success",
+
+              ipHash:
+                preparedSession.ipHash,
+
+              userAgentSummary:
+                preparedSession
+                  .userAgentSummary,
+
+              details: {
+                provider:
+                  "local",
+
+                source:
+                  "email-verification",
+
+                passwordHashReplaced:
+                  false,
+
+                sessionsRevokedForLimit,
+              },
+
+              createdAt:
+                verifiedAt,
             },
             session,
           );
 
           return {
+            ...createLocalAuthSessionResult(
+              pendingUser,
+              preparedSession,
+            ),
+
             verifiedAt,
           } satisfies VerifiedEmailResult;
         },
@@ -347,7 +491,7 @@ export async function verifyEmailAddress(
 
     if (!result) {
       throw new AuthPersistenceError(
-        "Email verification completed without returning a result.",
+        "Email verification completed without returning a session.",
       );
     }
 
@@ -356,7 +500,8 @@ export async function verifyEmailAddress(
     if (
       error instanceof
         AuthEmailVerificationError ||
-      error instanceof AuthPersistenceError
+      error instanceof
+        AuthPersistenceError
     ) {
       throw error;
     }
