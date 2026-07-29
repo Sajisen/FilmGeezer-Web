@@ -23,6 +23,7 @@ import {
 } from "./AuthFields";
 
 interface LoginFormProps {
+  initialEmail?: string;
   onAuthenticated: () => Promise<void>;
   onSwitchToRegistration: () => void;
   onVerificationRequired: (
@@ -38,6 +39,7 @@ interface LoginFormProps {
 }
 
 function LoginForm({
+  initialEmail = "",
   onAuthenticated,
   onSwitchToRegistration,
   onVerificationRequired,
@@ -45,7 +47,7 @@ function LoginForm({
   onDirtyChange,
 }: LoginFormProps) {
   const [email, setEmail] =
-    useState("");
+    useState(initialEmail);
 
   const [password, setPassword] =
     useState("");

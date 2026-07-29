@@ -28,12 +28,14 @@ import {
 import AuthSurface from "./components/AuthSurface";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
+import RegistrationPendingForm from "./components/RegistrationPendingForm";
 import VerifyEmailForm from "./components/VerifyEmailForm";
 
 interface AuthRouteProps {
   mode:
     | "login"
     | "register"
+    | "registration-pending"
     | "verify-email";
 }
 
@@ -49,14 +51,21 @@ const AUTH_COPY = {
     eyebrow: "Join FilmGeezer",
     title: "Create an account",
     description:
-      "Use your email, then confirm a six-digit code.",
+      "Use your email, then follow the next step we send.",
+  },
+
+  "registration-pending": {
+    eyebrow: "One more step",
+    title: "Check your email",
+    description:
+      "Continue with the private instructions sent to your inbox.",
   },
 
   "verify-email": {
-    eyebrow: "Check your inbox",
-    title: "Verify your email",
+    eyebrow: "Verify your email",
+    title: "Enter your code",
     description:
-      "Enter the six-digit code we sent you.",
+      "Use the newest six-digit code from FilmGeezer.",
   },
 } as const;
 
@@ -186,19 +195,28 @@ function AuthRoute({
         options?: {
           verification?: AuthVerificationReceipt;
           email?: string;
+          markDirty?: boolean;
         },
       ) => {
         const nextVerification =
           options?.verification;
 
-        const search =
+        const routeUsesChallengeId =
           path ===
-            "/verify-email" &&
+            "/registration-pending" ||
+          path ===
+            "/verify-email";
+
+        const search =
+          routeUsesChallengeId &&
           nextVerification
             ? `?challengeId=${encodeURIComponent(nextVerification.challengeId)}`
             : "";
 
-        setHasFormInput(false);
+        setHasFormInput(
+          options?.markDirty ??
+            false,
+        );
 
         navigate(
           `${path}${search}`,
@@ -220,6 +238,46 @@ function AuthRoute({
       [
         navigate,
         routeState,
+      ],
+    );
+
+  const handleRegistrationSubmitted =
+    useCallback(
+      (
+        nextVerification:
+          AuthVerificationReceipt,
+
+        email: string,
+      ) => {
+        setVerification(
+          nextVerification,
+        );
+
+        setVerificationEmail(
+          email,
+        );
+
+        setHasFormInput(false);
+
+        /*
+         * Registration intentionally lands on a neutral inbox step.
+         * The public browser response does not disclose whether the
+         * email already belongs to an account. A new account can enter
+         * its code, while an existing account can move directly to sign
+         * in without being trapped on a decoy OTP screen.
+         */
+        navigateWithinAuth(
+          "/registration-pending",
+          {
+            verification:
+              nextVerification,
+
+            email,
+          },
+        );
+      },
+      [
+        navigateWithinAuth,
       ],
     );
 
@@ -323,7 +381,8 @@ function AuthRoute({
     AUTH_COPY[mode];
 
   const allowAmbientDismiss =
-    mode !== "verify-email" &&
+    (mode === "login" ||
+      mode === "register") &&
     !hasFormInput &&
     !isBusy;
 
@@ -343,6 +402,11 @@ function AuthRoute({
     >
       {mode === "login" && (
         <LoginForm
+          key={`login:${verificationEmail ?? ""}`}
+          initialEmail={
+            verificationEmail ??
+            ""
+          }
           onBusyChange={
             setIsBusy
           }
@@ -371,12 +435,74 @@ function AuthRoute({
           onDirtyChange={
             setHasFormInput
           }
-          onRegistrationAccepted={
-            handleVerificationRequired
+          onRegistrationSubmitted={
+            handleRegistrationSubmitted
           }
           onSwitchToLogin={() => {
             navigateWithinAuth(
               "/login",
+              {
+                email:
+                  verificationEmail ??
+                  undefined,
+
+                markDirty:
+                  Boolean(
+                    verificationEmail,
+                  ),
+              },
+            );
+          }}
+        />
+      )}
+
+      {mode ===
+        "registration-pending" && (
+        <RegistrationPendingForm
+          verification={
+            verification
+          }
+          email={
+            verificationEmail
+          }
+          onEnterVerificationCode={() => {
+            if (!verification) {
+              return;
+            }
+
+            navigateWithinAuth(
+              "/verify-email",
+              {
+                verification,
+                email:
+                  verificationEmail ??
+                  undefined,
+
+                markDirty:
+                  Boolean(
+                    verificationEmail,
+                  ),
+              },
+            );
+          }}
+          onSwitchToLogin={() => {
+            navigateWithinAuth(
+              "/login",
+              {
+                email:
+                  verificationEmail ??
+                  undefined,
+
+                markDirty:
+                  Boolean(
+                    verificationEmail,
+                  ),
+              },
+            );
+          }}
+          onSwitchToRegistration={() => {
+            navigateWithinAuth(
+              "/register",
             );
           }}
         />
@@ -403,6 +529,16 @@ function AuthRoute({
           onSwitchToLogin={() => {
             navigateWithinAuth(
               "/login",
+              {
+                email:
+                  verificationEmail ??
+                  undefined,
+
+                markDirty:
+                  Boolean(
+                    verificationEmail,
+                  ),
+              },
             );
           }}
           onSwitchToRegistration={() => {

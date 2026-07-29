@@ -30,7 +30,7 @@ import {
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 interface RegisterFormProps {
-  onRegistrationAccepted: (
+  onRegistrationSubmitted: (
     verification: AuthVerificationReceipt,
     email: string,
   ) => void;
@@ -44,7 +44,7 @@ interface RegisterFormProps {
 }
 
 function RegisterForm({
-  onRegistrationAccepted,
+  onRegistrationSubmitted,
   onSwitchToLogin,
   onBusyChange,
   onDirtyChange,
@@ -153,7 +153,7 @@ function RegisterForm({
 
       onDirtyChange(false);
 
-      onRegistrationAccepted(
+      onRegistrationSubmitted(
         response.verification,
         email.trim(),
       );
