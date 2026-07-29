@@ -42,43 +42,47 @@ export const AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY = {
 } as const;
 
 export const AUTH_LOGIN_HTTP_POLICY = {
-  /*
-   * A login body contains only an email address and password.
-   */
   requestBodyLimit: "4kb",
-
-  /*
-   * This is an initial per-IP defence against password guessing and
-   * credential stuffing. The application also records failed attempts.
-   */
   rateLimitWindowMilliseconds: 15 * 60 * 1_000,
   maximumRequestsPerWindow: 10,
 } as const;
 
+export const AUTH_SESSION_HTTP_POLICY = {
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 120,
+} as const;
+
+export const AUTH_LOGOUT_HTTP_POLICY = {
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 20,
+} as const;
+
 export const AUTH_EMAIL_VERIFICATION_POLICY = {
   codeDigits: 6,
-
   expiresAfterMilliseconds: 5 * 60 * 1_000,
-
   retentionAfterExpiryMilliseconds:
     24 * 60 * 60 * 1_000,
-
   maximumAttempts: 5,
   resendCooldownMilliseconds: 60 * 1_000,
   maximumSendsPerChallenge: 3,
 } as const;
 
 export const AUTH_SESSION_POLICY = {
-  /*
-   * The production cookie uses the __Host- prefix. Browsers require a
-   * __Host- cookie to be Secure, use Path=/, and omit Domain.
-   */
   developmentCookieName:
     "filmgeezer_session",
   productionCookieName:
     "__Host-filmgeezer_session",
 
+  csrfHeaderName:
+    "x-csrf-token",
+
   tokenBytes: 32,
+
+  /*
+   * A 32-byte Base64URL token contains 43 characters without padding.
+   * Requiring the exact format avoids hashing arbitrary cookie input.
+   */
+  tokenCharacterLength: 43,
 
   absoluteLifetimeMilliseconds:
     30 * 24 * 60 * 60 * 1_000,
@@ -86,7 +90,13 @@ export const AUTH_SESSION_POLICY = {
   idleTimeoutMilliseconds:
     7 * 24 * 60 * 60 * 1_000,
 
-  maximumActiveSessionsPerUser: 5,
+  /*
+   * lastSeenAt is updated at most once during this interval so ordinary
+   * authenticated browsing does not write to MongoDB on every request.
+   */
+  activityTouchIntervalMilliseconds:
+    5 * 60 * 1_000,
 
+  maximumActiveSessionsPerUser: 5,
   userAgentMaximumLength: 256,
 } as const;

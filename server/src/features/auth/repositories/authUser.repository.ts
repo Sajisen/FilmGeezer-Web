@@ -188,3 +188,56 @@ export async function recordSuccessfulLogin(
 
   return result.modifiedCount === 1;
 }
+
+export async function findActiveUserById(
+  userId: ObjectId,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } =
+    await getAuthCollections();
+
+  return users.findOne({
+    _id: userId,
+    status: "active",
+    emailVerifiedAt: {
+      $ne: null,
+    },
+    suspendedAt: null,
+    deletedAt: null,
+  });
+}
+
+export interface RecordSessionMutationInput {
+  userId: ObjectId;
+  changedAt: Date;
+}
+
+export async function recordSessionMutation(
+  input: RecordSessionMutationInput,
+  session: ClientSession,
+): Promise<boolean> {
+  const { users } =
+    await getAuthCollections();
+
+  /*
+   * Login and logout transactions both update this user document. The
+   * shared write serializes concurrent session creation and revocation
+   * for one account, so logout-all cannot race past a simultaneous login.
+   */
+  const result =
+    await users.updateOne(
+      {
+        _id: input.userId,
+      },
+      {
+        $set: {
+          updatedAt:
+            input.changedAt,
+        },
+      },
+      {
+        session,
+      },
+    );
+
+  return result.matchedCount === 1;
+}

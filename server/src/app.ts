@@ -1,5 +1,10 @@
 import express from "express";
 import cors from "cors";
+
+import {
+  isAllowedClientOrigin,
+} from "./config/cors.js";
+
 import healthRoutes from "./routes/health.routes.js";
 import searchRoutes from "./routes/search.routes.js";
 import mediaRoutes from "./routes/media.routes.js";
@@ -16,37 +21,42 @@ import featuredCharactersRoutes from "./routes/featuredCharacters.routes.js";
 import seasonDetailsRoutes from "./routes/seasonDetails.routes.js";
 import moreLikeThisRoutes from "./routes/moreLikeThis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
-import { handleHttpError } from "./middleware/httpError.middleware.js";
 
+import {
+  handleHttpError,
+} from "./middleware/httpError.middleware.js";
 
-const app = express();
+const app =
+  express();
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://192.168.1.2:5173",
-      "http://192.168.1.3:5173",
-      "http://192.168.1.4:5173",
-      "http://192.168.17.250:5173",
-    ],
+    origin: (
+      origin,
+      callback,
+    ) => {
+      callback(
+        null,
+        !origin ||
+          isAllowedClientOrigin(
+            origin,
+          ),
+      );
+    },
 
-    /*
-     * Browser authentication uses an HttpOnly session cookie. The future
-     * frontend auth service must therefore send requests with
-     * credentials: "include".
-     */
-    credentials: true,
+    credentials:
+      true,
   }),
 );
 
-
-
 /*
  * Authentication mounts before the general JSON parser because its
- * route owns a stricter body-size limit and runs rate limiting first.
+ * routes own stricter body-size limits and run rate limiting first.
  */
-app.use("/api/auth", authRoutes);
+app.use(
+  "/api/auth",
+  authRoutes,
+);
 
 app.use(
   express.json({
@@ -54,8 +64,6 @@ app.use(
     strict: true,
   }),
 );
-
-
 
 app.use("/api", healthRoutes);
 app.use("/api", searchRoutes);
@@ -73,8 +81,8 @@ app.use("/api", featuredCharactersRoutes);
 app.use("/api", seasonDetailsRoutes);
 app.use("/api", moreLikeThisRoutes);
 
-app.use((_req, res) => {
-  res.status(404).json({
+app.use((_request, response) => {
+  response.status(404).json({
     status: "error",
     message: "Route not found",
   });

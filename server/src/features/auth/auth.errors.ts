@@ -184,3 +184,33 @@ export class AuthEmailVerificationRequiredError
       "AuthEmailVerificationRequiredError";
   }
 }
+
+export const AUTH_SESSION_REJECTION_REASONS = [
+  "missing",
+  "invalid",
+  "revoked",
+  "expired",
+  "idle-timeout",
+  "account-unavailable",
+] as const;
+
+export type AuthSessionRejectionReason =
+  (typeof AUTH_SESSION_REJECTION_REASONS)[number];
+
+export class AuthSessionRequiredError
+  extends Error {
+  readonly code =
+    "AUTH_SESSION_REQUIRED";
+
+  constructor(
+    readonly reason:
+      AuthSessionRejectionReason,
+  ) {
+    super(
+      "A valid FilmGeezer session is required.",
+    );
+
+    this.name =
+      "AuthSessionRequiredError";
+  }
+}

@@ -42,6 +42,8 @@ export const AUTH_SESSION_REVOCATION_REASON_VALUES = [
   "security-event",
   "provider-migration",
   "session-limit",
+  "absolute-expiry",
+  "idle-timeout",
 ] as const;
 
 export type AuthSessionRevocationReason =

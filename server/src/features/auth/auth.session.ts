@@ -1,10 +1,12 @@
 import {
   createHmac,
   randomBytes,
+  timingSafeEqual,
 } from "node:crypto";
 
 import type {
   CookieOptions,
+  Request,
   Response,
 } from "express";
 
@@ -24,6 +26,9 @@ export interface PreparedAuthSessionSecrets {
   csrfSecretHash: string;
 }
 
+const BASE64URL_PATTERN =
+  /^[A-Za-z0-9_-]+$/u;
+
 function createScopedSessionDigest(
   scope: string,
   value: string,
@@ -36,6 +41,29 @@ function createScopedSessionDigest(
     .update("\0")
     .update(value)
     .digest("base64url");
+}
+
+function timingSafeTextEqual(
+  left: string,
+  right: string,
+): boolean {
+  const leftBuffer =
+    Buffer.from(left, "utf8");
+
+  const rightBuffer =
+    Buffer.from(right, "utf8");
+
+  if (
+    leftBuffer.length !==
+    rightBuffer.length
+  ) {
+    return false;
+  }
+
+  return timingSafeEqual(
+    leftBuffer,
+    rightBuffer,
+  );
 }
 
 export function hashAuthSessionToken(
@@ -65,6 +93,30 @@ export function hashAuthCsrfSecret(
   );
 }
 
+export function verifyAuthCsrfToken(
+  candidateToken: string,
+  storedSecretHash: string,
+): boolean {
+  if (
+    candidateToken.length !== 43 ||
+    !BASE64URL_PATTERN.test(
+      candidateToken,
+    )
+  ) {
+    return false;
+  }
+
+  const candidateHash =
+    hashAuthCsrfSecret(
+      candidateToken,
+    );
+
+  return timingSafeTextEqual(
+    candidateHash,
+    storedSecretHash,
+  );
+}
+
 export function createAuthSessionSecrets():
   PreparedAuthSessionSecrets {
   const sessionToken = randomBytes(
@@ -87,6 +139,19 @@ export function createAuthSessionSecrets():
         csrfSecret,
       ),
   };
+}
+
+export function isValidAuthSessionTokenFormat(
+  sessionToken: string,
+): boolean {
+  return (
+    sessionToken.length ===
+      AUTH_SESSION_POLICY
+        .tokenCharacterLength &&
+    BASE64URL_PATTERN.test(
+      sessionToken,
+    )
+  );
 }
 
 export function hashAuthIpAddress(
@@ -133,7 +198,7 @@ export function getAuthSessionCookieName():
 }
 
 function createAuthSessionCookieOptions(
-  expiresAt: Date,
+  expiresAt?: Date,
 ): CookieOptions {
   return {
     httpOnly: true,
@@ -141,7 +206,11 @@ function createAuthSessionCookieOptions(
       env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    expires: expiresAt,
+    ...(expiresAt
+      ? {
+          expires: expiresAt,
+        }
+      : {}),
   };
 }
 
@@ -157,4 +226,79 @@ export function setAuthSessionCookie(
       expiresAt,
     ),
   );
+}
+
+export function clearAuthSessionCookie(
+  response: Response,
+): void {
+  response.clearCookie(
+    getAuthSessionCookieName(),
+    createAuthSessionCookieOptions(),
+  );
+}
+
+export function readAuthSessionToken(
+  request: Request,
+): string | null {
+  const cookieHeader =
+    request.headers.cookie;
+
+  if (!cookieHeader) {
+    return null;
+  }
+
+  const cookieName =
+    getAuthSessionCookieName();
+
+  const matchingValues: string[] = [];
+
+  for (
+    const cookiePart of
+    cookieHeader.split(";")
+  ) {
+    const separatorIndex =
+      cookiePart.indexOf("=");
+
+    if (separatorIndex < 0) {
+      continue;
+    }
+
+    const name = cookiePart
+      .slice(0, separatorIndex)
+      .trim();
+
+    if (name !== cookieName) {
+      continue;
+    }
+
+    const rawValue = cookiePart
+      .slice(separatorIndex + 1)
+      .trim();
+
+    try {
+      matchingValues.push(
+        decodeURIComponent(rawValue),
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  /*
+   * Reject duplicate session cookies instead of guessing which one the
+   * browser or a reverse proxy intended to use.
+   */
+  if (matchingValues.length !== 1) {
+    return null;
+  }
+
+  const [sessionToken] =
+    matchingValues;
+
+  return sessionToken &&
+    isValidAuthSessionTokenFormat(
+      sessionToken,
+    )
+    ? sessionToken
+    : null;
 }

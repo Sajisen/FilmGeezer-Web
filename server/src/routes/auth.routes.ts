@@ -5,60 +5,113 @@ import {
   type Request,
   type Response,
 } from "express";
+
 import {
   rateLimit,
 } from "express-rate-limit";
+
 import {
   loginLocalAccount,
   registerLocalAccount,
   resendLocalEmailVerification,
   verifyLocalEmailAddress,
 } from "../controllers/auth.controller.js";
+
+import {
+  getCurrentAuthSession,
+  logoutAllAuthSessions,
+  logoutCurrentAuthSession,
+} from "../controllers/authSession.controller.js";
+
 import {
   AUTH_EMAIL_VERIFICATION_HTTP_POLICY,
   AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY,
   AUTH_LOGIN_HTTP_POLICY,
+  AUTH_LOGOUT_HTTP_POLICY,
   AUTH_REGISTRATION_POLICY,
+  AUTH_SESSION_HTTP_POLICY,
 } from "../features/auth/auth.constants.js";
 
-const router = Router();
+import {
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+} from "../middleware/auth.middleware.js";
 
-const registrationRateLimit = rateLimit({
-  windowMs:
-    AUTH_REGISTRATION_POLICY
-      .rateLimitWindowMilliseconds,
+const router =
+  Router();
 
-  limit:
-    AUTH_REGISTRATION_POLICY
-      .maximumRequestsPerWindow,
-
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-
-  identifier:
-    "filmgeezer-auth-registration",
-
-  passOnStoreError: false,
-
-  handler: (_req, res) => {
-    res.setHeader(
-      "Cache-Control",
-      "no-store",
-    );
-
-    res.status(429).json({
-      status: "error",
-      code:
-        "AUTH_REGISTRATION_RATE_LIMITED",
-
-      message:
-        "Too many registration attempts. Please wait before trying again.",
-    });
+function createAuthenticationRateLimit(
+  input: {
+    windowMs: number;
+    limit: number;
+    identifier: string;
+    code: string;
+    message: string;
   },
-});
+) {
+  return rateLimit({
+    windowMs:
+      input.windowMs,
+
+    limit:
+      input.limit,
+
+    standardHeaders:
+      "draft-8",
+
+    legacyHeaders:
+      false,
+
+    identifier:
+      input.identifier,
+
+    passOnStoreError:
+      false,
+
+    handler: (
+      _request,
+      response,
+    ) => {
+      response.setHeader(
+        "Cache-Control",
+        "no-store",
+      );
+
+      response
+        .status(429)
+        .json({
+          status: "error",
+          code:
+            input.code,
+          message:
+            input.message,
+        });
+    },
+  });
+}
+
+const registrationRateLimit =
+  createAuthenticationRateLimit({
+    windowMs:
+      AUTH_REGISTRATION_POLICY
+        .rateLimitWindowMilliseconds,
+
+    limit:
+      AUTH_REGISTRATION_POLICY
+        .maximumRequestsPerWindow,
+
+    identifier:
+      "filmgeezer-auth-registration",
+
+    code:
+      "AUTH_REGISTRATION_RATE_LIMITED",
+
+    message:
+      "Too many registration attempts. Please wait before trying again.",
+  });
 
 const emailVerificationRateLimit =
-  rateLimit({
+  createAuthenticationRateLimit({
     windowMs:
       AUTH_EMAIL_VERIFICATION_HTTP_POLICY
         .rateLimitWindowMilliseconds,
@@ -66,35 +119,19 @@ const emailVerificationRateLimit =
     limit:
       AUTH_EMAIL_VERIFICATION_HTTP_POLICY
         .maximumRequestsPerWindow,
-
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
 
     identifier:
       "filmgeezer-auth-email-verification",
 
-    passOnStoreError: false,
+    code:
+      "AUTH_VERIFICATION_RATE_LIMITED",
 
-    handler: (_req, res) => {
-      res.setHeader(
-        "Cache-Control",
-        "no-store",
-      );
-
-      res.status(429).json({
-        status: "error",
-
-        code:
-          "AUTH_VERIFICATION_RATE_LIMITED",
-
-        message:
-          "Too many verification attempts. Please wait before trying again.",
-      });
-    },
+    message:
+      "Too many verification attempts. Please wait before trying again.",
   });
 
 const emailVerificationResendRateLimit =
-  rateLimit({
+  createAuthenticationRateLimit({
     windowMs:
       AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY
         .rateLimitWindowMilliseconds,
@@ -103,83 +140,101 @@ const emailVerificationResendRateLimit =
       AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY
         .maximumRequestsPerWindow,
 
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-
     identifier:
       "filmgeezer-auth-email-verification-resend",
 
-    passOnStoreError: false,
+    code:
+      "AUTH_VERIFICATION_RESEND_RATE_LIMITED",
 
-    handler: (_req, res) => {
-      res.setHeader(
-        "Cache-Control",
-        "no-store",
-      );
-
-      res.status(429).json({
-        status: "error",
-
-        code:
-          "AUTH_VERIFICATION_RESEND_RATE_LIMITED",
-
-        message:
-          "Too many resend requests. Please wait before trying again.",
-      });
-    },
+    message:
+      "Too many resend requests. Please wait before trying again.",
   });
 
-const loginRateLimit = rateLimit({
-  windowMs:
-    AUTH_LOGIN_HTTP_POLICY
-      .rateLimitWindowMilliseconds,
+const loginRateLimit =
+  createAuthenticationRateLimit({
+    windowMs:
+      AUTH_LOGIN_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
 
-  limit:
-    AUTH_LOGIN_HTTP_POLICY
-      .maximumRequestsPerWindow,
+    limit:
+      AUTH_LOGIN_HTTP_POLICY
+        .maximumRequestsPerWindow,
 
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
+    identifier:
+      "filmgeezer-auth-login",
 
-  identifier:
-    "filmgeezer-auth-login",
+    code:
+      "AUTH_LOGIN_RATE_LIMITED",
 
-  passOnStoreError: false,
+    message:
+      "Too many sign-in attempts. Please wait before trying again.",
+  });
 
-  handler: (_req, res) => {
-    res.setHeader(
-      "Cache-Control",
-      "no-store",
-    );
+const sessionStateRateLimit =
+  createAuthenticationRateLimit({
+    windowMs:
+      AUTH_SESSION_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
 
-    res.status(429).json({
-      status: "error",
-      code: "AUTH_LOGIN_RATE_LIMITED",
+    limit:
+      AUTH_SESSION_HTTP_POLICY
+        .maximumRequestsPerWindow,
 
-      message:
-        "Too many sign-in attempts. Please wait before trying again.",
-    });
-  },
-});
+    identifier:
+      "filmgeezer-auth-session-state",
+
+    code:
+      "AUTH_SESSION_RATE_LIMITED",
+
+    message:
+      "Too many session checks. Please wait before trying again.",
+  });
+
+const logoutRateLimit =
+  createAuthenticationRateLimit({
+    windowMs:
+      AUTH_LOGOUT_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+
+    limit:
+      AUTH_LOGOUT_HTTP_POLICY
+        .maximumRequestsPerWindow,
+
+    identifier:
+      "filmgeezer-auth-logout",
+
+    code:
+      "AUTH_LOGOUT_RATE_LIMITED",
+
+    message:
+      "Too many sign-out requests. Please wait before trying again.",
+  });
 
 function requireJsonContentType(
-  req: Request,
-  res: Response,
+  request: Request,
+  response: Response,
   next: NextFunction,
 ): void {
-  if (!req.is("application/json")) {
-    res.setHeader(
+  if (
+    !request.is(
+      "application/json",
+    )
+  ) {
+    response.setHeader(
       "Cache-Control",
       "no-store",
     );
 
-    res.status(415).json({
-      status: "error",
-      code: "AUTH_JSON_REQUIRED",
+    response
+      .status(415)
+      .json({
+        status: "error",
+        code:
+          "AUTH_JSON_REQUIRED",
 
-      message:
-        "Authentication requests must use application/json.",
-    });
+        message:
+          "Authentication requests must use application/json.",
+      });
 
     return;
   }
@@ -190,10 +245,6 @@ function requireJsonContentType(
 router.post(
   "/register",
 
-  /*
-   * Rate limiting happens before JSON parsing so an abusive client
-   * cannot repeatedly consume parser resources with oversized bodies.
-   */
   registrationRateLimit,
 
   requireJsonContentType,
@@ -203,7 +254,8 @@ router.post(
       AUTH_REGISTRATION_POLICY
         .requestBodyLimit,
 
-    strict: true,
+    strict:
+      true,
   }),
 
   registerLocalAccount,
@@ -221,7 +273,8 @@ router.post(
       AUTH_EMAIL_VERIFICATION_HTTP_POLICY
         .requestBodyLimit,
 
-    strict: true,
+    strict:
+      true,
   }),
 
   verifyLocalEmailAddress,
@@ -239,7 +292,8 @@ router.post(
       AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY
         .requestBodyLimit,
 
-    strict: true,
+    strict:
+      true,
   }),
 
   resendLocalEmailVerification,
@@ -257,10 +311,45 @@ router.post(
       AUTH_LOGIN_HTTP_POLICY
         .requestBodyLimit,
 
-    strict: true,
+    strict:
+      true,
   }),
 
   loginLocalAccount,
+);
+
+router.get(
+  "/session",
+
+  sessionStateRateLimit,
+
+  requireAuthenticatedSession,
+
+  getCurrentAuthSession,
+);
+
+router.post(
+  "/logout",
+
+  logoutRateLimit,
+
+  requireAuthenticatedSession,
+
+  requireAuthCsrfProtection,
+
+  logoutCurrentAuthSession,
+);
+
+router.post(
+  "/logout-all",
+
+  logoutRateLimit,
+
+  requireAuthenticatedSession,
+
+  requireAuthCsrfProtection,
+
+  logoutAllAuthSessions,
 );
 
 export default router;

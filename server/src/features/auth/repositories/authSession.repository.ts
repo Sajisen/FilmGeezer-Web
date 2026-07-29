@@ -14,6 +14,7 @@ import {
 
 import type {
   AuthSessionDocument,
+  AuthSessionRevocationReason,
 } from "../auth.types.js";
 
 export interface CreateAuthSessionInput {
@@ -72,6 +73,132 @@ export async function createAuthSession(
   );
 
   return authSession;
+}
+
+export async function findAuthSessionByTokenHash(
+  tokenHash: string,
+): Promise<AuthSessionDocument | null> {
+  const { sessions } =
+    await getAuthCollections();
+
+  return sessions.findOne({
+    tokenHash,
+  });
+}
+
+export interface TouchAuthSessionInput {
+  sessionId: ObjectId;
+  touchedAt: Date;
+}
+
+export async function touchAuthSession(
+  input: TouchAuthSessionInput,
+): Promise<boolean> {
+  const { sessions } =
+    await getAuthCollections();
+
+  const result =
+    await sessions.updateOne(
+      {
+        _id: input.sessionId,
+        revokedAt: null,
+        expiresAt: {
+          $gt: input.touchedAt,
+        },
+        lastSeenAt: {
+          $lte: new Date(
+            input.touchedAt.getTime() -
+              AUTH_SESSION_POLICY
+                .activityTouchIntervalMilliseconds,
+          ),
+        },
+      },
+      {
+        $set: {
+          lastSeenAt:
+            input.touchedAt,
+        },
+      },
+    );
+
+  return result.modifiedCount === 1;
+}
+
+export interface RevokeAuthSessionInput {
+  sessionId: ObjectId;
+  userId: ObjectId;
+  revokedAt: Date;
+  reason:
+    AuthSessionRevocationReason;
+}
+
+export async function revokeAuthSession(
+  input: RevokeAuthSessionInput,
+  session?: ClientSession,
+): Promise<boolean> {
+  const { sessions } =
+    await getAuthCollections();
+
+  const result =
+    await sessions.updateOne(
+      {
+        _id: input.sessionId,
+        userId: input.userId,
+        revokedAt: null,
+      },
+      {
+        $set: {
+          revokedAt:
+            input.revokedAt,
+          revocationReason:
+            input.reason,
+        },
+      },
+      session
+        ? {
+            session,
+          }
+        : undefined,
+    );
+
+  return result.modifiedCount === 1;
+}
+
+export interface RevokeAllActiveAuthSessionsInput {
+  userId: ObjectId;
+  revokedAt: Date;
+  reason:
+    AuthSessionRevocationReason;
+}
+
+export async function revokeAllActiveAuthSessions(
+  input:
+    RevokeAllActiveAuthSessionsInput,
+  session: ClientSession,
+): Promise<number> {
+  const { sessions } =
+    await getAuthCollections();
+
+  const result =
+    await sessions.updateMany(
+      {
+        userId: input.userId,
+        revokedAt: null,
+      },
+      {
+        $set: {
+          revokedAt:
+            input.revokedAt,
+          revocationReason:
+            input.reason,
+        },
+      },
+      {
+        session,
+      },
+    );
+
+  return result.modifiedCount;
 }
 
 export interface MakeRoomForNewSessionInput {
