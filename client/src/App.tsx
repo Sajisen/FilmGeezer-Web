@@ -1,4 +1,9 @@
-import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import {
+  BrowserRouter,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router";
 
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
@@ -7,7 +12,9 @@ import BackToTopButton from "./components/navigation/BackToTopButton";
 import RouteAccessibility from "./components/navigation/RouteAccessibility";
 import ScrollToTop from "./components/navigation/ScrollToTop";
 
-import { AuthProvider } from "./features/auth/AuthProvider";
+import {
+  AuthProvider,
+} from "./features/auth/AuthProvider";
 
 import AuthRoute from "./features/auth/AuthRoute";
 
@@ -30,14 +37,23 @@ import SearchPage from "./pages/SearchPage";
 import TVSeriesPage from "./pages/TVSeriesPage";
 
 function ApplicationRoutes() {
-  const location = useLocation();
+  const location =
+    useLocation();
 
-  const authRouteState = readAuthRouteState(location.state);
+  const authRouteState =
+    readAuthRouteState(
+      location.state,
+    );
 
-  const backgroundLocation = authRouteState.backgroundLocation;
+  const backgroundLocation =
+    authRouteState
+      .backgroundLocation;
 
   const isDirectAuthRoute =
-    isAuthRoutePath(location.pathname) && !backgroundLocation;
+    isAuthRoutePath(
+      location.pathname,
+    ) &&
+    !backgroundLocation;
 
   return (
     <>
@@ -56,42 +72,135 @@ function ApplicationRoutes() {
         </>
       )}
 
-      <Routes location={backgroundLocation ?? location}>
-        <Route path="/" element={<HomePage />} />
+      <Routes
+        location={
+          backgroundLocation ??
+          location
+        }
+      >
+        <Route
+          path="/"
+          element={<HomePage />}
+        />
 
-        <Route path="/movies" element={<MoviesPage />} />
+        <Route
+          path="/movies"
+          element={
+            <MoviesPage />
+          }
+        />
 
-        <Route path="/tv" element={<TVSeriesPage />} />
+        <Route
+          path="/tv"
+          element={
+            <TVSeriesPage />
+          }
+        />
 
-        <Route path="/anime" element={<AnimePage />} />
+        <Route
+          path="/anime"
+          element={
+            <AnimePage />
+          }
+        />
 
-        <Route path="/k-drama" element={<KDramaPage />} />
+        <Route
+          path="/k-drama"
+          element={
+            <KDramaPage />
+          }
+        />
 
-        <Route path="/search" element={<SearchPage />} />
+        <Route
+          path="/search"
+          element={
+            <SearchPage />
+          }
+        />
 
         <Route
           path="/media/:mediaType/:tmdbId"
-          element={<MediaDetailsPage />}
+          element={
+            <MediaDetailsPage />
+          }
         />
 
-        <Route path="/account" element={<AccountPage />} />
+        <Route
+          path="/account"
+          element={
+            <AccountPage />
+          }
+        />
 
-        <Route path="/help" element={<HelpPage />} />
+        <Route
+          path="/help"
+          element={
+            <HelpPage />
+          }
+        />
 
-        <Route path="/contact" element={<ContactPage />} />
+        <Route
+          path="/contact"
+          element={
+            <ContactPage />
+          }
+        />
 
-        <Route path="/api-test" element={<ApiTestPage />} />
+        <Route
+          path="/api-test"
+          element={
+            <ApiTestPage />
+          }
+        />
 
-        <Route path="/login" element={<AuthRoute mode="login" />} />
+        <Route
+          path="/login"
+          element={
+            <AuthRoute mode="login" />
+          }
+        />
 
-        <Route path="/register" element={<AuthRoute mode="register" />} />
+        <Route
+          path="/register"
+          element={
+            <AuthRoute mode="register" />
+          }
+        />
+
+        <Route
+          path="/registration-pending"
+          element={
+            <AuthRoute mode="registration-pending" />
+          }
+        />
 
         <Route
           path="/verify-email"
-          element={<AuthRoute mode="verify-email" />}
+          element={
+            <AuthRoute mode="verify-email" />
+          }
         />
 
-        <Route path="*" element={<NotFoundPage />} />
+        <Route
+          path="/forgot-password"
+          element={
+            <AuthRoute mode="forgot-password" />
+          }
+        />
+
+        <Route
+          path="/reset-password/:challengeId"
+          element={
+            <AuthRoute mode="reset-password" />
+          }
+        />
+
+        <Route
+          path="*"
+          element={
+            <NotFoundPage />
+          }
+        />
       </Routes>
 
       {!isDirectAuthRoute && (
@@ -103,13 +212,47 @@ function ApplicationRoutes() {
 
       {backgroundLocation && (
         <Routes>
-          <Route path="/login" element={<AuthRoute mode="login" />} />
+          <Route
+            path="/login"
+            element={
+              <AuthRoute mode="login" />
+            }
+          />
 
-          <Route path="/register" element={<AuthRoute mode="register" />} />
+          <Route
+            path="/register"
+            element={
+              <AuthRoute mode="register" />
+            }
+          />
+
+          <Route
+            path="/registration-pending"
+            element={
+              <AuthRoute mode="registration-pending" />
+            }
+          />
 
           <Route
             path="/verify-email"
-            element={<AuthRoute mode="verify-email" />}
+            element={
+              <AuthRoute mode="verify-email" />
+            }
+          />
+
+
+          <Route
+            path="/forgot-password"
+            element={
+              <AuthRoute mode="forgot-password" />
+            }
+          />
+
+          <Route
+            path="/reset-password/:challengeId"
+            element={
+              <AuthRoute mode="reset-password" />
+            }
           />
         </Routes>
       )}

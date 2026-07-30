@@ -8,6 +8,7 @@ import {
 import {
   useLocation,
   useNavigate,
+  useParams,
   useSearchParams,
 } from "react-router";
 
@@ -26,9 +27,11 @@ import {
 } from "./authNavigation";
 
 import AuthSurface from "./components/AuthSurface";
+import ForgotPasswordForm from "./components/ForgotPasswordForm";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
 import RegistrationPendingForm from "./components/RegistrationPendingForm";
+import ResetPasswordForm from "./components/ResetPasswordForm";
 import VerifyEmailForm from "./components/VerifyEmailForm";
 
 interface AuthRouteProps {
@@ -36,7 +39,9 @@ interface AuthRouteProps {
     | "login"
     | "register"
     | "registration-pending"
-    | "verify-email";
+    | "verify-email"
+    | "forgot-password"
+    | "reset-password";
 }
 
 const AUTH_COPY = {
@@ -67,68 +72,109 @@ const AUTH_COPY = {
     description:
       "Use the newest six-digit code from FilmGeezer.",
   },
+
+  "forgot-password": {
+    eyebrow: "Account recovery",
+    title: "Reset your password",
+    description:
+      "Enter your email and FilmGeezer will send the next secure step.",
+  },
+
+  "reset-password": {
+    eyebrow: "Choose a new password",
+    title: "Secure your account",
+    description:
+      "Create a new password. Every existing FilmGeezer session will be signed out.",
+  },
 } as const;
 
 function AuthRoute({
   mode,
 }: AuthRouteProps) {
-  const location =
-    useLocation();
-
-  const navigate =
-    useNavigate();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = useParams<{
+    challengeId?: string;
+  }>();
 
   const [searchParams] =
     useSearchParams();
 
-  const auth =
-    useAuth();
+  const auth = useAuth();
 
-  const routeState =
-    useMemo(
-      () =>
-        readAuthRouteState(
-          location.state,
-        ),
-      [location.state],
-    );
+  const routeState = useMemo(
+    () =>
+      readAuthRouteState(
+        location.state,
+      ),
+    [location.state],
+  );
 
-  const isModal =
-    Boolean(
-      routeState
-        .backgroundLocation,
-    );
+  const isModal = Boolean(
+    routeState.backgroundLocation,
+  );
 
   const queryChallengeId =
-    searchParams.get(
-      "challengeId",
-    );
+    searchParams.get("challengeId");
 
-  const [
-    verification,
-    setVerification,
-  ] =
+  const [resetToken] = useState<
+    string | null
+  >(() => {
+    if (
+      mode !== "reset-password" ||
+      location.hash.length <= 1
+    ) {
+      return null;
+    }
+
+    return location.hash.slice(1);
+  });
+
+  useEffect(() => {
+    if (
+      mode !== "reset-password" ||
+      location.hash.length <= 1
+    ) {
+      return;
+    }
+
+    /*
+     * The raw reset token arrives in the URL fragment so it is never sent
+     * to the web server or in Referer headers. Keep it only in component
+     * memory and remove it from the visible address bar immediately.
+     */
+    navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+        hash: "",
+      },
+      {
+        replace: true,
+        state: location.state,
+      },
+    );
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    location.state,
+    mode,
+    navigate,
+  ]);
+
+  const [verification, setVerification] =
     useState<AuthVerificationReceipt | null>(
       () => {
-        if (
-          routeState
-            .verification
-        ) {
-          return routeState
-            .verification;
+        if (routeState.verification) {
+          return routeState.verification;
         }
 
-        if (
-          queryChallengeId
-        ) {
+        if (queryChallengeId) {
           return {
-            challengeId:
-              queryChallengeId,
-
+            challengeId: queryChallengeId,
             expiresAt: null,
-
-            resendAvailableAt:
-              null,
+            resendAvailableAt: null,
           };
         }
 
@@ -136,13 +182,9 @@ function AuthRoute({
       },
     );
 
-  const [
-    verificationEmail,
-    setVerificationEmail,
-  ] =
+  const [verificationEmail, setVerificationEmail] =
     useState<string | null>(
-      routeState.email ??
-        null,
+      routeState.email ?? null,
     );
 
   const [isBusy, setIsBusy] =
@@ -151,134 +193,93 @@ function AuthRoute({
   const [hasFormInput, setHasFormInput] =
     useState(false);
 
-  const closeAuth =
-    useCallback(() => {
-      if (isBusy) {
-        return;
-      }
+  const closeAuth = useCallback(() => {
+    if (isBusy) {
+      return;
+    }
 
-      if (
-        routeState
-          .backgroundLocation
-      ) {
-        navigate(-1);
-        return;
-      }
+    if (routeState.backgroundLocation) {
+      navigate(-1);
+      return;
+    }
 
-      navigate("/", {
-        replace: true,
-      });
-    }, [
-      isBusy,
-      navigate,
-      routeState,
-    ]);
+    navigate("/", {
+      replace: true,
+    });
+  }, [isBusy, navigate, routeState]);
 
   useEffect(() => {
     if (
-      auth.status !==
-      "authenticated"
+      auth.status !== "authenticated" ||
+      mode === "reset-password"
     ) {
       return;
     }
 
     closeAuth();
-  }, [
-    auth.status,
-    closeAuth,
-  ]);
+  }, [auth.status, closeAuth, mode]);
 
-  const navigateWithinAuth =
-    useCallback(
-      (
-        path: AuthRoutePath,
-        options?: {
-          verification?: AuthVerificationReceipt;
-          email?: string;
-          markDirty?: boolean;
-        },
-      ) => {
-        const nextVerification =
-          options?.verification;
-
-        const routeUsesChallengeId =
-          path ===
-            "/registration-pending" ||
-          path ===
-            "/verify-email";
-
-        const search =
-          routeUsesChallengeId &&
-          nextVerification
-            ? `?challengeId=${encodeURIComponent(nextVerification.challengeId)}`
-            : "";
-
-        setHasFormInput(
-          options?.markDirty ??
-            false,
-        );
-
-        navigate(
-          `${path}${search}`,
-          {
-            replace: true,
-
-            state: {
-              ...routeState,
-
-              verification:
-                nextVerification,
-
-              email:
-                options?.email,
-            },
-          },
-        );
+  const navigateWithinAuth = useCallback(
+    (
+      path: AuthRoutePath,
+      options?: {
+        verification?: AuthVerificationReceipt;
+        email?: string;
+        notice?: string;
+        markDirty?: boolean;
       },
-      [
-        navigate,
-        routeState,
-      ],
-    );
+    ) => {
+      const nextVerification =
+        options?.verification;
+
+      const routeUsesChallengeId =
+        path === "/registration-pending" ||
+        path === "/verify-email";
+
+      const search =
+        routeUsesChallengeId &&
+        nextVerification
+          ? `?challengeId=${encodeURIComponent(nextVerification.challengeId)}`
+          : "";
+
+      setHasFormInput(
+        options?.markDirty ?? false,
+      );
+
+      navigate(`${path}${search}`, {
+        replace: true,
+        state: {
+          ...routeState,
+          verification: nextVerification,
+          email: options?.email,
+          notice: options?.notice,
+        },
+      });
+    },
+    [navigate, routeState],
+  );
 
   const handleRegistrationSubmitted =
     useCallback(
       (
         nextVerification:
           AuthVerificationReceipt,
-
         email: string,
       ) => {
-        setVerification(
-          nextVerification,
-        );
-
-        setVerificationEmail(
-          email,
-        );
-
+        setVerification(nextVerification);
+        setVerificationEmail(email);
         setHasFormInput(false);
 
-        /*
-         * Registration intentionally lands on a neutral inbox step.
-         * The public browser response does not disclose whether the
-         * email already belongs to an account. A new account can enter
-         * its code, while an existing account can move directly to sign
-         * in without being trapped on a decoy OTP screen.
-         */
         navigateWithinAuth(
           "/registration-pending",
           {
             verification:
               nextVerification,
-
             email,
           },
         );
       },
-      [
-        navigateWithinAuth,
-      ],
+      [navigateWithinAuth],
     );
 
   const handleVerificationRequired =
@@ -286,17 +287,10 @@ function AuthRoute({
       (
         nextVerification:
           AuthVerificationReceipt,
-
         email: string,
       ) => {
-        setVerification(
-          nextVerification,
-        );
-
-        setVerificationEmail(
-          email,
-        );
-
+        setVerification(nextVerification);
+        setVerificationEmail(email);
         setHasFormInput(false);
 
         navigateWithinAuth(
@@ -304,14 +298,11 @@ function AuthRoute({
           {
             verification:
               nextVerification,
-
             email,
           },
         );
       },
-      [
-        navigateWithinAuth,
-      ],
+      [navigateWithinAuth],
     );
 
   const handleVerificationUpdated =
@@ -320,16 +311,13 @@ function AuthRoute({
         nextVerification:
           AuthVerificationReceipt,
       ) => {
-        setVerification(
-          nextVerification,
-        );
+        setVerification(nextVerification);
 
         navigateWithinAuth(
           "/verify-email",
           {
             verification:
               nextVerification,
-
             email:
               verificationEmail ??
               undefined,
@@ -355,34 +343,25 @@ function AuthRoute({
 
       setHasFormInput(false);
 
-      if (
-        routeState
-          .backgroundLocation
-      ) {
+      if (routeState.backgroundLocation) {
         navigate(-1);
         return;
       }
 
       navigate(
-        getAuthReturnTo(
-          routeState,
-        ),
+        getAuthReturnTo(routeState),
         {
           replace: true,
         },
       );
-    }, [
-      auth,
-      navigate,
-      routeState,
-    ]);
+    }, [auth, navigate, routeState]);
 
-  const copy =
-    AUTH_COPY[mode];
+  const copy = AUTH_COPY[mode];
 
   const allowAmbientDismiss =
     (mode === "login" ||
-      mode === "register") &&
+      mode === "register" ||
+      mode === "forgot-password") &&
     !hasFormInput &&
     !isBusy;
 
@@ -395,30 +374,32 @@ function AuthRoute({
       }
       eyebrow={copy.eyebrow}
       title={copy.title}
-      description={
-        copy.description
-      }
+      description={copy.description}
       onClose={closeAuth}
     >
       {mode === "login" && (
         <LoginForm
           key={`login:${verificationEmail ?? ""}`}
           initialEmail={
-            verificationEmail ??
-            ""
+            verificationEmail ?? ""
           }
-          onBusyChange={
-            setIsBusy
-          }
-          onDirtyChange={
-            setHasFormInput
-          }
+          notice={routeState.notice ?? null}
+          onBusyChange={setIsBusy}
+          onDirtyChange={setHasFormInput}
           onAuthenticated={
             handleAuthenticated
           }
           onSwitchToRegistration={() => {
+            navigateWithinAuth("/register");
+          }}
+          onForgotPassword={(email) => {
             navigateWithinAuth(
-              "/register",
+              "/forgot-password",
+              {
+                email:
+                  email || undefined,
+                markDirty: Boolean(email),
+              },
             );
           }}
           onVerificationRequired={
@@ -429,42 +410,28 @@ function AuthRoute({
 
       {mode === "register" && (
         <RegisterForm
-          onBusyChange={
-            setIsBusy
-          }
-          onDirtyChange={
-            setHasFormInput
-          }
+          onBusyChange={setIsBusy}
+          onDirtyChange={setHasFormInput}
           onRegistrationSubmitted={
             handleRegistrationSubmitted
           }
           onSwitchToLogin={() => {
-            navigateWithinAuth(
-              "/login",
-              {
-                email:
-                  verificationEmail ??
-                  undefined,
-
-                markDirty:
-                  Boolean(
-                    verificationEmail,
-                  ),
-              },
-            );
+            navigateWithinAuth("/login", {
+              email:
+                verificationEmail ??
+                undefined,
+              markDirty: Boolean(
+                verificationEmail,
+              ),
+            });
           }}
         />
       )}
 
-      {mode ===
-        "registration-pending" && (
+      {mode === "registration-pending" && (
         <RegistrationPendingForm
-          verification={
-            verification
-          }
-          email={
-            verificationEmail
-          }
+          verification={verification}
+          email={verificationEmail}
           onEnterVerificationCode={() => {
             if (!verification) {
               return;
@@ -477,74 +444,91 @@ function AuthRoute({
                 email:
                   verificationEmail ??
                   undefined,
-
-                markDirty:
-                  Boolean(
-                    verificationEmail,
-                  ),
+                markDirty: Boolean(
+                  verificationEmail,
+                ),
               },
             );
           }}
           onSwitchToLogin={() => {
-            navigateWithinAuth(
-              "/login",
-              {
-                email:
-                  verificationEmail ??
-                  undefined,
-
-                markDirty:
-                  Boolean(
-                    verificationEmail,
-                  ),
-              },
-            );
+            navigateWithinAuth("/login", {
+              email:
+                verificationEmail ??
+                undefined,
+              markDirty: Boolean(
+                verificationEmail,
+              ),
+            });
           }}
           onSwitchToRegistration={() => {
-            navigateWithinAuth(
-              "/register",
-            );
+            navigateWithinAuth("/register");
           }}
         />
       )}
 
-      {mode ===
-        "verify-email" && (
+      {mode === "verify-email" && (
         <VerifyEmailForm
-          verification={
-            verification
-          }
-          email={
-            verificationEmail
-          }
-          onBusyChange={
-            setIsBusy
-          }
-          onVerified={
-            handleAuthenticated
-          }
+          verification={verification}
+          email={verificationEmail}
+          onBusyChange={setIsBusy}
+          onVerified={handleAuthenticated}
           onVerificationUpdated={
             handleVerificationUpdated
           }
           onSwitchToLogin={() => {
-            navigateWithinAuth(
-              "/login",
-              {
-                email:
-                  verificationEmail ??
-                  undefined,
-
-                markDirty:
-                  Boolean(
-                    verificationEmail,
-                  ),
-              },
-            );
+            navigateWithinAuth("/login", {
+              email:
+                verificationEmail ??
+                undefined,
+              markDirty: Boolean(
+                verificationEmail,
+              ),
+            });
           }}
           onSwitchToRegistration={() => {
+            navigateWithinAuth("/register");
+          }}
+        />
+      )}
+
+      {mode === "forgot-password" && (
+        <ForgotPasswordForm
+          initialEmail={
+            routeState.email ?? ""
+          }
+          onBusyChange={setIsBusy}
+          onDirtyChange={setHasFormInput}
+          onSwitchToLogin={(email) => {
+            navigateWithinAuth("/login", {
+              email: email || undefined,
+              markDirty: Boolean(email),
+            });
+          }}
+        />
+      )}
+
+      {mode === "reset-password" && (
+        <ResetPasswordForm
+          challengeId={
+            params.challengeId ?? null
+          }
+          token={resetToken}
+          onBusyChange={setIsBusy}
+          onDirtyChange={setHasFormInput}
+          onCompleted={async (message) => {
+            await auth.refreshSession();
+
+            navigateWithinAuth("/login", {
+              notice: message,
+            });
+          }}
+          onRequestNewLink={() => {
             navigateWithinAuth(
-              "/register",
+              "/forgot-password",
             );
+          }}
+          onSwitchToLogin={() => {
+            navigateWithinAuth("/login");
           }}
         />
       )}

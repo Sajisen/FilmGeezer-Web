@@ -214,3 +214,41 @@ export class AuthSessionRequiredError
       "AuthSessionRequiredError";
   }
 }
+
+export const AUTH_PASSWORD_RESET_REJECTION_REASONS = [
+  "invalid-challenge",
+  "incorrect-token",
+  "expired",
+  "attempts-exceeded",
+  "already-used",
+  "account-unavailable",
+] as const;
+
+export type AuthPasswordResetRejectionReason =
+  (typeof AUTH_PASSWORD_RESET_REJECTION_REASONS)[number];
+
+export class AuthPasswordResetError extends Error {
+  readonly code = "AUTH_PASSWORD_RESET_REJECTED";
+
+  constructor(
+    readonly reason: AuthPasswordResetRejectionReason,
+  ) {
+    super(
+      "The password-reset request could not be completed.",
+    );
+
+    this.name = "AuthPasswordResetError";
+  }
+}
+
+export class AuthPasswordReuseError extends Error {
+  readonly code = "AUTH_PASSWORD_REUSE_REJECTED";
+
+  constructor() {
+    super(
+      "Choose a password that is different from your current password.",
+    );
+
+    this.name = "AuthPasswordReuseError";
+  }
+}

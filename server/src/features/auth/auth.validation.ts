@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   AUTH_EMAIL_VERIFICATION_POLICY,
   AUTH_INPUT_LIMITS,
+  AUTH_PASSWORD_RESET_POLICY,
 } from "./auth.constants.js";
 
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F]/u;
@@ -321,4 +322,71 @@ export function parseLoginInput(
   value: unknown,
 ): NormalizedLoginInput {
   return loginInputSchema.parse(value);
+}
+const passwordResetRequestEmailSchema =
+  loginEmailSchema;
+
+export const passwordResetRequestInputSchema = z
+  .object({
+    email: passwordResetRequestEmailSchema,
+  })
+  .strict()
+  .transform(({ email }) => ({
+    emailNormalized: normalizeEmail(email),
+  }));
+
+export type PasswordResetRequestInput = z.input<
+  typeof passwordResetRequestInputSchema
+>;
+
+export type NormalizedPasswordResetRequestInput = z.output<
+  typeof passwordResetRequestInputSchema
+>;
+
+export function parsePasswordResetRequestInput(
+  value: unknown,
+): NormalizedPasswordResetRequestInput {
+  return passwordResetRequestInputSchema.parse(value);
+}
+
+const PASSWORD_RESET_TOKEN_PATTERN =
+  /^[A-Za-z0-9_-]+$/u;
+
+export const passwordResetInputSchema = z
+  .object({
+    challengeId: z.uuid({
+      version: "v4",
+      error: "Password-reset challenge ID is invalid.",
+    }),
+
+    token: z
+      .string({
+        error: "Password-reset token must be text.",
+      })
+      .trim()
+      .length(
+        AUTH_PASSWORD_RESET_POLICY.tokenCharacterLength,
+        "Password-reset token is invalid.",
+      )
+      .regex(
+        PASSWORD_RESET_TOKEN_PATTERN,
+        "Password-reset token is invalid.",
+      ),
+
+    password: registrationPasswordSchema,
+  })
+  .strict();
+
+export type PasswordResetInput = z.input<
+  typeof passwordResetInputSchema
+>;
+
+export type NormalizedPasswordResetInput = z.output<
+  typeof passwordResetInputSchema
+>;
+
+export function parsePasswordResetInput(
+  value: unknown,
+): NormalizedPasswordResetInput {
+  return passwordResetInputSchema.parse(value);
 }

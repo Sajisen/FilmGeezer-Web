@@ -24,10 +24,17 @@ import {
 } from "../controllers/authSession.controller.js";
 
 import {
+  requestLocalPasswordReset,
+  resetLocalAccountPassword,
+} from "../controllers/authPasswordRecovery.controller.js";
+
+import {
   AUTH_EMAIL_VERIFICATION_HTTP_POLICY,
   AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY,
   AUTH_LOGIN_HTTP_POLICY,
   AUTH_LOGOUT_HTTP_POLICY,
+  AUTH_PASSWORD_RESET_HTTP_POLICY,
+  AUTH_PASSWORD_RESET_REQUEST_HTTP_POLICY,
   AUTH_REGISTRATION_POLICY,
   AUTH_SESSION_HTTP_POLICY,
 } from "../features/auth/auth.constants.js";
@@ -168,6 +175,46 @@ const loginRateLimit =
 
     message:
       "Too many sign-in attempts. Please wait before trying again.",
+  });
+
+const passwordResetRequestRateLimit =
+  createAuthenticationRateLimit({
+    windowMs:
+      AUTH_PASSWORD_RESET_REQUEST_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+
+    limit:
+      AUTH_PASSWORD_RESET_REQUEST_HTTP_POLICY
+        .maximumRequestsPerWindow,
+
+    identifier:
+      "filmgeezer-auth-password-reset-request",
+
+    code:
+      "AUTH_PASSWORD_RESET_REQUEST_RATE_LIMITED",
+
+    message:
+      "Too many password-reset requests. Please wait before trying again.",
+  });
+
+const passwordResetRateLimit =
+  createAuthenticationRateLimit({
+    windowMs:
+      AUTH_PASSWORD_RESET_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+
+    limit:
+      AUTH_PASSWORD_RESET_HTTP_POLICY
+        .maximumRequestsPerWindow,
+
+    identifier:
+      "filmgeezer-auth-password-reset",
+
+    code:
+      "AUTH_PASSWORD_RESET_RATE_LIMITED",
+
+    message:
+      "Too many password-reset attempts. Please wait before trying again.",
   });
 
 const sessionStateRateLimit =
@@ -316,6 +363,44 @@ router.post(
   }),
 
   loginLocalAccount,
+);
+
+router.post(
+  "/forgot-password",
+
+  passwordResetRequestRateLimit,
+
+  requireJsonContentType,
+
+  json({
+    limit:
+      AUTH_PASSWORD_RESET_REQUEST_HTTP_POLICY
+        .requestBodyLimit,
+
+    strict:
+      true,
+  }),
+
+  requestLocalPasswordReset,
+);
+
+router.post(
+  "/reset-password",
+
+  passwordResetRateLimit,
+
+  requireJsonContentType,
+
+  json({
+    limit:
+      AUTH_PASSWORD_RESET_HTTP_POLICY
+        .requestBodyLimit,
+
+    strict:
+      true,
+  }),
+
+  resetLocalAccountPassword,
 );
 
 router.get(

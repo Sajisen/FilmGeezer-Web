@@ -68,6 +68,7 @@ export const AUTH_AUDIT_EVENT_VALUES = [
   "logout",
   "logout-all",
   "password-reset-requested",
+  "password-reset-failed",
   "password-reset-completed",
   "password-changed",
   "session-revoked",

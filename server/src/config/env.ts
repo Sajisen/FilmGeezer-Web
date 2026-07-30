@@ -34,6 +34,22 @@ const environmentSchema = z.object({
 
   HOST: z.string().trim().min(1).default("0.0.0.0"),
 
+  CLIENT_APP_ORIGIN: z
+    .string()
+    .trim()
+    .url("CLIENT_APP_ORIGIN must be a valid URL.")
+    .refine((value) => {
+      const url = new URL(value);
+
+      return (
+        (url.protocol === "http:" ||
+          url.protocol === "https:") &&
+        url.pathname === "/" &&
+        url.search === "" &&
+        url.hash === ""
+      );
+    }, "CLIENT_APP_ORIGIN must be an http(s) origin without a path, query, or fragment."),
+
   TMDB_READ_ACCESS_TOKEN: z
     .string()
     .trim()

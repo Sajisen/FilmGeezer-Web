@@ -250,3 +250,47 @@ export async function recordSessionMutation(
 
   return result.matchedCount === 1;
 }
+
+export async function findPasswordResetEligibleUserById(
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } = await getAuthCollections();
+
+  return users.findOne(
+    {
+      _id: userId,
+      status: { $in: ["pending", "active"] },
+      suspendedAt: null,
+      deletedAt: null,
+    },
+    session ? { session } : undefined,
+  );
+}
+
+export interface RecordPasswordResetMutationInput {
+  userId: ObjectId;
+  changedAt: Date;
+}
+
+export async function recordPasswordResetMutation(
+  input: RecordPasswordResetMutationInput,
+  session: ClientSession,
+): Promise<boolean> {
+  const { users } = await getAuthCollections();
+
+  const result = await users.updateOne(
+    {
+      _id: input.userId,
+      status: { $in: ["pending", "active"] },
+      suspendedAt: null,
+      deletedAt: null,
+    },
+    {
+      $set: { updatedAt: input.changedAt },
+    },
+    { session },
+  );
+
+  return result.matchedCount === 1;
+}

@@ -48,6 +48,11 @@ export const AUTH_LOGIN_HTTP_POLICY = {
 } as const;
 
 export const AUTH_SESSION_HTTP_POLICY = {
+  /*
+   * Session state may be checked during application startup, route
+   * changes, and account-menu refreshes. The limit is intentionally much
+   * higher than login while still bounding abusive polling.
+   */
   rateLimitWindowMilliseconds: 15 * 60 * 1_000,
   maximumRequestsPerWindow: 120,
 } as const;
@@ -55,6 +60,37 @@ export const AUTH_SESSION_HTTP_POLICY = {
 export const AUTH_LOGOUT_HTTP_POLICY = {
   rateLimitWindowMilliseconds: 15 * 60 * 1_000,
   maximumRequestsPerWindow: 20,
+} as const;
+
+export const AUTH_PASSWORD_RESET_REQUEST_HTTP_POLICY = {
+  requestBodyLimit: "4kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 10,
+} as const;
+
+export const AUTH_PASSWORD_RESET_HTTP_POLICY = {
+  requestBodyLimit: "8kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 10,
+} as const;
+
+export const AUTH_PASSWORD_RESET_POLICY = {
+  tokenBytes: 32,
+  tokenCharacterLength: 43,
+
+  expiresAfterMilliseconds: 30 * 60 * 1_000,
+  retentionAfterExpiryMilliseconds:
+    24 * 60 * 60 * 1_000,
+
+  maximumAttempts: 5,
+  requestCooldownMilliseconds: 60 * 1_000,
+  maximumSendsPerWindow: 3,
+
+  /*
+   * Unknown and known email addresses should take approximately the same
+   * minimum time before the generic public response is returned.
+   */
+  minimumRequestDurationMilliseconds: 500,
 } as const;
 
 export const AUTH_EMAIL_VERIFICATION_POLICY = {

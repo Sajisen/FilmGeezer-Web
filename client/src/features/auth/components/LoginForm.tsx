@@ -24,8 +24,10 @@ import {
 
 interface LoginFormProps {
   initialEmail?: string;
+  notice?: string | null;
   onAuthenticated: () => Promise<void>;
   onSwitchToRegistration: () => void;
+  onForgotPassword: (email?: string) => void;
   onVerificationRequired: (
     verification: AuthVerificationReceipt,
     email: string,
@@ -40,8 +42,10 @@ interface LoginFormProps {
 
 function LoginForm({
   initialEmail = "",
+  notice = null,
   onAuthenticated,
   onSwitchToRegistration,
+  onForgotPassword,
   onVerificationRequired,
   onBusyChange,
   onDirtyChange,
@@ -196,6 +200,15 @@ function LoginForm({
       className="space-y-4"
       noValidate
     >
+      {notice ? (
+        <div
+          role="status"
+          className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-50"
+        >
+          {notice}
+        </div>
+      ) : null}
+
       <AuthFormMessage
         message={submissionError}
       />
@@ -282,6 +295,21 @@ function LoginForm({
           }
         }}
       />
+
+      <div className="-mt-1 flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            onForgotPassword(
+              email.trim(),
+            );
+          }}
+          disabled={isSubmitting}
+          className="text-sm font-semibold text-sky-300 transition hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Forgot password?
+        </button>
+      </div>
 
       <AuthSubmitButton
         label="Sign in"

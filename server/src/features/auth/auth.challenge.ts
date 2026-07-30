@@ -1,12 +1,16 @@
 import {
   createHmac,
+  randomBytes,
   randomInt,
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
 import type { ObjectId } from "mongodb";
 import { env } from "../../config/env.js";
-import { AUTH_EMAIL_VERIFICATION_POLICY } from "./auth.constants.js";
+import {
+  AUTH_EMAIL_VERIFICATION_POLICY,
+  AUTH_PASSWORD_RESET_POLICY,
+} from "./auth.constants.js";
 import type {
   AuthChallengePurpose,
 } from "./auth.types.js";
@@ -77,6 +81,36 @@ export function generateEmailVerificationChallenge(
     expiresAt: new Date(
       createdAt.getTime() +
         AUTH_EMAIL_VERIFICATION_POLICY
+          .expiresAfterMilliseconds,
+    ),
+  };
+}
+
+export function generatePasswordResetChallenge(
+  userId: ObjectId,
+  createdAt = new Date(),
+): GeneratedAuthChallenge {
+  const publicId = randomUUID();
+
+  const secret = randomBytes(
+    AUTH_PASSWORD_RESET_POLICY.tokenBytes,
+  ).toString("base64url");
+
+  const digest = createChallengeDigest(
+    publicId,
+    userId,
+    "reset-password",
+    secret,
+  );
+
+  return {
+    publicId,
+    secret,
+    secretHash: digest.toString("base64url"),
+    createdAt,
+    expiresAt: new Date(
+      createdAt.getTime() +
+        AUTH_PASSWORD_RESET_POLICY
           .expiresAfterMilliseconds,
     ),
   };

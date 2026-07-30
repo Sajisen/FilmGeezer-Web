@@ -117,3 +117,37 @@ export async function replaceCredentialPasswordHash(
 
   return result.modifiedCount === 1;
 }
+
+export interface ResetCredentialPasswordInput {
+  credentialId: ObjectId;
+  userId: ObjectId;
+  expectedPasswordHash: string;
+  passwordHash: string;
+  changedAt: Date;
+}
+
+export async function resetCredentialPassword(
+  input: ResetCredentialPasswordInput,
+  session: ClientSession,
+): Promise<boolean> {
+  const { credentials } = await getAuthCollections();
+
+  const result = await credentials.updateOne(
+    {
+      _id: input.credentialId,
+      userId: input.userId,
+      passwordAlgorithm: "argon2id",
+      passwordHash: input.expectedPasswordHash,
+    },
+    {
+      $set: {
+        passwordHash: input.passwordHash,
+        passwordChangedAt: input.changedAt,
+        updatedAt: input.changedAt,
+      },
+    },
+    { session },
+  );
+
+  return result.modifiedCount === 1;
+}

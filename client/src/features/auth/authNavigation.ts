@@ -11,6 +11,8 @@ export const AUTH_ROUTE_PATHS = [
   "/register",
   "/registration-pending",
   "/verify-email",
+  "/forgot-password",
+  "/reset-password",
 ] as const;
 
 export type AuthRoutePath =
@@ -22,13 +24,19 @@ export interface AuthRouteLocationState {
 
   verification?: AuthVerificationReceipt;
   email?: string;
+  notice?: string;
 }
 
 export function isAuthRoutePath(
   pathname: string,
-): pathname is AuthRoutePath {
-  return AUTH_ROUTE_PATHS.includes(
-    pathname as AuthRoutePath,
+): boolean {
+  return AUTH_ROUTE_PATHS.some(
+    (path) =>
+      pathname === path ||
+      (path === "/reset-password" &&
+        pathname.startsWith(
+          "/reset-password/",
+        )),
   );
 }
 
@@ -41,7 +49,10 @@ export function isSafeInternalReturnTo(
     !value.startsWith("//") &&
     !AUTH_ROUTE_PATHS.some(
       (path) =>
-        value.startsWith(path),
+        value === path ||
+        value.startsWith(
+          `${path}/`,
+        ),
     )
   );
 }
