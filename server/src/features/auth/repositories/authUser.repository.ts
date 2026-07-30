@@ -200,19 +200,27 @@ export async function recordSuccessfulLogin(
 
 export async function findActiveUserById(
   userId: ObjectId,
+  session?: ClientSession,
 ): Promise<FilmGeezerUserDocument | null> {
   const { users } =
     await getAuthCollections();
 
-  return users.findOne({
-    _id: userId,
-    status: "active",
-    emailVerifiedAt: {
-      $ne: null,
+  return users.findOne(
+    {
+      _id: userId,
+      status: "active",
+      emailVerifiedAt: {
+        $ne: null,
+      },
+      suspendedAt: null,
+      deletedAt: null,
     },
-    suspendedAt: null,
-    deletedAt: null,
-  });
+    session
+      ? {
+          session,
+        }
+      : undefined,
+  );
 }
 
 export interface RecordSessionMutationInput {
@@ -293,4 +301,44 @@ export async function recordPasswordResetMutation(
   );
 
   return result.matchedCount === 1;
+}
+
+export interface UpdateActiveUserDisplayNameInput {
+  userId: ObjectId;
+  displayName: string;
+  updatedAt: Date;
+}
+
+export async function updateActiveUserDisplayName(
+  input: UpdateActiveUserDisplayNameInput,
+  session?: ClientSession,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } =
+    await getAuthCollections();
+
+  return users.findOneAndUpdate(
+    {
+      _id: input.userId,
+      status: "active",
+      emailVerifiedAt: {
+        $ne: null,
+      },
+      suspendedAt: null,
+      deletedAt: null,
+    },
+    {
+      $set: {
+        displayName: input.displayName,
+        updatedAt: input.updatedAt,
+      },
+    },
+    {
+      returnDocument: "after",
+      ...(session
+        ? {
+            session,
+          }
+        : {}),
+    },
+  );
 }

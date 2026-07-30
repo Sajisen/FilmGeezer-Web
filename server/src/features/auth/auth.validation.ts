@@ -390,3 +390,63 @@ export function parsePasswordResetInput(
 ): NormalizedPasswordResetInput {
   return passwordResetInputSchema.parse(value);
 }
+
+export const recentAuthenticationInputSchema = z
+  .object({
+    password: loginPasswordSchema,
+  })
+  .strict();
+
+export type RecentAuthenticationInput = z.input<
+  typeof recentAuthenticationInputSchema
+>;
+
+export type NormalizedRecentAuthenticationInput = z.output<
+  typeof recentAuthenticationInputSchema
+>;
+
+export function parseRecentAuthenticationInput(
+  value: unknown,
+): NormalizedRecentAuthenticationInput {
+  return recentAuthenticationInputSchema.parse(value);
+}
+
+export const accountProfileUpdateInputSchema = z
+  .object({
+    displayName: registrationDisplayNameSchema,
+  })
+  .strict();
+
+export type AccountProfileUpdateInput = z.input<
+  typeof accountProfileUpdateInputSchema
+>;
+
+export type NormalizedAccountProfileUpdateInput = z.output<
+  typeof accountProfileUpdateInputSchema
+>;
+
+export function parseAccountProfileUpdateInput(
+  value: unknown,
+): NormalizedAccountProfileUpdateInput {
+  return accountProfileUpdateInputSchema.parse(value);
+}
+
+export const accountPasswordChangeInputSchema = z
+  .object({
+    newPassword: registrationPasswordSchema,
+  })
+  .strict();
+
+export type AccountPasswordChangeInput = z.input<
+  typeof accountPasswordChangeInputSchema
+>;
+
+export type NormalizedAccountPasswordChangeInput = z.output<
+  typeof accountPasswordChangeInputSchema
+>;
+
+export function parseAccountPasswordChangeInput(
+  value: unknown,
+): NormalizedAccountPasswordChangeInput {
+  return accountPasswordChangeInputSchema.parse(value);
+}

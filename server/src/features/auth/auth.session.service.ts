@@ -62,6 +62,7 @@ export interface AuthenticatedSessionContext {
 
   createdAt: Date;
   lastSeenAt: Date;
+  recentAuthenticationAt: Date | null;
   idleExpiresAt: Date;
   expiresAt: Date;
 }
@@ -340,6 +341,8 @@ export async function resolveAuthenticatedSession(
         authSession.createdAt,
       lastSeenAt:
         effectiveLastSeenAt,
+      recentAuthenticationAt:
+        authSession.recentAuthenticationAt ?? null,
       idleExpiresAt:
         new Date(
           effectiveLastSeenAt.getTime() +

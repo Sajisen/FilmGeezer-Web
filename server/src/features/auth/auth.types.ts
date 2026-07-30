@@ -71,6 +71,9 @@ export const AUTH_AUDIT_EVENT_VALUES = [
   "password-reset-failed",
   "password-reset-completed",
   "password-changed",
+  "profile-updated",
+  "reauthentication-succeeded",
+  "reauthentication-failed",
   "session-revoked",
   "account-suspended",
   "account-reactivated",
@@ -149,6 +152,7 @@ export interface AuthSessionDocument {
 
   createdAt: Date;
   lastSeenAt: Date;
+  recentAuthenticationAt: Date | null;
   expiresAt: Date;
 
   revokedAt: Date | null;

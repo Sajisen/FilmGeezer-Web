@@ -59,6 +59,7 @@ export async function createAuthSession(
 
       createdAt: input.createdAt,
       lastSeenAt: input.createdAt,
+      recentAuthenticationAt: null,
       expiresAt: input.expiresAt,
 
       revokedAt: null,
@@ -290,4 +291,43 @@ export async function makeRoomForNewSession(
     );
 
   return result.modifiedCount;
+}
+
+export interface RecordRecentAuthenticationInput {
+  sessionId: ObjectId;
+  userId: ObjectId;
+  confirmedAt: Date;
+}
+
+export async function recordRecentAuthentication(
+  input: RecordRecentAuthenticationInput,
+  session?: ClientSession,
+): Promise<boolean> {
+  const { sessions } =
+    await getAuthCollections();
+
+  const result =
+    await sessions.updateOne(
+      {
+        _id: input.sessionId,
+        userId: input.userId,
+        revokedAt: null,
+        expiresAt: {
+          $gt: input.confirmedAt,
+        },
+      },
+      {
+        $set: {
+          recentAuthenticationAt:
+            input.confirmedAt,
+        },
+      },
+      session
+        ? {
+            session,
+          }
+        : undefined,
+    );
+
+  return result.matchedCount === 1;
 }

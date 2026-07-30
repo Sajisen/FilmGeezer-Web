@@ -36,6 +36,26 @@ async function prepareUserAuthenticationStorage():
   );
 }
 
+
+async function prepareSessionAuthenticationStorage():
+  Promise<void> {
+  const { sessions } =
+    await getAuthCollections();
+
+  await sessions.updateMany(
+    {
+      recentAuthenticationAt: {
+        $exists: false,
+      },
+    },
+    {
+      $set: {
+        recentAuthenticationAt: null,
+      },
+    },
+  );
+}
+
 async function prepareChallengeRetentionStorage():
   Promise<void> {
   const { challenges } =
@@ -98,6 +118,7 @@ async function createAuthenticationIndexes():
 
   await Promise.all([
     prepareUserAuthenticationStorage(),
+    prepareSessionAuthenticationStorage(),
     prepareChallengeRetentionStorage(),
   ]);
 

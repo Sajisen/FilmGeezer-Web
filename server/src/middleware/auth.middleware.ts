@@ -9,6 +9,7 @@ import {
 } from "../config/cors.js";
 
 import {
+  AUTH_RECENT_AUTHENTICATION_POLICY,
   AUTH_SESSION_POLICY,
 } from "../features/auth/auth.constants.js";
 
@@ -244,6 +245,48 @@ export function requireAuthCsrfProtection(
     sendCsrfRejectedResponse(
       response,
     );
+
+    return;
+  }
+
+  next();
+}
+
+export function requireRecentAuthentication(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): void {
+  response.setHeader(
+    "Cache-Control",
+    "no-store",
+  );
+
+  const context =
+    getAuthenticatedSessionContext(
+      request,
+    );
+
+  const confirmedAt =
+    context.recentAuthenticationAt;
+
+  const isRecent =
+    confirmedAt !== null &&
+    confirmedAt.getTime() +
+      AUTH_RECENT_AUTHENTICATION_POLICY
+        .validForMilliseconds >
+      Date.now();
+
+  if (!isRecent) {
+    response
+      .status(403)
+      .json({
+        status: "error",
+        code:
+          "AUTH_RECENT_AUTHENTICATION_REQUIRED",
+        message:
+          "Confirm your password before continuing.",
+      });
 
     return;
   }

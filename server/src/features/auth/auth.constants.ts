@@ -93,6 +93,34 @@ export const AUTH_PASSWORD_RESET_POLICY = {
   minimumRequestDurationMilliseconds: 500,
 } as const;
 
+
+export const AUTH_ACCOUNT_PROFILE_HTTP_POLICY = {
+  requestBodyLimit: "4kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 30,
+} as const;
+
+export const AUTH_RECENT_AUTHENTICATION_HTTP_POLICY = {
+  requestBodyLimit: "4kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 10,
+} as const;
+
+export const AUTH_PASSWORD_CHANGE_HTTP_POLICY = {
+  requestBodyLimit: "8kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 5,
+} as const;
+
+export const AUTH_ACCOUNT_DETAILS_HTTP_POLICY = {
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 120,
+} as const;
+
+export const AUTH_RECENT_AUTHENTICATION_POLICY = {
+  validForMilliseconds: 5 * 60 * 1_000,
+} as const;
+
 export const AUTH_EMAIL_VERIFICATION_POLICY = {
   codeDigits: 6,
   expiresAfterMilliseconds: 5 * 60 * 1_000,

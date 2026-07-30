@@ -21,6 +21,7 @@ import featuredCharactersRoutes from "./routes/featuredCharacters.routes.js";
 import seasonDetailsRoutes from "./routes/seasonDetails.routes.js";
 import moreLikeThisRoutes from "./routes/moreLikeThis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import accountRoutes from "./routes/account.routes.js";
 
 import {
   handleHttpError,
@@ -56,6 +57,11 @@ app.use(
 app.use(
   "/api/auth",
   authRoutes,
+);
+
+app.use(
+  "/api/account",
+  accountRoutes,
 );
 
 app.use(

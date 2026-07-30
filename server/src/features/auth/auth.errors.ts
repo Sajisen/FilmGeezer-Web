@@ -252,3 +252,12 @@ export class AuthPasswordReuseError extends Error {
     this.name = "AuthPasswordReuseError";
   }
 }
+
+export class AuthCurrentPasswordInvalidError extends Error {
+  readonly code = "AUTH_CURRENT_PASSWORD_INVALID";
+
+  constructor() {
+    super("The current password is incorrect.");
+    this.name = "AuthCurrentPasswordInvalidError";
+  }
+}

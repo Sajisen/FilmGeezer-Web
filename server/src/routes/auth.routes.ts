@@ -42,6 +42,7 @@ import {
 import {
   requireAuthenticatedSession,
   requireAuthCsrfProtection,
+  requireRecentAuthentication,
 } from "../middleware/auth.middleware.js";
 
 const router =
@@ -433,6 +434,8 @@ router.post(
   requireAuthenticatedSession,
 
   requireAuthCsrfProtection,
+
+  requireRecentAuthentication,
 
   logoutAllAuthSessions,
 );
