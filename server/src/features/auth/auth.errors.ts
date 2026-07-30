@@ -261,3 +261,28 @@ export class AuthCurrentPasswordInvalidError extends Error {
     this.name = "AuthCurrentPasswordInvalidError";
   }
 }
+
+
+export const AUTH_SESSION_MANAGEMENT_REJECTION_REASONS = [
+  "invalid-reference",
+  "not-found",
+  "current-session",
+] as const;
+
+export type AuthSessionManagementRejectionReason =
+  (typeof AUTH_SESSION_MANAGEMENT_REJECTION_REASONS)[number];
+
+export class AuthSessionManagementError extends Error {
+  readonly code = "AUTH_SESSION_MANAGEMENT_REJECTED";
+
+  constructor(
+    readonly reason:
+      AuthSessionManagementRejectionReason,
+  ) {
+    super(
+      "The requested FilmGeezer session could not be managed.",
+    );
+
+    this.name = "AuthSessionManagementError";
+  }
+}

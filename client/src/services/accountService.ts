@@ -14,6 +14,9 @@ import type {
   AccountPasswordChangeResponse,
   AccountProfileUpdateResponse,
   AccountSecuritySummary,
+  AccountSession,
+  AccountSessionRevokeResponse,
+  AccountSessionsResponse,
   AccountSummary,
   RecentAuthenticationResponse,
 } from "../types/account";
@@ -22,7 +25,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL;
 
 interface AccountRequestOptions {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   csrfToken?: string | null;
   signal?: AbortSignal;
@@ -197,6 +200,61 @@ function isRecentAuthenticationResponse(
     typeof value.message === "string" &&
     typeof value.confirmedAt === "string" &&
     typeof value.expiresAt === "string"
+  );
+}
+
+function isAccountSession(
+  value: unknown,
+): value is AccountSession {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const device = value.device;
+
+  return (
+    typeof value.sessionReference === "string" &&
+    typeof value.current === "boolean" &&
+    isRecord(device) &&
+    (
+      device.type === "computer" ||
+      device.type === "phone" ||
+      device.type === "tablet" ||
+      device.type === "unknown"
+    ) &&
+    typeof device.label === "string" &&
+    typeof device.browser === "string" &&
+    typeof device.platform === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof value.lastSeenAt === "string" &&
+    typeof value.idleExpiresAt === "string" &&
+    typeof value.expiresAt === "string"
+  );
+}
+
+function isAccountSessionsResponse(
+  value: unknown,
+): value is AccountSessionsResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ACCOUNT_SESSIONS_READY" &&
+    typeof value.maximumActiveSessions === "number" &&
+    Array.isArray(value.sessions) &&
+    value.sessions.every(isAccountSession)
+  );
+}
+
+function isAccountSessionRevokeResponse(
+  value: unknown,
+): value is AccountSessionRevokeResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ACCOUNT_SESSION_REVOKED" &&
+    typeof value.message === "string" &&
+    typeof value.sessionReference === "string" &&
+    typeof value.revokedAt === "string"
   );
 }
 
@@ -384,6 +442,34 @@ export function changeAccountPassword(
     {
       method: "POST",
       body: input,
+      csrfToken,
+    },
+  );
+}
+
+export function getAccountSessions(
+  signal?: AbortSignal,
+): Promise<AccountSessionsResponse> {
+  return requestAccountApi(
+    "/api/account/sessions",
+    isAccountSessionsResponse,
+    {
+      signal,
+    },
+  );
+}
+
+export function revokeAccountSession(
+  sessionReference: string,
+  csrfToken: string,
+): Promise<AccountSessionRevokeResponse> {
+  return requestAccountApi(
+    `/api/account/sessions/${encodeURIComponent(
+      sessionReference,
+    )}`,
+    isAccountSessionRevokeResponse,
+    {
+      method: "DELETE",
       csrfToken,
     },
   );

@@ -66,6 +66,43 @@ function timingSafeTextEqual(
   );
 }
 
+export function createAuthSessionReference(
+  sessionId: {
+    toHexString(): string;
+  },
+): string {
+  return createScopedSessionDigest(
+    "filmgeezer-session-reference",
+    sessionId.toHexString(),
+  );
+}
+
+export function verifyAuthSessionReference(
+  candidateReference: string,
+  sessionId: {
+    toHexString(): string;
+  },
+): boolean {
+  if (
+    candidateReference.length !== 43 ||
+    !BASE64URL_PATTERN.test(
+      candidateReference,
+    )
+  ) {
+    return false;
+  }
+
+  const expectedReference =
+    createAuthSessionReference(
+      sessionId,
+    );
+
+  return timingSafeTextEqual(
+    candidateReference,
+    expectedReference,
+  );
+}
+
 export function hashAuthSessionToken(
   sessionToken: string,
 ): string {

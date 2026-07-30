@@ -117,6 +117,16 @@ export const AUTH_ACCOUNT_DETAILS_HTTP_POLICY = {
   maximumRequestsPerWindow: 120,
 } as const;
 
+export const AUTH_ACCOUNT_SESSION_LIST_HTTP_POLICY = {
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 120,
+} as const;
+
+export const AUTH_ACCOUNT_SESSION_REVOKE_HTTP_POLICY = {
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 20,
+} as const;
+
 export const AUTH_RECENT_AUTHENTICATION_POLICY = {
   validForMilliseconds: 5 * 60 * 1_000,
 } as const;

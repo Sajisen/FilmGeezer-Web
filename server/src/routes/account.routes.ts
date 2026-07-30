@@ -14,12 +14,16 @@ import {
   changeCurrentAccountPassword,
   confirmCurrentAccountPassword,
   getCurrentAccountDetails,
+  getCurrentAccountSessions,
+  revokeCurrentAccountSession,
   updateCurrentAccountProfile,
 } from "../controllers/account.controller.js";
 
 import {
   AUTH_ACCOUNT_DETAILS_HTTP_POLICY,
   AUTH_ACCOUNT_PROFILE_HTTP_POLICY,
+  AUTH_ACCOUNT_SESSION_LIST_HTTP_POLICY,
+  AUTH_ACCOUNT_SESSION_REVOKE_HTTP_POLICY,
   AUTH_PASSWORD_CHANGE_HTTP_POLICY,
   AUTH_RECENT_AUTHENTICATION_HTTP_POLICY,
 } from "../features/auth/auth.constants.js";
@@ -99,6 +103,38 @@ const accountProfileRateLimit =
       "Too many profile-update requests. Please wait before trying again.",
   });
 
+const accountSessionListRateLimit =
+  createAccountRateLimit({
+    windowMs:
+      AUTH_ACCOUNT_SESSION_LIST_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+    limit:
+      AUTH_ACCOUNT_SESSION_LIST_HTTP_POLICY
+        .maximumRequestsPerWindow,
+    identifier:
+      "filmgeezer-account-session-list",
+    code:
+      "ACCOUNT_SESSION_LIST_RATE_LIMITED",
+    message:
+      "Too many session-list requests. Please wait before trying again.",
+  });
+
+const accountSessionRevokeRateLimit =
+  createAccountRateLimit({
+    windowMs:
+      AUTH_ACCOUNT_SESSION_REVOKE_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+    limit:
+      AUTH_ACCOUNT_SESSION_REVOKE_HTTP_POLICY
+        .maximumRequestsPerWindow,
+    identifier:
+      "filmgeezer-account-session-revoke",
+    code:
+      "ACCOUNT_SESSION_REVOKE_RATE_LIMITED",
+    message:
+      "Too many device sign-out requests. Please wait before trying again.",
+  });
+
 const recentAuthenticationRateLimit =
   createAccountRateLimit({
     windowMs:
@@ -160,6 +196,22 @@ router.get(
   accountDetailsRateLimit,
   requireAuthenticatedSession,
   getCurrentAccountDetails,
+);
+
+router.get(
+  "/sessions",
+  accountSessionListRateLimit,
+  requireAuthenticatedSession,
+  getCurrentAccountSessions,
+);
+
+router.delete(
+  "/sessions/:sessionReference",
+  accountSessionRevokeRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requireRecentAuthentication,
+  revokeCurrentAccountSession,
 );
 
 router.patch(

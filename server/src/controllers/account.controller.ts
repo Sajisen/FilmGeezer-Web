@@ -16,9 +16,15 @@ import {
 } from "../features/account/account.service.js";
 
 import {
+  getAccountSessions,
+  revokeAccountSession,
+} from "../features/account/account.sessions.service.js";
+
+import {
   AuthCurrentPasswordInvalidError,
   AuthPasswordReuseError,
   AuthPersistenceError,
+  AuthSessionManagementError,
   AuthWeakPasswordError,
 } from "../features/auth/auth.errors.js";
 
@@ -488,3 +494,196 @@ export async function changeCurrentAccountPassword(
     next(error);
   }
 }
+
+export async function getCurrentAccountSessions(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  response.setHeader(
+    "Cache-Control",
+    "no-store",
+  );
+
+  try {
+    const auth =
+      getAuthenticatedSessionContext(
+        request,
+      );
+
+    const result =
+      await getAccountSessions(auth);
+
+    response.status(200).json({
+      status: "success",
+      code:
+        "ACCOUNT_SESSIONS_READY",
+
+      maximumActiveSessions:
+        result.maximumActiveSessions,
+
+      sessions:
+        result.sessions.map(
+          (session) => ({
+            sessionReference:
+              session.sessionReference,
+
+            current:
+              session.current,
+
+            device:
+              session.device,
+
+            createdAt:
+              session.createdAt
+                .toISOString(),
+
+            lastSeenAt:
+              session.lastSeenAt
+                .toISOString(),
+
+            idleExpiresAt:
+              session.idleExpiresAt
+                .toISOString(),
+
+            expiresAt:
+              session.expiresAt
+                .toISOString(),
+          }),
+        ),
+    });
+  } catch (error) {
+    if (
+      error instanceof
+      AuthPersistenceError
+    ) {
+      console.error(
+        "[account-sessions] Session list could not be loaded.",
+        {
+          name: error.name,
+          code: error.code,
+        },
+      );
+
+      response.status(503).json({
+        status: "error",
+        code:
+          "ACCOUNT_TEMPORARILY_UNAVAILABLE",
+        message:
+          "Your active sessions are temporarily unavailable. Please try again shortly.",
+      });
+
+      return;
+    }
+
+    next(error);
+  }
+}
+
+export async function revokeCurrentAccountSession(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  response.setHeader(
+    "Cache-Control",
+    "no-store",
+  );
+
+  try {
+    const auth =
+      getAuthenticatedSessionContext(
+        request,
+      );
+
+    const result =
+      await revokeAccountSession(
+        request.params.sessionReference,
+        auth,
+        createRequestMetadata(
+          request,
+        ),
+      );
+
+    response.status(200).json({
+      status: "success",
+      code:
+        "ACCOUNT_SESSION_REVOKED",
+      message:
+        "The selected device has been signed out.",
+      sessionReference:
+        result.sessionReference,
+      revokedAt:
+        result.revokedAt
+          .toISOString(),
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      response.status(400).json({
+        status: "error",
+        code:
+          "ACCOUNT_INVALID_SESSION_REFERENCE",
+        message:
+          "The selected session is invalid.",
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof
+      AuthSessionManagementError
+    ) {
+      if (
+        error.reason ===
+        "current-session"
+      ) {
+        response.status(409).json({
+          status: "error",
+          code:
+            "ACCOUNT_CURRENT_SESSION_REVOKE_REJECTED",
+          message:
+            "Use Sign out to end the current device session.",
+        });
+
+        return;
+      }
+
+      response.status(404).json({
+        status: "error",
+        code:
+          "ACCOUNT_SESSION_NOT_FOUND",
+        message:
+          "This session is no longer active.",
+      });
+
+      return;
+    }
+
+    if (
+      error instanceof
+      AuthPersistenceError
+    ) {
+      console.error(
+        "[account-sessions] Session revocation failed.",
+        {
+          name: error.name,
+          code: error.code,
+        },
+      );
+
+      response.status(503).json({
+        status: "error",
+        code:
+          "ACCOUNT_TEMPORARILY_UNAVAILABLE",
+        message:
+          "The selected device cannot be signed out right now. Please try again shortly.",
+      });
+
+      return;
+    }
+
+    next(error);
+  }
+}
+

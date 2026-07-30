@@ -450,3 +450,26 @@ export function parseAccountPasswordChangeInput(
 ): NormalizedAccountPasswordChangeInput {
   return accountPasswordChangeInputSchema.parse(value);
 }
+
+
+const AUTH_SESSION_REFERENCE_PATTERN =
+  /^[A-Za-z0-9_-]{43}$/u;
+
+export const accountSessionReferenceSchema = z
+  .string({
+    error: "Session reference must be text.",
+  })
+  .regex(
+    AUTH_SESSION_REFERENCE_PATTERN,
+    "Session reference is invalid.",
+  );
+
+export type AccountSessionReferenceInput = z.input<
+  typeof accountSessionReferenceSchema
+>;
+
+export function parseAccountSessionReference(
+  value: unknown,
+): AccountSessionReferenceInput {
+  return accountSessionReferenceSchema.parse(value);
+}

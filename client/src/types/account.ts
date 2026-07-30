@@ -55,3 +55,41 @@ export interface AccountPasswordChangeResponse {
   user: AuthUser;
   session: AuthSessionSummary;
 }
+
+export type AccountSessionDeviceType =
+  | "computer"
+  | "phone"
+  | "tablet"
+  | "unknown";
+
+export interface AccountSessionDevice {
+  type: AccountSessionDeviceType;
+  label: string;
+  browser: string;
+  platform: string;
+}
+
+export interface AccountSession {
+  sessionReference: string;
+  current: boolean;
+  device: AccountSessionDevice;
+  createdAt: string;
+  lastSeenAt: string;
+  idleExpiresAt: string;
+  expiresAt: string;
+}
+
+export interface AccountSessionsResponse {
+  status: "success";
+  code: "ACCOUNT_SESSIONS_READY";
+  maximumActiveSessions: number;
+  sessions: AccountSession[];
+}
+
+export interface AccountSessionRevokeResponse {
+  status: "success";
+  code: "ACCOUNT_SESSION_REVOKED";
+  message: string;
+  sessionReference: string;
+  revokedAt: string;
+}

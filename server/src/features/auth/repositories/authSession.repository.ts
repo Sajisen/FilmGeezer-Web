@@ -331,3 +331,39 @@ export async function recordRecentAuthentication(
 
   return result.matchedCount === 1;
 }
+
+export interface ListActiveAuthSessionsInput {
+  userId: ObjectId;
+  checkedAt: Date;
+}
+
+export async function listActiveAuthSessions(
+  input: ListActiveAuthSessionsInput,
+): Promise<AuthSessionDocument[]> {
+  const { sessions } =
+    await getAuthCollections();
+
+  const idleThreshold = new Date(
+    input.checkedAt.getTime() -
+      AUTH_SESSION_POLICY
+        .idleTimeoutMilliseconds,
+  );
+
+  return sessions
+    .find({
+      userId: input.userId,
+      revokedAt: null,
+      expiresAt: {
+        $gt: input.checkedAt,
+      },
+      lastSeenAt: {
+        $gt: idleThreshold,
+      },
+    })
+    .sort({
+      lastSeenAt: -1,
+      createdAt: -1,
+      _id: -1,
+    })
+    .toArray();
+}

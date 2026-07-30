@@ -17,6 +17,8 @@ import {
 
 import {
   getAccountDetails,
+  getAccountSessions,
+  revokeAccountSession,
 } from "../services/accountService";
 
 import {
@@ -25,20 +27,24 @@ import {
 
 import type {
   AccountDetailsResponse,
+  AccountSession,
 } from "../types/account";
 
 import ChangePasswordPanel from "../features/account/components/ChangePasswordPanel";
 import ProfileEditor from "../features/account/components/ProfileEditor";
 import RecentPasswordDialog from "../features/account/components/RecentPasswordDialog";
+import SessionManager from "../features/account/components/SessionManager";
 
 type AccountTab =
   | "overview"
   | "profile"
+  | "devices"
   | "security";
 
 type SensitiveAction =
   | "change-password"
-  | "sign-out-all";
+  | "sign-out-all"
+  | "revoke-session";
 
 const ACCOUNT_TABS: Array<{
   id: AccountTab;
@@ -51,6 +57,10 @@ const ACCOUNT_TABS: Array<{
   {
     id: "profile",
     label: "Profile",
+  },
+  {
+    id: "devices",
+    label: "Devices",
   },
   {
     id: "security",
@@ -216,6 +226,33 @@ function AccountPage() {
   const [isSigningOutAll, setIsSigningOutAll] =
     useState(false);
 
+  const [sessions, setSessions] =
+    useState<AccountSession[]>([]);
+
+  const [
+    maximumActiveSessions,
+    setMaximumActiveSessions,
+  ] = useState(5);
+
+  const [sessionsError, setSessionsError] =
+    useState<string | null>(null);
+
+  const [isLoadingSessions, setIsLoadingSessions] =
+    useState(false);
+
+  const [
+    revokingSessionReference,
+    setRevokingSessionReference,
+  ] = useState<string | null>(null);
+
+  const [
+    pendingSessionToRevoke,
+    setPendingSessionToRevoke,
+  ] = useState<AccountSession | null>(
+    null,
+  );
+
+
   useEffect(() => {
     if (auth.status === "guest") {
       navigate(
@@ -271,6 +308,53 @@ function AccountPage() {
       [],
     );
 
+  const loadSessions =
+    useCallback(
+      async (
+        signal?: AbortSignal,
+      ) => {
+        setIsLoadingSessions(true);
+        setSessionsError(null);
+
+        try {
+          const response =
+            await getAccountSessions(
+              signal,
+            );
+
+          if (!signal?.aborted) {
+            setSessions(
+              response.sessions,
+            );
+            setMaximumActiveSessions(
+              response
+                .maximumActiveSessions,
+            );
+          }
+        } catch (error) {
+          if (
+            error instanceof DOMException &&
+            error.name === "AbortError"
+          ) {
+            return;
+          }
+
+          if (!signal?.aborted) {
+            setSessionsError(
+              error instanceof Error
+                ? error.message
+                : "FilmGeezer could not load your active sessions.",
+            );
+          }
+        } finally {
+          if (!signal?.aborted) {
+            setIsLoadingSessions(false);
+          }
+        }
+      },
+      [],
+    );
+
   useEffect(() => {
     if (auth.status !== "authenticated") {
       return;
@@ -284,13 +368,21 @@ function AccountPage() {
         void loadDetails(
           controller.signal,
         );
+
+        void loadSessions(
+          controller.signal,
+        );
       }, 0);
 
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [auth.status, loadDetails]);
+  }, [
+    auth.status,
+    loadDetails,
+    loadSessions,
+  ]);
 
   const initials = useMemo(
     () =>
@@ -410,6 +502,81 @@ function AccountPage() {
     );
   }
 
+  async function handleRevokeSession(
+    session: AccountSession,
+  ) {
+    if (
+      revokingSessionReference !== null
+    ) {
+      return;
+    }
+
+    setRevokingSessionReference(
+      session.sessionReference,
+    );
+    setSecurityError(null);
+    setSecurityMessage(null);
+    setSessionsError(null);
+
+    try {
+      const response =
+        await revokeAccountSession(
+          session.sessionReference,
+          csrfToken,
+        );
+
+      setSessions((current) =>
+        current.filter(
+          (item) =>
+            item.sessionReference !==
+            response.sessionReference,
+        ),
+      );
+
+      setSecurityMessage(
+        response.message,
+      );
+    } catch (error) {
+      if (
+        error instanceof AuthApiError &&
+        error.code ===
+          "AUTH_RECENT_AUTHENTICATION_REQUIRED"
+      ) {
+        setPendingSessionToRevoke(
+          session,
+        );
+        setPendingSensitiveAction(
+          "revoke-session",
+        );
+        return;
+      }
+
+      if (
+        error instanceof AuthApiError &&
+        error.code ===
+          "ACCOUNT_SESSION_NOT_FOUND"
+      ) {
+        setSessions((current) =>
+          current.filter(
+            (item) =>
+              item.sessionReference !==
+              session.sessionReference,
+          ),
+        );
+      }
+
+      setSessionsError(
+        error instanceof Error
+          ? error.message
+          : "FilmGeezer could not sign out the selected device.",
+      );
+    } finally {
+      setRevokingSessionReference(
+        null,
+      );
+    }
+  }
+
   async function handleSignOutAll() {
     if (isSigningOutAll) {
       return;
@@ -452,15 +619,31 @@ function AccountPage() {
 
   function beginSensitiveAction(
     action: SensitiveAction,
+    session?: AccountSession,
   ) {
     setSecurityError(null);
     setSecurityMessage(null);
 
+    if (
+      action === "revoke-session" &&
+      session
+    ) {
+      setPendingSessionToRevoke(
+        session,
+      );
+    }
+
     if (recentAuthenticationIsActive) {
       if (action === "change-password") {
         setShowChangePassword(true);
-      } else {
+      } else if (
+        action === "sign-out-all"
+      ) {
         void handleSignOutAll();
+      } else if (session) {
+        void handleRevokeSession(
+          session,
+        );
       }
 
       return;
@@ -489,13 +672,19 @@ function AccountPage() {
     pendingSensitiveAction ===
       "sign-out-all"
       ? "Confirm sign out everywhere"
-      : "Confirm your identity";
+      : pendingSensitiveAction ===
+          "revoke-session"
+        ? "Confirm device sign out"
+        : "Confirm your identity";
 
   const recentPasswordDialogDescription =
     pendingSensitiveAction ===
       "sign-out-all"
       ? "Enter your current password before FilmGeezer revokes every active session."
-      : "Enter your current password before choosing a new one.";
+      : pendingSensitiveAction ===
+          "revoke-session"
+        ? `Enter your current password before signing out ${pendingSessionToRevoke?.device.label ?? "this device"}.`
+        : "Enter your current password before choosing a new one.";
 
   return (
     <main className="min-h-screen bg-slate-950 pb-20 text-white">
@@ -753,6 +942,38 @@ function AccountPage() {
           </section>
         )}
 
+        {activeTab === "devices" && (
+          <div className="mt-6">
+            <SessionManager
+              sessions={sessions}
+              maximumActiveSessions={
+                maximumActiveSessions
+              }
+              isLoading={
+                isLoadingSessions
+              }
+              errorMessage={
+                sessionsError
+              }
+              successMessage={
+                securityMessage
+              }
+              revokingSessionReference={
+                revokingSessionReference
+              }
+              onRefresh={() => {
+                void loadSessions();
+              }}
+              onRevoke={(session) => {
+                beginSensitiveAction(
+                  "revoke-session",
+                  session,
+                );
+              }}
+            />
+          </div>
+        )}
+
         {activeTab === "security" && (
           <div className="mt-6 space-y-6">
             <section className="rounded-3xl border border-white/10 bg-white/[0.035] p-6 sm:p-7">
@@ -904,23 +1125,38 @@ function AccountPage() {
             }
             onCancel={() => {
               setPendingSensitiveAction(null);
+              setPendingSessionToRevoke(null);
             }}
             onConfirmed={(expiresAt) => {
               const action =
                 pendingSensitiveAction;
+
+              const session =
+                pendingSessionToRevoke;
 
               updateRecentAuthenticationExpiry(
                 expiresAt,
               );
 
               setPendingSensitiveAction(null);
+              setPendingSessionToRevoke(null);
 
               if (
                 action === "change-password"
               ) {
                 setShowChangePassword(true);
-              } else {
+              } else if (
+                action === "sign-out-all"
+              ) {
                 void handleSignOutAll();
+              } else if (
+                action ===
+                  "revoke-session" &&
+                session
+              ) {
+                void handleRevokeSession(
+                  session,
+                );
               }
             }}
           />
