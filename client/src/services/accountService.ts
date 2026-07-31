@@ -11,6 +11,12 @@ import type {
 
 import type {
   AccountDetailsResponse,
+  AccountEmailChangeCancelResponse,
+  AccountEmailChangeCompleteResponse,
+  AccountEmailChangeReceipt,
+  AccountEmailChangeRequestResponse,
+  AccountEmailChangeResendResponse,
+  AccountEmailChangeStatusResponse,
   AccountPasswordChangeResponse,
   AccountProfileUpdateResponse,
   AccountSecuritySummary,
@@ -258,6 +264,94 @@ function isAccountSessionRevokeResponse(
   );
 }
 
+function isAccountEmailChangeReceipt(
+  value: unknown,
+): value is AccountEmailChangeReceipt {
+  return (
+    isRecord(value) &&
+    typeof value.challengeId === "string" &&
+    typeof value.targetEmail === "string" &&
+    typeof value.expiresAt === "string" &&
+    typeof value.resendAvailableAt === "string" &&
+    typeof value.attemptsRemaining === "number"
+  );
+}
+
+function isAccountEmailChangeStatusResponse(
+  value: unknown,
+): value is AccountEmailChangeStatusResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code ===
+      "ACCOUNT_EMAIL_CHANGE_STATUS_READY" &&
+    (
+      value.pending === null ||
+      isAccountEmailChangeReceipt(value.pending)
+    )
+  );
+}
+
+function isAccountEmailChangeRequestResponse(
+  value: unknown,
+): value is AccountEmailChangeRequestResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code ===
+      "ACCOUNT_EMAIL_CHANGE_VERIFICATION_REQUIRED" &&
+    typeof value.message === "string" &&
+    isAccountEmailChangeReceipt(
+      value.verification,
+    )
+  );
+}
+
+function isAccountEmailChangeResendResponse(
+  value: unknown,
+): value is AccountEmailChangeResendResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code ===
+      "ACCOUNT_EMAIL_CHANGE_CODE_RESENT" &&
+    typeof value.message === "string" &&
+    isAccountEmailChangeReceipt(
+      value.verification,
+    )
+  );
+}
+
+function isAccountEmailChangeCompleteResponse(
+  value: unknown,
+): value is AccountEmailChangeCompleteResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ACCOUNT_EMAIL_CHANGED" &&
+    typeof value.message === "string" &&
+    typeof value.previousEmail === "string" &&
+    typeof value.changedAt === "string" &&
+    typeof value.sessionsRevoked === "number" &&
+    isAuthUser(value.user) &&
+    isSessionSummary(value.session)
+  );
+}
+
+function isAccountEmailChangeCancelResponse(
+  value: unknown,
+): value is AccountEmailChangeCancelResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code ===
+      "ACCOUNT_EMAIL_CHANGE_CANCELLED" &&
+    typeof value.message === "string" &&
+    typeof value.challengeId === "string" &&
+    typeof value.cancelledAt === "string"
+  );
+}
+
 function isAccountPasswordChangeResponse(
   value: unknown,
 ): value is AccountPasswordChangeResponse {
@@ -474,3 +568,82 @@ export function revokeAccountSession(
     },
   );
 }
+
+export function getAccountEmailChangeStatus(
+  signal?: AbortSignal,
+): Promise<AccountEmailChangeStatusResponse> {
+  return requestAccountApi(
+    "/api/account/email-change",
+    isAccountEmailChangeStatusResponse,
+    { signal },
+  );
+}
+
+export function requestAccountEmailChange(
+  input: {
+    newEmail: string;
+  },
+  csrfToken: string,
+): Promise<AccountEmailChangeRequestResponse> {
+  return requestAccountApi(
+    "/api/account/email-change/request",
+    isAccountEmailChangeRequestResponse,
+    {
+      method: "POST",
+      body: input,
+      csrfToken,
+    },
+  );
+}
+
+export function resendAccountEmailChangeCode(
+  input: {
+    challengeId: string;
+  },
+  csrfToken: string,
+): Promise<AccountEmailChangeResendResponse> {
+  return requestAccountApi(
+    "/api/account/email-change/resend",
+    isAccountEmailChangeResendResponse,
+    {
+      method: "POST",
+      body: input,
+      csrfToken,
+    },
+  );
+}
+
+export function verifyAccountEmailChange(
+  input: {
+    challengeId: string;
+    code: string;
+  },
+  csrfToken: string,
+): Promise<AccountEmailChangeCompleteResponse> {
+  return requestAccountApi(
+    "/api/account/email-change/verify",
+    isAccountEmailChangeCompleteResponse,
+    {
+      method: "POST",
+      body: input,
+      csrfToken,
+    },
+  );
+}
+
+export function cancelAccountEmailChange(
+  challengeId: string,
+  csrfToken: string,
+): Promise<AccountEmailChangeCancelResponse> {
+  return requestAccountApi(
+    `/api/account/email-change/${encodeURIComponent(
+      challengeId,
+    )}`,
+    isAccountEmailChangeCancelResponse,
+    {
+      method: "DELETE",
+      csrfToken,
+    },
+  );
+}
+

@@ -263,6 +263,41 @@ export class AuthCurrentPasswordInvalidError extends Error {
 }
 
 
+export const AUTH_EMAIL_CHANGE_REJECTION_REASONS = [
+  "same-email",
+  "email-in-use",
+  "invalid-challenge",
+  "incorrect-code",
+  "expired",
+  "attempts-exceeded",
+  "already-used",
+  "superseded",
+  "account-changed",
+  "account-unavailable",
+  "cooldown",
+  "send-limit",
+] as const;
+
+export type AuthEmailChangeRejectionReason =
+  (typeof AUTH_EMAIL_CHANGE_REJECTION_REASONS)[number];
+
+export class AuthEmailChangeError extends Error {
+  readonly code = "ACCOUNT_EMAIL_CHANGE_REJECTED";
+
+  constructor(
+    readonly reason: AuthEmailChangeRejectionReason,
+    readonly attemptsRemaining: number | null = null,
+    readonly retryAt: Date | null = null,
+  ) {
+    super(
+      "The FilmGeezer email-address change could not be completed.",
+    );
+
+    this.name = "AuthEmailChangeError";
+  }
+}
+
+
 export const AUTH_SESSION_MANAGEMENT_REJECTION_REASONS = [
   "invalid-reference",
   "not-found",

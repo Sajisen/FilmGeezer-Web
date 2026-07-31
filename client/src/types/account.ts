@@ -93,3 +93,51 @@ export interface AccountSessionRevokeResponse {
   sessionReference: string;
   revokedAt: string;
 }
+
+export interface AccountEmailChangeReceipt {
+  challengeId: string;
+  targetEmail: string;
+  expiresAt: string;
+  resendAvailableAt: string;
+  attemptsRemaining: number;
+}
+
+export interface AccountEmailChangeStatusResponse {
+  status: "success";
+  code: "ACCOUNT_EMAIL_CHANGE_STATUS_READY";
+  pending: AccountEmailChangeReceipt | null;
+}
+
+export interface AccountEmailChangeRequestResponse {
+  status: "success";
+  code:
+    "ACCOUNT_EMAIL_CHANGE_VERIFICATION_REQUIRED";
+  message: string;
+  verification: AccountEmailChangeReceipt;
+}
+
+export interface AccountEmailChangeResendResponse {
+  status: "success";
+  code: "ACCOUNT_EMAIL_CHANGE_CODE_RESENT";
+  message: string;
+  verification: AccountEmailChangeReceipt;
+}
+
+export interface AccountEmailChangeCompleteResponse {
+  status: "success";
+  code: "ACCOUNT_EMAIL_CHANGED";
+  message: string;
+  previousEmail: string;
+  changedAt: string;
+  sessionsRevoked: number;
+  user: AuthUser;
+  session: AuthSessionSummary;
+}
+
+export interface AccountEmailChangeCancelResponse {
+  status: "success";
+  code: "ACCOUNT_EMAIL_CHANGE_CANCELLED";
+  message: string;
+  challengeId: string;
+  cancelledAt: string;
+}

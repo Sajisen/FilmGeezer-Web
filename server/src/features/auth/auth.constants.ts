@@ -127,6 +127,40 @@ export const AUTH_ACCOUNT_SESSION_REVOKE_HTTP_POLICY = {
   maximumRequestsPerWindow: 20,
 } as const;
 
+
+export const AUTH_EMAIL_CHANGE_REQUEST_HTTP_POLICY = {
+  requestBodyLimit: "4kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 5,
+} as const;
+
+export const AUTH_EMAIL_CHANGE_VERIFY_HTTP_POLICY = {
+  requestBodyLimit: "4kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 20,
+} as const;
+
+export const AUTH_EMAIL_CHANGE_RESEND_HTTP_POLICY = {
+  requestBodyLimit: "4kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 10,
+} as const;
+
+export const AUTH_EMAIL_CHANGE_CANCEL_HTTP_POLICY = {
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 20,
+} as const;
+
+export const AUTH_EMAIL_CHANGE_POLICY = {
+  codeDigits: 6,
+  expiresAfterMilliseconds: 10 * 60 * 1_000,
+  retentionAfterExpiryMilliseconds:
+    24 * 60 * 60 * 1_000,
+  maximumAttempts: 5,
+  resendCooldownMilliseconds: 60 * 1_000,
+  maximumSendsPerChallenge: 3,
+} as const;
+
 export const AUTH_RECENT_AUTHENTICATION_POLICY = {
   validForMilliseconds: 5 * 60 * 1_000,
 } as const;

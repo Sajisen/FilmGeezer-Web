@@ -183,7 +183,7 @@ function ProfileEditor({
           value={email}
           disabled
           readOnly
-          hint="Email changes will use a separate verification flow."
+          hint="Change this from Security. Your current address stays active until the new one is verified."
         />
       </div>
 

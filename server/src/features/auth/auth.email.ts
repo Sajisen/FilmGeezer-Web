@@ -23,6 +23,20 @@ export interface SendPasswordResetInput {
   expiresAt: Date;
 }
 
+export interface SendEmailChangeVerificationInput {
+  recipientEmail: string;
+  displayName: string;
+  verificationCode: string;
+  expiresAt: Date;
+}
+
+export interface SendEmailChangedNoticeInput {
+  recipientEmail: string;
+  displayName: string;
+  newEmail: string;
+  changedAt: Date;
+}
+
 export interface AuthEmailService {
   sendEmailVerification(
     input: SendEmailVerificationInput,
@@ -34,6 +48,14 @@ export interface AuthEmailService {
 
   sendPasswordReset(
     input: SendPasswordResetInput,
+  ): Promise<void>;
+
+  sendEmailChangeVerification(
+    input: SendEmailChangeVerificationInput,
+  ): Promise<void>;
+
+  sendEmailChangedNotice(
+    input: SendEmailChangedNoticeInput,
   ): Promise<void>;
 }
 
@@ -105,6 +127,50 @@ export const developmentAuthEmailService:
           `Reset link: ${input.resetUrl}`,
           `Expires at: ${input.expiresAt.toISOString()}`,
           "This link is single-use. FilmGeezer will revoke every active session after a successful reset.",
+          "==================================================",
+          "",
+        ].join("\n"),
+      );
+    },
+
+    async sendEmailChangeVerification(
+      input: SendEmailChangeVerificationInput,
+    ): Promise<void> {
+      assertDevelopmentEmailAdapter();
+
+      console.log(
+        [
+          "",
+          "==================================================",
+          "FilmGeezer development email-change verification",
+          "==================================================",
+          `Recipient: ${input.recipientEmail}`,
+          `Display name: ${input.displayName}`,
+          `Verification code: ${input.verificationCode}`,
+          `Expires at: ${input.expiresAt.toISOString()}`,
+          "The current account email remains unchanged until this code is verified.",
+          "==================================================",
+          "",
+        ].join("\n"),
+      );
+    },
+
+    async sendEmailChangedNotice(
+      input: SendEmailChangedNoticeInput,
+    ): Promise<void> {
+      assertDevelopmentEmailAdapter();
+
+      console.log(
+        [
+          "",
+          "==================================================",
+          "FilmGeezer development email-changed notice",
+          "==================================================",
+          `Recipient: ${input.recipientEmail}`,
+          `Display name: ${input.displayName}`,
+          `New email: ${input.newEmail}`,
+          `Changed at: ${input.changedAt.toISOString()}`,
+          "If this change was unexpected, contact FilmGeezer support immediately.",
           "==================================================",
           "",
         ].join("\n"),

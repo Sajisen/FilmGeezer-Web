@@ -29,6 +29,7 @@ export type UserStatus =
 export const AUTH_CHALLENGE_PURPOSE_VALUES = [
   "verify-email",
   "reset-password",
+  "change-email",
 ] as const;
 
 export type AuthChallengePurpose =
@@ -38,6 +39,7 @@ export const AUTH_SESSION_REVOCATION_REASON_VALUES = [
   "logout",
   "logout-all",
   "password-changed",
+  "email-changed",
   "account-suspended",
   "security-event",
   "provider-migration",
@@ -76,6 +78,12 @@ export const AUTH_AUDIT_EVENT_VALUES = [
   "reauthentication-succeeded",
   "reauthentication-failed",
   "session-revoked",
+  "email-change-requested",
+  "email-change-verification-sent",
+  "email-change-verification-failed",
+  "email-changed",
+  "email-change-cancelled",
+  "email-change-old-address-notified",
   "account-suspended",
   "account-reactivated",
 ] as const;
@@ -162,6 +170,12 @@ export interface AuthSessionDocument {
     | null;
 }
 
+export interface AuthEmailChangeChallengeContext {
+  sourceEmailNormalized: string;
+  targetEmailNormalized: string;
+  targetEmailDisplay: string;
+}
+
 export interface AuthChallengeDocument {
   _id: ObjectId;
   schemaVersion: number;
@@ -170,6 +184,14 @@ export interface AuthChallengeDocument {
 
   userId: ObjectId;
   purpose: AuthChallengePurpose;
+
+  /*
+   * Purpose-specific context. Existing challenge documents may not have
+   * this field, so consumers must treat it as optional.
+   */
+  emailChange?:
+    | AuthEmailChangeChallengeContext
+    | null;
 
   secretHash: string;
 

@@ -342,3 +342,41 @@ export async function updateActiveUserDisplayName(
     },
   );
 }
+
+export interface UpdateActiveUserEmailInput {
+  userId: ObjectId;
+  expectedEmailNormalized: string;
+  emailNormalized: string;
+  emailDisplay: string;
+  verifiedAt: Date;
+}
+
+export async function updateActiveUserEmail(
+  input: UpdateActiveUserEmailInput,
+  session: ClientSession,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } = await getAuthCollections();
+
+  return users.findOneAndUpdate(
+    {
+      _id: input.userId,
+      status: "active",
+      emailVerifiedAt: { $ne: null },
+      suspendedAt: null,
+      deletedAt: null,
+      emailNormalized: input.expectedEmailNormalized,
+    },
+    {
+      $set: {
+        emailNormalized: input.emailNormalized,
+        emailDisplay: input.emailDisplay,
+        emailVerifiedAt: input.verifiedAt,
+        updatedAt: input.verifiedAt,
+      },
+    },
+    {
+      returnDocument: "after",
+      session,
+    },
+  );
+}

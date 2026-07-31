@@ -8,6 +8,7 @@ import {
 import type { ObjectId } from "mongodb";
 import { env } from "../../config/env.js";
 import {
+  AUTH_EMAIL_CHANGE_POLICY,
   AUTH_EMAIL_VERIFICATION_POLICY,
   AUTH_PASSWORD_RESET_POLICY,
 } from "./auth.constants.js";
@@ -24,16 +25,14 @@ export interface GeneratedAuthChallenge {
   expiresAt: Date;
 }
 
-function createVerificationCode(): string {
-  const maximumValue =
-    10 ** AUTH_EMAIL_VERIFICATION_POLICY.codeDigits;
+function createNumericCode(
+  digits: number,
+): string {
+  const maximumValue = 10 ** digits;
 
   return randomInt(0, maximumValue)
     .toString()
-    .padStart(
-      AUTH_EMAIL_VERIFICATION_POLICY.codeDigits,
-      "0",
-    );
+    .padStart(digits, "0");
 }
 
 function createChallengeDigest(
@@ -63,7 +62,9 @@ export function generateEmailVerificationChallenge(
   createdAt = new Date(),
 ): GeneratedAuthChallenge {
   const publicId = randomUUID();
-  const secret = createVerificationCode();
+  const secret = createNumericCode(
+    AUTH_EMAIL_VERIFICATION_POLICY.codeDigits,
+  );
 
   const digest = createChallengeDigest(
     publicId,
@@ -81,6 +82,36 @@ export function generateEmailVerificationChallenge(
     expiresAt: new Date(
       createdAt.getTime() +
         AUTH_EMAIL_VERIFICATION_POLICY
+          .expiresAfterMilliseconds,
+    ),
+  };
+}
+
+
+export function generateEmailChangeChallenge(
+  userId: ObjectId,
+  createdAt = new Date(),
+): GeneratedAuthChallenge {
+  const publicId = randomUUID();
+  const secret = createNumericCode(
+    AUTH_EMAIL_CHANGE_POLICY.codeDigits,
+  );
+
+  const digest = createChallengeDigest(
+    publicId,
+    userId,
+    "change-email",
+    secret,
+  );
+
+  return {
+    publicId,
+    secret,
+    secretHash: digest.toString("base64url"),
+    createdAt,
+    expiresAt: new Date(
+      createdAt.getTime() +
+        AUTH_EMAIL_CHANGE_POLICY
           .expiresAfterMilliseconds,
     ),
   };

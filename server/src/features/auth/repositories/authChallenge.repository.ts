@@ -4,6 +4,7 @@ import {
 } from "mongodb";
 
 import {
+  AUTH_EMAIL_CHANGE_POLICY,
   AUTH_EMAIL_VERIFICATION_POLICY,
   AUTH_PASSWORD_RESET_POLICY,
   AUTH_SCHEMA_VERSION,
@@ -90,6 +91,8 @@ export async function createEmailVerificationChallenge(
 
       purpose:
         "verify-email",
+
+      emailChange: null,
 
       secretHash:
         input.secretHash,
@@ -485,6 +488,7 @@ export async function createPasswordResetChallenge(
     publicId: input.publicId,
     userId: input.userId,
     purpose: "reset-password",
+    emailChange: null,
     secretHash: input.secretHash,
     attemptCount: 0,
     maximumAttempts:
@@ -661,3 +665,211 @@ export async function consumePasswordResetChallenge(
 
   return result.modifiedCount === 1;
 }
+
+export interface CreateEmailChangeChallengeInput {
+  challengeId: ObjectId;
+  publicId: string;
+  userId: ObjectId;
+  secretHash: string;
+  sourceEmailNormalized: string;
+  targetEmailNormalized: string;
+  targetEmailDisplay: string;
+  createdAt: Date;
+  expiresAt: Date;
+  sendCount: number;
+  lastSentAt: Date;
+}
+
+export async function createEmailChangeChallenge(
+  input: CreateEmailChangeChallengeInput,
+  session: ClientSession,
+): Promise<AuthChallengeDocument> {
+  const { challenges } = await getAuthCollections();
+
+  const challenge: AuthChallengeDocument = {
+    _id: input.challengeId,
+    schemaVersion: AUTH_SCHEMA_VERSION,
+    publicId: input.publicId,
+    userId: input.userId,
+    purpose: "change-email",
+    emailChange: {
+      sourceEmailNormalized: input.sourceEmailNormalized,
+      targetEmailNormalized: input.targetEmailNormalized,
+      targetEmailDisplay: input.targetEmailDisplay,
+    },
+    secretHash: input.secretHash,
+    attemptCount: 0,
+    maximumAttempts: AUTH_EMAIL_CHANGE_POLICY.maximumAttempts,
+    sendCount: input.sendCount,
+    createdAt: input.createdAt,
+    lastSentAt: input.lastSentAt,
+    expiresAt: input.expiresAt,
+    deleteAt: new Date(
+      input.expiresAt.getTime() +
+        AUTH_EMAIL_CHANGE_POLICY.retentionAfterExpiryMilliseconds,
+    ),
+    consumedAt: null,
+    invalidatedAt: null,
+  };
+
+  await challenges.insertOne(challenge, { session });
+  return challenge;
+}
+
+export async function findEmailChangeChallengeByPublicId(
+  publicId: string,
+  session?: ClientSession,
+): Promise<AuthChallengeDocument | null> {
+  const { challenges } = await getAuthCollections();
+
+  return challenges.findOne(
+    { publicId, purpose: "change-email" },
+    session ? { session } : undefined,
+  );
+}
+
+export async function findLatestEmailChangeChallengeForUser(
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<AuthChallengeDocument | null> {
+  const { challenges } = await getAuthCollections();
+
+  return challenges.findOne(
+    { userId, purpose: "change-email" },
+    {
+      sort: { createdAt: -1, _id: -1 },
+      ...(session ? { session } : {}),
+    },
+  );
+}
+
+export interface RecordFailedEmailChangeAttemptInput {
+  challengeId: ObjectId;
+  userId: ObjectId;
+  attemptedAt: Date;
+}
+
+export interface RecordFailedEmailChangeAttemptResult {
+  recorded: boolean;
+  attemptsRemaining: number | null;
+  locked: boolean;
+}
+
+export async function recordFailedEmailChangeAttempt(
+  input: RecordFailedEmailChangeAttemptInput,
+): Promise<RecordFailedEmailChangeAttemptResult> {
+  const { challenges } = await getAuthCollections();
+
+  const updateResult = await challenges.updateOne(
+    {
+      _id: input.challengeId,
+      userId: input.userId,
+      purpose: "change-email",
+      consumedAt: null,
+      invalidatedAt: null,
+      expiresAt: { $gt: input.attemptedAt },
+      attemptCount: { $lt: AUTH_EMAIL_CHANGE_POLICY.maximumAttempts },
+    },
+    { $inc: { attemptCount: 1 } },
+  );
+
+  if (updateResult.modifiedCount !== 1) {
+    return {
+      recorded: false,
+      attemptsRemaining: null,
+      locked: false,
+    };
+  }
+
+  const updatedChallenge = await challenges.findOne(
+    { _id: input.challengeId, userId: input.userId },
+    { projection: { attemptCount: 1, maximumAttempts: 1 } },
+  );
+
+  if (!updatedChallenge) {
+    return {
+      recorded: true,
+      attemptsRemaining: null,
+      locked: false,
+    };
+  }
+
+  const attemptsRemaining = Math.max(
+    0,
+    updatedChallenge.maximumAttempts -
+      updatedChallenge.attemptCount,
+  );
+
+  const locked = attemptsRemaining === 0;
+
+  if (locked) {
+    await challenges.updateOne(
+      {
+        _id: input.challengeId,
+        userId: input.userId,
+        consumedAt: null,
+        invalidatedAt: null,
+      },
+      { $set: { invalidatedAt: input.attemptedAt } },
+    );
+  }
+
+  return { recorded: true, attemptsRemaining, locked };
+}
+
+export interface ConsumeEmailChangeChallengeInput {
+  challengeId: ObjectId;
+  userId: ObjectId;
+  consumedAt: Date;
+}
+
+export async function consumeEmailChangeChallenge(
+  input: ConsumeEmailChangeChallengeInput,
+  session: ClientSession,
+): Promise<boolean> {
+  const { challenges } = await getAuthCollections();
+
+  const result = await challenges.updateOne(
+    {
+      _id: input.challengeId,
+      userId: input.userId,
+      purpose: "change-email",
+      consumedAt: null,
+      invalidatedAt: null,
+      expiresAt: { $gt: input.consumedAt },
+      attemptCount: { $lt: AUTH_EMAIL_CHANGE_POLICY.maximumAttempts },
+    },
+    { $set: { consumedAt: input.consumedAt } },
+    { session },
+  );
+
+  return result.modifiedCount === 1;
+}
+
+export interface CancelEmailChangeChallengeInput {
+  challengeId: ObjectId;
+  userId: ObjectId;
+  cancelledAt: Date;
+}
+
+export async function cancelEmailChangeChallenge(
+  input: CancelEmailChangeChallengeInput,
+  session: ClientSession,
+): Promise<boolean> {
+  const { challenges } = await getAuthCollections();
+
+  const result = await challenges.updateOne(
+    {
+      _id: input.challengeId,
+      userId: input.userId,
+      purpose: "change-email",
+      consumedAt: null,
+      invalidatedAt: null,
+    },
+    { $set: { invalidatedAt: input.cancelledAt } },
+    { session },
+  );
+
+  return result.modifiedCount === 1;
+}
+

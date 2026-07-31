@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  AUTH_EMAIL_CHANGE_POLICY,
   AUTH_EMAIL_VERIFICATION_POLICY,
   AUTH_INPUT_LIMITS,
   AUTH_PASSWORD_RESET_POLICY,
@@ -449,6 +450,101 @@ export function parseAccountPasswordChangeInput(
   value: unknown,
 ): NormalizedAccountPasswordChangeInput {
   return accountPasswordChangeInputSchema.parse(value);
+}
+
+
+const ACCOUNT_EMAIL_CHANGE_CODE_PATTERN =
+  new RegExp(
+    `^\\d{${AUTH_EMAIL_CHANGE_POLICY.codeDigits}}$`,
+    "u",
+  );
+
+const accountEmailChangeChallengeIdSchema = z.uuid({
+  version: "v4",
+  error: "Email-change challenge ID is invalid.",
+});
+
+export const accountEmailChangeRequestInputSchema = z
+  .object({
+    newEmail: registrationEmailSchema,
+  })
+  .strict()
+  .transform(({ newEmail }) => ({
+    emailDisplay: newEmail,
+    emailNormalized: normalizeEmail(newEmail),
+  }));
+
+export type AccountEmailChangeRequestInput = z.input<
+  typeof accountEmailChangeRequestInputSchema
+>;
+
+export type NormalizedAccountEmailChangeRequestInput = z.output<
+  typeof accountEmailChangeRequestInputSchema
+>;
+
+export function parseAccountEmailChangeRequestInput(
+  value: unknown,
+): NormalizedAccountEmailChangeRequestInput {
+  return accountEmailChangeRequestInputSchema.parse(value);
+}
+
+export const accountEmailChangeVerifyInputSchema = z
+  .object({
+    challengeId: accountEmailChangeChallengeIdSchema,
+    code: z
+      .string({
+        error: "Verification code must be text.",
+      })
+      .trim()
+      .regex(
+        ACCOUNT_EMAIL_CHANGE_CODE_PATTERN,
+        `Verification code must contain exactly ${AUTH_EMAIL_CHANGE_POLICY.codeDigits} digits.`,
+      ),
+  })
+  .strict();
+
+export type AccountEmailChangeVerifyInput = z.input<
+  typeof accountEmailChangeVerifyInputSchema
+>;
+
+export type NormalizedAccountEmailChangeVerifyInput = z.output<
+  typeof accountEmailChangeVerifyInputSchema
+>;
+
+export function parseAccountEmailChangeVerifyInput(
+  value: unknown,
+): NormalizedAccountEmailChangeVerifyInput {
+  return accountEmailChangeVerifyInputSchema.parse(value);
+}
+
+export const accountEmailChangeResendInputSchema = z
+  .object({
+    challengeId: accountEmailChangeChallengeIdSchema,
+  })
+  .strict();
+
+export type AccountEmailChangeResendInput = z.input<
+  typeof accountEmailChangeResendInputSchema
+>;
+
+export type NormalizedAccountEmailChangeResendInput = z.output<
+  typeof accountEmailChangeResendInputSchema
+>;
+
+export function parseAccountEmailChangeResendInput(
+  value: unknown,
+): NormalizedAccountEmailChangeResendInput {
+  return accountEmailChangeResendInputSchema.parse(value);
+}
+
+export type AccountEmailChangeChallengeIdInput = z.input<
+  typeof accountEmailChangeChallengeIdSchema
+>;
+
+export function parseAccountEmailChangeChallengeId(
+  value: unknown,
+): AccountEmailChangeChallengeIdInput {
+  return accountEmailChangeChallengeIdSchema.parse(value);
 }
 
 
