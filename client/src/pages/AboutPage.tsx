@@ -54,7 +54,7 @@ function AboutPage() {
               Keep your place
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              FilmGeezer accounts securely preserve your identity today and will support personal Watchlists across devices next.
+              Save up to 20 temporary titles as a guest, then sign in to merge them into a secure 50-title account Watchlist available across devices.
             </p>
           </article>
         </div>

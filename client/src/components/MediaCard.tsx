@@ -88,7 +88,7 @@ function MediaCard({ item }: MediaCardProps) {
       </Link>
 
       <WatchlistButton
-        itemTitle={item.title}
+        item={item}
         className="absolute right-2 top-2 z-10 opacity-100 sm:right-3 sm:top-3 md:pointer-events-none md:opacity-0 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100"
       />
     </article>
