@@ -103,6 +103,7 @@ export interface AuthenticatedUser {
   providerSubject: string;
   email: string;
   displayName: string;
+  profileImagePath: string | null;
   roles: AuthRole[];
 }
 

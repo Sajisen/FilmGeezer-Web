@@ -136,6 +136,7 @@ export interface AccountProfileUpdateResult {
     provider: "local";
     email: string;
     displayName: string;
+    profileImagePath: string | null;
     roles: AuthRole[];
   };
 
@@ -403,6 +404,8 @@ export async function updateAccountProfile(
         email: auth.email,
         displayName:
           auth.displayName,
+        profileImagePath:
+          auth.profileImagePath,
         roles: [...auth.roles],
       },
       changed: false,
@@ -480,6 +483,8 @@ export async function updateAccountProfile(
         email: result.emailDisplay,
         displayName:
           result.displayName,
+        profileImagePath:
+          createProfileImagePath(result),
         roles: [...result.roles],
       },
       changed: true,
