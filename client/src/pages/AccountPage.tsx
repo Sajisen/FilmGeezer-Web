@@ -9,8 +9,6 @@ import {
   useSearchParams,
 } from "react-router";
 
-import ContentContainer from "../components/layout/ContentContainer";
-
 import AccountControls from "../features/account/components/AccountControls";
 import AccountDeactivationDialog from "../features/account/components/AccountDeactivationDialog";
 import AccountHero from "../features/account/components/AccountHero";
@@ -569,7 +567,7 @@ function AccountPage() {
         id="main-content"
         className="min-h-screen bg-slate-950 text-white"
       >
-        <ContentContainer className="max-w-[1040px] py-10 sm:py-14">
+        <div className="mx-auto w-full max-w-[1080px] px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
           <div className="space-y-5 lg:space-y-6">
             <div className="h-36 rounded-[1.75rem] border border-white/8 bg-white/[0.035]" />
             <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
@@ -577,7 +575,7 @@ function AccountPage() {
               <div className="h-96 rounded-2xl border border-white/8 bg-white/[0.025]" />
             </div>
           </div>
-        </ContentContainer>
+        </div>
       </main>
     );
   }
@@ -592,7 +590,7 @@ function AccountPage() {
         id="main-content"
         className="min-h-screen bg-slate-950 text-white"
       >
-        <ContentContainer className="max-w-[1040px] py-16">
+        <div className="mx-auto w-full max-w-[1080px] px-4 py-16 sm:px-6 lg:px-8">
           <section className="mx-auto max-w-xl rounded-2xl border border-rose-400/20 bg-slate-900/80 p-7 text-center shadow-2xl shadow-black/30">
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-rose-300/20 bg-rose-400/10 text-rose-200">
               <AccountIcon name="warning" />
@@ -614,7 +612,7 @@ function AccountPage() {
               Try again
             </button>
           </section>
-        </ContentContainer>
+        </div>
       </main>
     );
   }
@@ -626,7 +624,7 @@ function AccountPage() {
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[30rem] bg-[radial-gradient(circle_at_12%_0%,rgba(14,165,233,0.12),transparent_36%),radial-gradient(circle_at_88%_8%,rgba(79,70,229,0.08),transparent_34%)]" />
 
-      <ContentContainer className="relative max-w-[1040px] py-7 sm:py-10 lg:py-12">
+      <div className="relative mx-auto w-full max-w-[1080px] px-4 py-7 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
         <header className="mb-5 px-1 lg:hidden">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
             FilmGeezer account
@@ -871,7 +869,7 @@ function AccountPage() {
             </div>
           </div>
         </div>
-      </ContentContainer>
+      </div>
 
       {showAccountDeactivation && (
         <AccountDeactivationDialog
