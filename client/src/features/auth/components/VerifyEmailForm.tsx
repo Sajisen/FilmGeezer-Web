@@ -586,14 +586,20 @@ function VerifyEmailForm({
       className="space-y-4"
       noValidate
     >
-      <p className="text-sm leading-6 text-slate-400">
-        Code sent to{" "}
-        <span className="font-semibold text-slate-200">
-          {email ||
-            "your email address"}
-        </span>
-        .
-      </p>
+      <div className="rounded-xl border border-sky-400/15 bg-sky-400/[0.07] px-4 py-3 text-sm leading-6 text-slate-300">
+        <p>
+          Check{" "}
+          <span className="font-semibold text-white">
+            {email ||
+              "your email address"}
+          </span>
+          {" "}for the next step.
+        </p>
+
+        <p className="mt-1 text-xs leading-5 text-slate-400">
+          New accounts receive a six-digit code. Already registered? Sign in instead.
+        </p>
+      </div>
 
       <AuthFormMessage
         message={errorMessage}
@@ -714,9 +720,9 @@ function VerifyEmailForm({
             onSwitchToLogin
           }
           disabled={isBusy}
-          className="text-slate-400 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-50"
+          className="min-h-10 rounded-full px-4 font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-50"
         >
-          Use a different account
+          Sign in instead
         </button>
       </div>
     </form>

@@ -141,3 +141,11 @@ export interface AccountEmailChangeCancelResponse {
   challengeId: string;
   cancelledAt: string;
 }
+
+export interface AccountDeactivationResponse {
+  status: "success";
+  code: "ACCOUNT_DEACTIVATED";
+  message: string;
+  deactivatedAt: string;
+  sessionsRevoked: number;
+}

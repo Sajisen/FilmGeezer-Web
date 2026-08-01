@@ -23,6 +23,7 @@ import {
   readAuthRouteState,
 } from "./features/auth/authNavigation";
 
+import AboutPage from "./pages/AboutPage";
 import AccountPage from "./pages/AccountPage";
 import AnimePage from "./pages/AnimePage";
 import ApiTestPage from "./pages/ApiTestPage";
@@ -143,6 +144,13 @@ function ApplicationRoutes() {
           path="/contact"
           element={
             <ContactPage />
+          }
+        />
+
+        <Route
+          path="/about"
+          element={
+            <AboutPage />
           }
         />
 

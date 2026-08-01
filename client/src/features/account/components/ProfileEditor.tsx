@@ -21,7 +21,6 @@ import {
 
 interface ProfileEditorProps {
   displayName: string;
-  email: string;
   csrfToken: string;
   onUpdated: (
     displayName: string,
@@ -29,9 +28,30 @@ interface ProfileEditorProps {
   ) => Promise<void>;
 }
 
+function createInitials(
+  displayName: string,
+): string {
+  const parts = displayName
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "FG";
+  }
+
+  if (parts.length === 1) {
+    return Array.from(parts[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  }
+
+  return `${Array.from(parts[0])[0] ?? ""}${Array.from(parts.at(-1) ?? "")[0] ?? ""}`.toUpperCase();
+}
+
 function ProfileEditor({
   displayName,
-  email,
   csrfToken,
   onUpdated,
 }: ProfileEditorProps) {
@@ -68,8 +88,7 @@ function ProfileEditor({
       const response =
         await updateAccountProfile(
           {
-            displayName:
-              nextDisplayName,
+            displayName: nextDisplayName,
           },
           csrfToken,
         );
@@ -77,10 +96,7 @@ function ProfileEditor({
       setNextDisplayName(
         response.user.displayName,
       );
-
-      setSuccessMessage(
-        response.message,
-      );
+      setSuccessMessage(response.message);
 
       await onUpdated(
         response.user.displayName,
@@ -93,22 +109,18 @@ function ProfileEditor({
           "displayName",
         );
 
-      setDisplayNameErrors(
-        fieldErrors,
-      );
+      setDisplayNameErrors(fieldErrors);
 
       const formErrors =
         getAuthFormErrors(error);
 
       setErrorMessage(
         formErrors[0] ??
-          (
-            fieldErrors.length > 0
-              ? null
-              : error instanceof Error
-                ? error.message
-                : "FilmGeezer could not update your profile."
-          ),
+          (fieldErrors.length > 0
+            ? null
+            : error instanceof Error
+              ? error.message
+              : "FilmGeezer could not update your profile."),
       );
     } finally {
       setIsSubmitting(false);
@@ -120,88 +132,82 @@ function ProfileEditor({
     displayName.trim();
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-5"
-      noValidate
-    >
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
+    <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 shadow-xl shadow-black/15">
+      <div className="border-b border-white/8 px-5 py-4 sm:px-6">
+        <h2 className="text-lg font-bold tracking-tight text-white">
           Profile details
-        </p>
-
-        <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
-          How FilmGeezer addresses you
         </h2>
-
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-          Your display name appears in the account menu and personal FilmGeezer areas.
-        </p>
       </div>
 
-      <AuthFormMessage
-        message={errorMessage}
-      />
+      <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[11rem_minmax(0,1fr)] lg:items-start">
+        <div className="flex items-center gap-4 lg:flex-col lg:items-start">
+          <div
+            aria-label={`Profile initials: ${createInitials(nextDisplayName)}`}
+            className="grid h-20 w-20 shrink-0 place-items-center rounded-full border border-sky-200/20 bg-[radial-gradient(circle_at_30%_20%,rgba(125,211,252,0.34),rgba(14,116,144,0.18)_45%,rgba(15,23,42,0.92))] text-2xl font-black text-sky-50 shadow-lg shadow-sky-950/30"
+          >
+            {createInitials(nextDisplayName)}
+          </div>
 
-      {successMessage && (
-        <p
-          role="status"
-          className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-100"
-        >
-          {successMessage}
-        </p>
-      )}
-
-      <div className="grid gap-5 md:grid-cols-2">
-        <AuthField
-          id="account-display-name"
-          label="Display name"
-          type="text"
-          autoComplete="name"
-          required
-          maxLength={200}
-          value={nextDisplayName}
-          disabled={isSubmitting}
-          errorMessages={displayNameErrors}
-          placeholder="Your name"
-          onChange={(event: ChangeEvent<HTMLInputElement>) => {
-            setNextDisplayName(
-              event.target.value,
-            );
-            setSuccessMessage(null);
-
-            if (displayNameErrors.length > 0) {
-              setDisplayNameErrors([]);
-            }
-          }}
-        />
-
-        <AuthField
-          id="account-email"
-          label="Email address"
-          type="email"
-          value={email}
-          disabled
-          readOnly
-          hint="Change this from Security. Your current address stays active until the new one is verified."
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/8 pt-5">
-        <p className="text-xs leading-5 text-slate-500">
-          Display-name changes do not require password confirmation.
-        </p>
-
-        <div className="w-full sm:w-52">
-          <AuthSubmitButton
-            label="Save profile"
-            loadingLabel="Saving…"
-            isSubmitting={isSubmitting}
-            disabled={!hasChanged}
-          />
+          <div>
+            <h3 className="text-sm font-bold text-white">
+              Profile picture
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Your initials are shown for now.
+            </p>
+          </div>
         </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="min-w-0 space-y-5"
+          noValidate
+        >
+          <AuthFormMessage message={errorMessage} />
+
+          {successMessage && (
+            <p
+              role="status"
+              className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-100"
+            >
+              {successMessage}
+            </p>
+          )}
+
+          <AuthField
+            id="account-display-name"
+            label="Display name"
+            type="text"
+            autoComplete="name"
+            required
+            maxLength={50}
+            value={nextDisplayName}
+            disabled={isSubmitting}
+            errorMessages={displayNameErrors}
+            placeholder="Your name"
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              setNextDisplayName(event.target.value);
+              setSuccessMessage(null);
+
+              if (displayNameErrors.length > 0) {
+                setDisplayNameErrors([]);
+              }
+            }}
+          />
+
+          <div className="flex justify-end border-t border-white/8 pt-5">
+            <div className="w-full sm:w-44">
+              <AuthSubmitButton
+                label="Save changes"
+                loadingLabel="Saving…"
+                isSubmitting={isSubmitting}
+                disabled={!hasChanged}
+              />
+            </div>
+          </div>
+        </form>
       </div>
-    </form>
+    </section>
   );
 }
 

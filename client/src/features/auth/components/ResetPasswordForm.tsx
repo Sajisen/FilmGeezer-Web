@@ -110,6 +110,9 @@ function ResetPasswordForm({
     );
   }
 
+  const resetChallengeId = challengeId;
+  const resetToken = token;
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
@@ -140,8 +143,8 @@ function ResetPasswordForm({
 
     try {
       const response = await resetLocalPassword({
-        challengeId,
-        token,
+        challengeId: resetChallengeId,
+        token: resetToken,
         password,
       });
 

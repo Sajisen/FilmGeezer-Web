@@ -37,6 +37,13 @@ export interface SendEmailChangedNoticeInput {
   changedAt: Date;
 }
 
+
+export interface SendAccountDeactivatedNoticeInput {
+  recipientEmail: string;
+  displayName: string;
+  deactivatedAt: Date;
+}
+
 export interface AuthEmailService {
   sendEmailVerification(
     input: SendEmailVerificationInput,
@@ -56,6 +63,10 @@ export interface AuthEmailService {
 
   sendEmailChangedNotice(
     input: SendEmailChangedNoticeInput,
+  ): Promise<void>;
+
+  sendAccountDeactivatedNotice(
+    input: SendAccountDeactivatedNoticeInput,
   ): Promise<void>;
 }
 
@@ -171,6 +182,28 @@ export const developmentAuthEmailService:
           `New email: ${input.newEmail}`,
           `Changed at: ${input.changedAt.toISOString()}`,
           "If this change was unexpected, contact FilmGeezer support immediately.",
+          "==================================================",
+          "",
+        ].join("\n"),
+      );
+    },
+
+    async sendAccountDeactivatedNotice(
+      input: SendAccountDeactivatedNoticeInput,
+    ): Promise<void> {
+      assertDevelopmentEmailAdapter();
+
+      console.log(
+        [
+          "",
+          "==================================================",
+          "FilmGeezer development account-deactivated notice",
+          "==================================================",
+          `Recipient: ${input.recipientEmail}`,
+          `Display name: ${input.displayName}`,
+          `Deactivated at: ${input.deactivatedAt.toISOString()}`,
+          "Every active FilmGeezer session was signed out.",
+          "The account data was not permanently deleted. Contact FilmGeezer support for a controlled recovery request.",
           "==================================================",
           "",
         ].join("\n"),

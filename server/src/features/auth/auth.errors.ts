@@ -321,3 +321,25 @@ export class AuthSessionManagementError extends Error {
     this.name = "AuthSessionManagementError";
   }
 }
+
+export const AUTH_ACCOUNT_DEACTIVATION_REJECTION_REASONS = [
+  "account-unavailable",
+] as const;
+
+export type AuthAccountDeactivationRejectionReason =
+  (typeof AUTH_ACCOUNT_DEACTIVATION_REJECTION_REASONS)[number];
+
+export class AuthAccountDeactivationError extends Error {
+  readonly code = "ACCOUNT_DEACTIVATION_REJECTED";
+
+  constructor(
+    readonly reason: AuthAccountDeactivationRejectionReason,
+  ) {
+    super(
+      "The FilmGeezer account could not be deactivated.",
+    );
+
+    this.name = "AuthAccountDeactivationError";
+  }
+}
+

@@ -161,6 +161,12 @@ export const AUTH_EMAIL_CHANGE_POLICY = {
   maximumSendsPerChallenge: 3,
 } as const;
 
+export const AUTH_ACCOUNT_DEACTIVATION_HTTP_POLICY = {
+  requestBodyLimit: "2kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 3,
+} as const;
+
 export const AUTH_RECENT_AUTHENTICATION_POLICY = {
   validForMilliseconds: 5 * 60 * 1_000,
 } as const;

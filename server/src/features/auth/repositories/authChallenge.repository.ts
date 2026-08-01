@@ -54,6 +54,37 @@ export async function invalidateActiveChallenges(
   );
 }
 
+export interface InvalidateAllActiveChallengesForUserInput {
+  userId: ObjectId;
+  invalidatedAt: Date;
+}
+
+export async function invalidateAllActiveChallengesForUser(
+  input: InvalidateAllActiveChallengesForUserInput,
+  session: ClientSession,
+): Promise<number> {
+  const { challenges } =
+    await getAuthCollections();
+
+  const result =
+    await challenges.updateMany(
+      {
+        userId: input.userId,
+        consumedAt: null,
+        invalidatedAt: null,
+      },
+      {
+        $set: {
+          invalidatedAt:
+            input.invalidatedAt,
+        },
+      },
+      { session },
+    );
+
+  return result.modifiedCount;
+}
+
 export interface CreateEmailVerificationChallengeInput {
   challengeId: ObjectId;
   publicId: string;

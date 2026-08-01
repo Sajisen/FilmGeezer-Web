@@ -27,6 +27,8 @@ import {
 
 import PasswordStrengthMeter from "../../auth/components/PasswordStrengthMeter";
 
+import AccountIcon from "./AccountSectionIcons";
+
 interface ChangePasswordPanelProps {
   csrfToken: string;
   email: string;
@@ -192,27 +194,28 @@ function ChangePasswordPanel({
     confirmation === newPassword;
 
   return (
-    <section className="rounded-3xl border border-sky-400/20 bg-sky-400/[0.045] p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-            Change password
-          </p>
+    <section className="overflow-hidden rounded-[1.75rem] border border-sky-300/15 bg-slate-900/75 shadow-xl shadow-black/15">
+      <div className="flex flex-col gap-4 border-b border-white/8 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-7 sm:py-6">
+        <div className="flex items-start gap-3.5">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-300/15 bg-sky-400/10 text-sky-300">
+            <AccountIcon name="key" />
+          </span>
 
-          <h3 className="mt-2 text-xl font-bold text-white">
-            Choose a new password
-          </h3>
-
-          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
-            FilmGeezer will rotate this session and sign out every other device after the change.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+              Choose a new password
+            </h2>
+            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-400">
+              Use a password you do not use elsewhere. Other signed-in devices will be signed out after the change.
+            </p>
+          </div>
         </div>
 
         <button
           type="button"
           onClick={onCancel}
           disabled={isSubmitting}
-          className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-50"
+          className="min-h-10 self-start rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-50"
         >
           Cancel
         </button>
@@ -220,15 +223,15 @@ function ChangePasswordPanel({
 
       <form
         onSubmit={handleSubmit}
-        className="mt-6 grid gap-4 lg:grid-cols-2"
+        className="space-y-5 p-5 sm:p-7"
         noValidate
       >
-        <div>
-          <AuthFormMessage
-            message={errorMessage}
-          />
+        <AuthFormMessage
+          message={errorMessage}
+        />
 
-          <div className={errorMessage ? "mt-4" : ""}>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div>
             <PasswordField
               id="account-new-password"
               label="New password"
@@ -260,9 +263,7 @@ function ChangePasswordPanel({
               onAssessmentChange={handleAssessment}
             />
           </div>
-        </div>
 
-        <div>
           <PasswordField
             id="account-confirm-password"
             label="Confirm new password"
@@ -284,11 +285,20 @@ function ChangePasswordPanel({
               }
             }}
           />
+        </div>
 
-          <div className="mt-5">
+        <div className="flex flex-col gap-3 border-t border-white/8 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2 text-xs leading-5 text-slate-500">
+            <span className="mt-0.5 text-sky-300">
+              <AccountIcon name="shield" className="h-4 w-4" />
+            </span>
+            Your current device stays signed in with a fresh secure session.
+          </div>
+
+          <div className="w-full sm:w-52">
             <AuthSubmitButton
-              label="Change password"
-              loadingLabel="Changing password…"
+              label="Update password"
+              loadingLabel="Updating…"
               isSubmitting={isSubmitting}
               disabled={
                 !passwordIsReady ||

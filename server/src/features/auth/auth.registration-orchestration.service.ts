@@ -15,8 +15,9 @@ import {
 import {
   registerLocalUser,
 } from "./auth.registration.service.js";
-import type {
-  RegistrationInput,
+import {
+  parseRegistrationInput,
+  type RegistrationInput,
 } from "./auth.validation.js";
 import {
   createAuthAuditEvent,
@@ -124,6 +125,9 @@ export async function startLocalRegistration(
     StartLocalRegistrationDependencies =
       defaultDependencies,
 ): Promise<StartLocalRegistrationResult> {
+  const registrationAttempt =
+    parseRegistrationInput(input);
+
   let preparedRegistration;
 
   try {
@@ -132,9 +136,40 @@ export async function startLocalRegistration(
   } catch (error) {
     if (error instanceof AuthAccountConflictError) {
       /*
-       * Do not reveal whether the supplied email belongs to an existing
-       * pending, active, suspended, or deleted account.
+       * The HTTP response remains indistinguishable from a new account,
+       * preventing registration from becoming an account-enumeration
+       * endpoint. The private email channel can still give the legitimate
+       * address owner useful guidance instead of leaving them waiting for
+       * a verification code that will never arrive.
        */
+      try {
+        await dependencies.emailService
+          .sendExistingAccountRegistrationNotice({
+            recipientEmail:
+              registrationAttempt.emailDisplay,
+
+            attemptedAt:
+              new Date(),
+          });
+      } catch (noticeError) {
+        if (
+          noticeError instanceof
+          AuthEmailConfigurationError
+        ) {
+          throw noticeError;
+        }
+
+        console.error(
+          "[auth-registration] Existing-account guidance email failed.",
+          {
+            name:
+              noticeError instanceof Error
+                ? noticeError.name
+                : "UnknownError",
+          },
+        );
+      }
+
       return {
         verification:
           createDecoyVerificationReceipt(),

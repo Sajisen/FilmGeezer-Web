@@ -30,7 +30,7 @@ import {
 } from "../features/auth/auth.session.js";
 
 const REGISTRATION_ACCEPTED_MESSAGE =
-  "If this email address can be registered, a verification code will be sent shortly.";
+  "Check your email for the next step. New accounts receive a verification code, while existing accounts receive sign-in guidance.";
 
 function createAuthRequestMetadata(
   request: Request,

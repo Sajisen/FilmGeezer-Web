@@ -10,6 +10,7 @@ import type {
 } from "../types/auth";
 
 import type {
+  AccountDeactivationResponse,
   AccountDetailsResponse,
   AccountEmailChangeCancelResponse,
   AccountEmailChangeCompleteResponse,
@@ -352,6 +353,20 @@ function isAccountEmailChangeCancelResponse(
   );
 }
 
+
+function isAccountDeactivationResponse(
+  value: unknown,
+): value is AccountDeactivationResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ACCOUNT_DEACTIVATED" &&
+    typeof value.message === "string" &&
+    typeof value.deactivatedAt === "string" &&
+    typeof value.sessionsRevoked === "number"
+  );
+}
+
 function isAccountPasswordChangeResponse(
   value: unknown,
 ): value is AccountPasswordChangeResponse {
@@ -642,6 +657,22 @@ export function cancelAccountEmailChange(
     isAccountEmailChangeCancelResponse,
     {
       method: "DELETE",
+      csrfToken,
+    },
+  );
+}
+export function deactivateAccount(
+  input: {
+    confirmation: "DEACTIVATE";
+  },
+  csrfToken: string,
+): Promise<AccountDeactivationResponse> {
+  return requestAccountApi(
+    "/api/account/deactivate",
+    isAccountDeactivationResponse,
+    {
+      method: "POST",
+      body: input,
       csrfToken,
     },
   );

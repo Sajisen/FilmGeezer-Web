@@ -19,6 +19,11 @@ import {
   updateCurrentAccountProfile,
 } from "../controllers/account.controller.js";
 
+
+import {
+  deactivateCurrentAccount,
+} from "../controllers/accountDeactivation.controller.js";
+
 import {
   cancelCurrentEmailChange,
   getCurrentEmailChangeStatus,
@@ -28,6 +33,7 @@ import {
 } from "../controllers/accountEmailChange.controller.js";
 
 import {
+  AUTH_ACCOUNT_DEACTIVATION_HTTP_POLICY,
   AUTH_ACCOUNT_DETAILS_HTTP_POLICY,
   AUTH_ACCOUNT_PROFILE_HTTP_POLICY,
   AUTH_ACCOUNT_SESSION_LIST_HTTP_POLICY,
@@ -177,6 +183,22 @@ const passwordChangeRateLimit =
       "ACCOUNT_PASSWORD_CHANGE_RATE_LIMITED",
     message:
       "Too many password-change attempts. Please wait before trying again.",
+  });
+
+const accountDeactivationRateLimit =
+  createAccountRateLimit({
+    windowMs:
+      AUTH_ACCOUNT_DEACTIVATION_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+    limit:
+      AUTH_ACCOUNT_DEACTIVATION_HTTP_POLICY
+        .maximumRequestsPerWindow,
+    identifier:
+      "filmgeezer-account-deactivation",
+    code:
+      "ACCOUNT_DEACTIVATION_RATE_LIMITED",
+    message:
+      "Too many account-deactivation attempts. Please wait before trying again.",
   });
 
 const emailChangeRequestRateLimit =
@@ -395,6 +417,22 @@ router.post(
     strict: true,
   }),
   changeCurrentAccountPassword,
+);
+
+router.post(
+  "/deactivate",
+  accountDeactivationRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requireRecentAuthentication,
+  requireJsonContentType,
+  json({
+    limit:
+      AUTH_ACCOUNT_DEACTIVATION_HTTP_POLICY
+        .requestBodyLimit,
+    strict: true,
+  }),
+  deactivateCurrentAccount,
 );
 
 export default router;

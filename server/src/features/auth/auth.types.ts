@@ -20,6 +20,7 @@ export const USER_STATUS_VALUES = [
   "pending",
   "active",
   "suspended",
+  "deactivated",
   "deleted",
 ] as const;
 
@@ -41,6 +42,7 @@ export const AUTH_SESSION_REVOCATION_REASON_VALUES = [
   "password-changed",
   "email-changed",
   "account-suspended",
+  "account-deactivated",
   "security-event",
   "provider-migration",
   "session-limit",
@@ -85,6 +87,8 @@ export const AUTH_AUDIT_EVENT_VALUES = [
   "email-change-cancelled",
   "email-change-old-address-notified",
   "account-suspended",
+  "account-deactivated",
+  "account-deactivation-notice-sent",
   "account-reactivated",
 ] as const;
 
@@ -114,6 +118,7 @@ export interface FilmGeezerUserDocument {
   emailVerifiedAt: Date | null;
   lastLoginAt: Date | null;
   suspendedAt: Date | null;
+  deactivatedAt: Date | null;
   deletedAt: Date | null;
 
   createdAt: Date;

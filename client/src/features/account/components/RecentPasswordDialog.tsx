@@ -22,6 +22,8 @@ import {
   PasswordField,
 } from "../../auth/components/AuthFields";
 
+import AccountIcon from "./AccountSectionIcons";
+
 interface RecentPasswordDialogProps {
   csrfToken: string;
   title: string;
@@ -195,7 +197,7 @@ function RecentPasswordDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[220] grid place-items-center overflow-y-auto bg-slate-950/82 px-4 py-8 backdrop-blur-sm"
+      className="fixed inset-0 z-[220] grid place-items-center overflow-y-auto bg-slate-950/80 px-4 py-6 backdrop-blur-md sm:py-10"
       onMouseDown={(event: MouseEvent<HTMLDivElement>) => {
         if (
           event.target === event.currentTarget &&
@@ -210,40 +212,42 @@ function RecentPasswordDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="recent-password-title"
-        className="w-full max-w-md rounded-[1.75rem] border border-white/10 bg-slate-900 p-5 shadow-2xl shadow-black/50 sm:p-6"
+        className="w-full max-w-md overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/60"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-              Security check
-            </p>
-
-            <h2
-              id="recent-password-title"
-              className="mt-2 text-2xl font-black tracking-tight text-white"
-            >
-              {title}
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              {description}
-            </p>
-          </div>
-
+        <div className="relative border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.16),transparent_55%)] px-5 pb-5 pt-6 sm:px-6">
           <button
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
             aria-label="Close password confirmation"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-slate-300 transition hover:border-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-50"
+            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-slate-950/55 text-slate-300 transition hover:border-white/20 hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-50"
           >
             <CloseIcon />
           </button>
+
+          <span className="grid h-11 w-11 place-items-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300">
+            <AccountIcon name="shield" />
+          </span>
+
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">
+            Confirm it is you
+          </p>
+
+          <h2
+            id="recent-password-title"
+            className="mt-2 pr-10 text-2xl font-black tracking-tight text-white"
+          >
+            {title}
+          </h2>
+
+          <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">
+            {description}
+          </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="mt-6 space-y-4"
+          className="space-y-4 p-5 sm:p-6"
           noValidate
         >
           <AuthFormMessage
@@ -274,12 +278,21 @@ function RecentPasswordDialog({
             }}
           />
 
-          <AuthSubmitButton
-            label="Confirm password"
-            loadingLabel="Confirming…"
-            isSubmitting={isSubmitting}
-            disabled={password.length === 0}
-          />
+          <p className="flex items-start gap-2 text-xs leading-5 text-slate-500">
+            <span className="mt-0.5 text-sky-300">
+              <AccountIcon name="check" className="h-4 w-4" />
+            </span>
+            This confirmation stays active briefly so you can finish the selected account change.
+          </p>
+
+          <div className="pt-1">
+            <AuthSubmitButton
+              label="Continue"
+              loadingLabel="Checking…"
+              isSubmitting={isSubmitting}
+              disabled={password.length === 0}
+            />
+          </div>
         </form>
       </div>
     </div>

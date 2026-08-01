@@ -49,6 +49,7 @@ export async function createPendingUser(
       emailVerifiedAt: null,
       lastLoginAt: null,
       suspendedAt: null,
+      deactivatedAt: null,
       deletedAt: null,
 
       createdAt: input.createdAt,
@@ -97,6 +98,7 @@ export async function findPendingUserById(
       status: "pending",
       emailVerifiedAt: null,
       suspendedAt: null,
+      deactivatedAt: null,
       deletedAt: null,
     },
     session
@@ -126,6 +128,7 @@ export async function activatePendingUser(
         status: "pending",
         emailVerifiedAt: null,
         suspendedAt: null,
+        deactivatedAt: null,
         deletedAt: null,
       },
       {
@@ -180,6 +183,7 @@ export async function recordSuccessfulLogin(
           $ne: null,
         },
         suspendedAt: null,
+        deactivatedAt: null,
         deletedAt: null,
       },
       {
@@ -213,6 +217,7 @@ export async function findActiveUserById(
         $ne: null,
       },
       suspendedAt: null,
+      deactivatedAt: null,
       deletedAt: null,
     },
     session
@@ -270,6 +275,7 @@ export async function findPasswordResetEligibleUserById(
       _id: userId,
       status: { $in: ["pending", "active"] },
       suspendedAt: null,
+      deactivatedAt: null,
       deletedAt: null,
     },
     session ? { session } : undefined,
@@ -292,6 +298,7 @@ export async function recordPasswordResetMutation(
       _id: input.userId,
       status: { $in: ["pending", "active"] },
       suspendedAt: null,
+      deactivatedAt: null,
       deletedAt: null,
     },
     {
@@ -324,6 +331,7 @@ export async function updateActiveUserDisplayName(
         $ne: null,
       },
       suspendedAt: null,
+      deactivatedAt: null,
       deletedAt: null,
     },
     {
@@ -363,6 +371,7 @@ export async function updateActiveUserEmail(
       status: "active",
       emailVerifiedAt: { $ne: null },
       suspendedAt: null,
+      deactivatedAt: null,
       deletedAt: null,
       emailNormalized: input.expectedEmailNormalized,
     },
@@ -380,3 +389,43 @@ export async function updateActiveUserEmail(
     },
   );
 }
+
+export interface DeactivateActiveUserInput {
+  userId: ObjectId;
+  deactivatedAt: Date;
+}
+
+export async function deactivateActiveUser(
+  input: DeactivateActiveUserInput,
+  session: ClientSession,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } =
+    await getAuthCollections();
+
+  return users.findOneAndUpdate(
+    {
+      _id: input.userId,
+      status: "active",
+      emailVerifiedAt: {
+        $ne: null,
+      },
+      suspendedAt: null,
+      deactivatedAt: null,
+      deletedAt: null,
+    },
+    {
+      $set: {
+        status: "deactivated",
+        deactivatedAt:
+          input.deactivatedAt,
+        updatedAt:
+          input.deactivatedAt,
+      },
+    },
+    {
+      returnDocument: "after",
+      session,
+    },
+  );
+}
+

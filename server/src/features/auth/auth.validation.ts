@@ -548,6 +548,30 @@ export function parseAccountEmailChangeChallengeId(
 }
 
 
+export const accountDeactivationInputSchema = z
+  .object({
+    confirmation: z.literal("DEACTIVATE", {
+      error:
+        "Type DEACTIVATE to confirm account deactivation.",
+    }),
+  })
+  .strict();
+
+export type AccountDeactivationInput = z.input<
+  typeof accountDeactivationInputSchema
+>;
+
+export type NormalizedAccountDeactivationInput = z.output<
+  typeof accountDeactivationInputSchema
+>;
+
+export function parseAccountDeactivationInput(
+  value: unknown,
+): NormalizedAccountDeactivationInput {
+  return accountDeactivationInputSchema.parse(value);
+}
+
+
 const AUTH_SESSION_REFERENCE_PATTERN =
   /^[A-Za-z0-9_-]{43}$/u;
 

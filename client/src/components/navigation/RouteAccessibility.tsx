@@ -1,7 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-function getFallbackAnnouncement(pathname: string) {
+import {
+  useLocation,
+} from "react-router";
+
+import {
+  readAuthRouteState,
+} from "../../features/auth/authNavigation";
+
+function getFallbackAnnouncement(
+  pathname: string,
+) {
   if (pathname === "/") {
     return "Home";
   }
@@ -26,8 +39,16 @@ function getFallbackAnnouncement(pathname: string) {
     return "Search";
   }
 
-  if (pathname.startsWith("/media/")) {
+  if (
+    pathname.startsWith(
+      "/media/",
+    )
+  ) {
     return "Media details";
+  }
+
+  if (pathname === "/account") {
+    return "FilmGeezer account";
   }
 
   if (pathname === "/help") {
@@ -42,40 +63,88 @@ function getFallbackAnnouncement(pathname: string) {
 }
 
 function RouteAccessibility() {
-  const { pathname } = useLocation();
-  const isFirstRenderRef = useRef(true);
-  const [announcement, setAnnouncement] = useState("");
+  const location =
+    useLocation();
+
+  const isFirstRenderRef =
+    useRef(true);
+
+  const [
+    announcement,
+    setAnnouncement,
+  ] = useState("");
 
   useEffect(() => {
-    const animationFrame = window.requestAnimationFrame(() => {
-      const main = document.querySelector<HTMLElement>("main");
+    const authRouteState =
+      readAuthRouteState(
+        location.state,
+      );
 
-      if (!main) {
-        return;
-      }
+    if (
+      authRouteState
+        .backgroundLocation
+    ) {
+      return;
+    }
 
-      main.id = "main-content";
-      main.tabIndex = -1;
+    const animationFrame =
+      window.requestAnimationFrame(
+        () => {
+          const main =
+            document.querySelector<HTMLElement>(
+              "main",
+            );
 
-      if (isFirstRenderRef.current) {
-        isFirstRenderRef.current = false;
-        return;
-      }
+          if (!main) {
+            return;
+          }
 
-      main.focus({
-        preventScroll: true,
-      });
+          main.id =
+            "main-content";
 
-      const pageHeading = main.querySelector<HTMLElement>("h1");
-      const headingText = pageHeading?.textContent?.trim();
+          main.tabIndex = -1;
 
-      setAnnouncement(headingText || getFallbackAnnouncement(pathname));
-    });
+          if (
+            isFirstRenderRef.current
+          ) {
+            isFirstRenderRef.current =
+              false;
+
+            return;
+          }
+
+          main.focus({
+            preventScroll: true,
+          });
+
+          const pageHeading =
+            main.querySelector<HTMLElement>(
+              "h1",
+            );
+
+          const headingText =
+            pageHeading
+              ?.textContent
+              ?.trim();
+
+          setAnnouncement(
+            headingText ||
+              getFallbackAnnouncement(
+                location.pathname,
+              ),
+          );
+        },
+      );
 
     return () => {
-      window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(
+        animationFrame,
+      );
     };
-  }, [pathname]);
+  }, [
+    location.pathname,
+    location.state,
+  ]);
 
   return (
     <span

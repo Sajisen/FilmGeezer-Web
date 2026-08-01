@@ -34,6 +34,19 @@ async function prepareUserAuthenticationStorage():
       },
     },
   );
+
+  await users.updateMany(
+    {
+      deactivatedAt: {
+        $exists: false,
+      },
+    },
+    {
+      $set: {
+        deactivatedAt: null,
+      },
+    },
+  );
 }
 
 

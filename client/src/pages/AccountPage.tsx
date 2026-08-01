@@ -12,12 +12,13 @@ import {
 
 import AccountControls from "../features/account/components/AccountControls";
 import AccountDeactivationDialog from "../features/account/components/AccountDeactivationDialog";
-import AccountHero from "../features/account/components/AccountHero";
-import AccountNavigation, {
+import {
   getAccountSection,
   isAccountTab,
   type AccountTab,
-} from "../features/account/components/AccountNavigation";
+} from "../features/account/accountNavigation";
+import AccountHero from "../features/account/components/AccountHero";
+import AccountNavigation from "../features/account/components/AccountNavigation";
 import ChangePasswordPanel from "../features/account/components/ChangePasswordPanel";
 import EmailChangePanel from "../features/account/components/EmailChangePanel";
 import ProfileEditor from "../features/account/components/ProfileEditor";

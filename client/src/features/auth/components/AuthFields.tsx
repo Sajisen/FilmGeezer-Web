@@ -13,6 +13,58 @@ interface AuthFieldProps
   hint?: string;
 }
 
+function EyeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+    >
+      <path
+        d="M2.75 12s3.25-5.25 9.25-5.25S21.25 12 21.25 12 18 17.25 12 17.25 2.75 12 2.75 12Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+
+      <circle
+        cx="12"
+        cy="12"
+        r="2.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+    >
+      <path
+        d="m4 4 16 16"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+
+      <path
+        d="M9.65 7.12A10.6 10.6 0 0 1 12 6.75c6 0 9.25 5.25 9.25 5.25a15.2 15.2 0 0 1-3.08 3.55M14.3 16.9c-.72.23-1.49.35-2.3.35C6 17.25 2.75 12 2.75 12a15.5 15.5 0 0 1 3.08-3.55"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function AuthField({
   label,
   id,
@@ -61,9 +113,7 @@ export function AuthField({
           className="mt-1.5 space-y-1 text-xs leading-5 text-rose-200"
         >
           {errorMessages.map(
-            (
-              message,
-            ) => (
+            (message) => (
               <p key={message}>
                 {message}
               </p>
@@ -107,54 +157,61 @@ export function PasswordField({
       ? `${id}-hint`
       : undefined;
 
+  const visibilityLabel =
+    isVisible
+      ? "Hide password"
+      : "Show password";
+
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
-        <label
-          htmlFor={id}
-          className="text-sm font-semibold text-slate-200"
-        >
-          {label}
-        </label>
+      <label
+        htmlFor={id}
+        className="text-sm font-semibold text-slate-200"
+      >
+        {label}
+      </label>
+
+      <div className="relative mt-1.5">
+        <input
+          {...inputProps}
+          id={id}
+          type={
+            isVisible
+              ? "text"
+              : "password"
+          }
+          aria-invalid={
+            errorMessages.length > 0
+          }
+          aria-describedby={
+            errorId ?? hintId
+          }
+          className={`min-h-12 w-full rounded-xl border bg-slate-950/70 px-4 pr-12 text-[16px] text-white outline-none transition placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 ${
+            errorMessages.length > 0
+              ? "border-rose-400/70 focus:border-rose-300 focus:ring-2 focus:ring-rose-300/20"
+              : "border-white/10 hover:border-white/20 focus:border-sky-300/70 focus:ring-2 focus:ring-sky-300/20"
+          }`}
+        />
 
         <button
           type="button"
           onClick={() => {
             setIsVisible(
-              (
-                currentValue,
-              ) =>
+              (currentValue) =>
                 !currentValue,
             );
           }}
-          className="rounded-full px-2 py-1 text-xs font-semibold text-sky-300 transition hover:bg-sky-400/10 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          aria-label={visibilityLabel}
+          aria-pressed={isVisible}
+          title={visibilityLabel}
+          disabled={inputProps.disabled}
+          className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isVisible
-            ? "Hide"
-            : "Show"}
+            ? <EyeOffIcon />
+            : <EyeIcon />}
         </button>
       </div>
-
-      <input
-        {...inputProps}
-        id={id}
-        type={
-          isVisible
-            ? "text"
-            : "password"
-        }
-        aria-invalid={
-          errorMessages.length > 0
-        }
-        aria-describedby={
-          errorId ?? hintId
-        }
-        className={`mt-1.5 min-h-12 w-full rounded-xl border bg-slate-950/70 px-4 text-[16px] text-white outline-none transition placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 ${
-          errorMessages.length > 0
-            ? "border-rose-400/70 focus:border-rose-300 focus:ring-2 focus:ring-rose-300/20"
-            : "border-white/10 hover:border-white/20 focus:border-sky-300/70 focus:ring-2 focus:ring-sky-300/20"
-        }`}
-      />
 
       {errorMessages.length > 0 ? (
         <div
@@ -162,9 +219,7 @@ export function PasswordField({
           className="mt-1.5 space-y-1 text-xs leading-5 text-rose-200"
         >
           {errorMessages.map(
-            (
-              message,
-            ) => (
+            (message) => (
               <p key={message}>
                 {message}
               </p>
