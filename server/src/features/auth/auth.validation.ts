@@ -1,0 +1,595 @@
+import { z } from "zod";
+import {
+  AUTH_EMAIL_CHANGE_POLICY,
+  AUTH_EMAIL_VERIFICATION_POLICY,
+  AUTH_INPUT_LIMITS,
+  AUTH_PASSWORD_RESET_POLICY,
+} from "./auth.constants.js";
+
+const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001F\u007F]/u;
+const MULTIPLE_WHITESPACE_PATTERN = /\s+/gu;
+
+function countUnicodeCodePoints(value: string): number {
+  return Array.from(value).length;
+}
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export function normalizeDisplayName(displayName: string): string {
+  return displayName
+    .normalize("NFKC")
+    .trim()
+    .replace(MULTIPLE_WHITESPACE_PATTERN, " ");
+}
+
+const registrationEmailSchema = z
+  .string({
+    error: "Email must be text.",
+  })
+  .trim()
+  .min(1, "Email is required.")
+  .max(
+    AUTH_INPUT_LIMITS.emailMaximumLength,
+    "Email is too long.",
+  )
+  .email("Enter a valid email address.");
+
+const registrationDisplayNameSchema = z
+  .string({
+    error: "Display name must be text.",
+  })
+  /*
+   * This first limit protects the normalisation step from receiving an
+   * unnecessarily large value. The final user-facing limit is checked
+   * after whitespace has been normalised.
+   */
+  .max(200, "Display name is too long.")
+  .superRefine((displayName, context) => {
+    /*
+     * Check the original value before normalisation.
+     *
+     * Otherwise, tabs and line breaks could be converted into ordinary
+     * spaces before validation detects them.
+     */
+    if (
+      CONTROL_CHARACTER_PATTERN.test(
+        displayName,
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Display name contains unsupported control characters.",
+      });
+    }
+  })
+  .transform(normalizeDisplayName)
+  .superRefine((displayName, context) => {
+    const characterCount =
+      countUnicodeCodePoints(displayName);
+
+    if (
+      characterCount <
+      AUTH_INPUT_LIMITS.displayNameMinimumLength
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `Display name must contain at least ${AUTH_INPUT_LIMITS.displayNameMinimumLength} characters.`,
+      });
+    }
+
+    if (
+      characterCount >
+      AUTH_INPUT_LIMITS.displayNameMaximumLength
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `Display name must contain no more than ${AUTH_INPUT_LIMITS.displayNameMaximumLength} characters.`,
+      });
+    }
+  });
+
+const registrationPasswordSchema = z
+  .string({
+    error: "Password must be text.",
+  })
+  .superRefine((password, context) => {
+    /*
+     * Do not trim or normalise passwords.
+     *
+     * Spaces and Unicode characters are valid password content, and the
+     * password must be hashed exactly as the user entered it.
+     */
+    const characterCount = countUnicodeCodePoints(password);
+
+    if (
+      characterCount <
+      AUTH_INPUT_LIMITS.passwordMinimumLength
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `Password must contain at least ${AUTH_INPUT_LIMITS.passwordMinimumLength} characters.`,
+      });
+    }
+
+    if (
+      characterCount >
+      AUTH_INPUT_LIMITS.passwordMaximumLength
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: `Password must contain no more than ${AUTH_INPUT_LIMITS.passwordMaximumLength} characters.`,
+      });
+    }
+
+    if (!/\S/u.test(password)) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Password must contain at least one non-whitespace character.",
+      });
+    }
+  });
+
+export const registrationInputSchema = z
+  .object({
+    email: registrationEmailSchema,
+    displayName: registrationDisplayNameSchema,
+    password: registrationPasswordSchema,
+  })
+  .strict()
+  .transform(({ email, displayName, password }) => ({
+    emailDisplay: email,
+    emailNormalized: normalizeEmail(email),
+    displayName,
+    password,
+  }));
+
+export type RegistrationInput = z.input<
+  typeof registrationInputSchema
+>;
+
+export type NormalizedRegistrationInput = z.output<
+  typeof registrationInputSchema
+>;
+
+export function parseRegistrationInput(
+  value: unknown,
+): NormalizedRegistrationInput {
+  return registrationInputSchema.parse(value);
+}
+
+const emailVerificationChallengeIdSchema = z.uuid({
+  version: "v4",
+  error:
+    "Verification challenge ID is invalid.",
+});
+
+const EMAIL_VERIFICATION_CODE_PATTERN =
+  new RegExp(
+    `^\\d{${AUTH_EMAIL_VERIFICATION_POLICY.codeDigits}}$`,
+    "u",
+  );
+
+export const emailVerificationInputSchema = z
+  .object({
+    challengeId:
+      emailVerificationChallengeIdSchema,
+
+    /*
+     * Keep the code as a string so leading zeroes are preserved.
+     * Outer whitespace is ignored to support pasted codes.
+     */
+    code: z
+      .string({
+        error:
+          "Verification code must be text.",
+      })
+      .trim()
+      .regex(
+        EMAIL_VERIFICATION_CODE_PATTERN,
+        `Verification code must contain exactly ${AUTH_EMAIL_VERIFICATION_POLICY.codeDigits} digits.`,
+      ),
+  })
+  .strict();
+
+export type EmailVerificationInput = z.input<
+  typeof emailVerificationInputSchema
+>;
+
+export type NormalizedEmailVerificationInput =
+  z.output<
+    typeof emailVerificationInputSchema
+  >;
+
+export function parseEmailVerificationInput(
+  value: unknown,
+): NormalizedEmailVerificationInput {
+  return emailVerificationInputSchema.parse(
+    value,
+  );
+}
+
+export const emailVerificationResendInputSchema =
+  z
+    .object({
+      /*
+       * Resend is authorised by possession of the unguessable public
+       * challenge ID rather than by an email address. This avoids
+       * turning the endpoint into an account-enumeration mechanism.
+       */
+      challengeId:
+        emailVerificationChallengeIdSchema,
+    })
+    .strict();
+
+export type EmailVerificationResendInput =
+  z.input<
+    typeof emailVerificationResendInputSchema
+  >;
+
+export type NormalizedEmailVerificationResendInput =
+  z.output<
+    typeof emailVerificationResendInputSchema
+  >;
+
+export function parseEmailVerificationResendInput(
+  value: unknown,
+): NormalizedEmailVerificationResendInput {
+  return emailVerificationResendInputSchema.parse(
+    value,
+  );
+}
+
+const loginEmailSchema = z
+  .string({
+    error: "Email must be text.",
+  })
+  .trim()
+  .min(
+    1,
+    "Email is required.",
+  )
+  .max(
+    AUTH_INPUT_LIMITS.emailMaximumLength,
+    "Email is too long.",
+  )
+  .email(
+    "Enter a valid email address.",
+  );
+
+const loginPasswordSchema = z
+  .string({
+    error: "Password must be text.",
+  })
+  .min(
+    1,
+    "Password is required.",
+  )
+  .superRefine(
+    (
+      password,
+      context,
+    ) => {
+      /*
+       * Login must preserve the password exactly as entered. The only
+       * structural protection here is the same maximum length used by
+       * registration so an authentication request cannot force Argon2 to
+       * process an unbounded value.
+       */
+      if (
+        Array.from(password).length >
+        AUTH_INPUT_LIMITS
+          .passwordMaximumLength
+      ) {
+        context.addIssue({
+          code: "custom",
+
+          message: `Password must contain no more than ${AUTH_INPUT_LIMITS.passwordMaximumLength} characters.`,
+        });
+      }
+    },
+  );
+
+export const loginInputSchema = z
+  .object({
+    email: loginEmailSchema,
+    password: loginPasswordSchema,
+  })
+  .strict()
+  .transform(
+    ({
+      email,
+      password,
+    }) => ({
+      emailNormalized:
+        normalizeEmail(email),
+
+      password,
+    }),
+  );
+
+export type LoginInput = z.input<
+  typeof loginInputSchema
+>;
+
+export type NormalizedLoginInput = z.output<
+  typeof loginInputSchema
+>;
+
+export function parseLoginInput(
+  value: unknown,
+): NormalizedLoginInput {
+  return loginInputSchema.parse(value);
+}
+const passwordResetRequestEmailSchema =
+  loginEmailSchema;
+
+export const passwordResetRequestInputSchema = z
+  .object({
+    email: passwordResetRequestEmailSchema,
+  })
+  .strict()
+  .transform(({ email }) => ({
+    emailNormalized: normalizeEmail(email),
+  }));
+
+export type PasswordResetRequestInput = z.input<
+  typeof passwordResetRequestInputSchema
+>;
+
+export type NormalizedPasswordResetRequestInput = z.output<
+  typeof passwordResetRequestInputSchema
+>;
+
+export function parsePasswordResetRequestInput(
+  value: unknown,
+): NormalizedPasswordResetRequestInput {
+  return passwordResetRequestInputSchema.parse(value);
+}
+
+const PASSWORD_RESET_TOKEN_PATTERN =
+  /^[A-Za-z0-9_-]+$/u;
+
+export const passwordResetInputSchema = z
+  .object({
+    challengeId: z.uuid({
+      version: "v4",
+      error: "Password-reset challenge ID is invalid.",
+    }),
+
+    token: z
+      .string({
+        error: "Password-reset token must be text.",
+      })
+      .trim()
+      .length(
+        AUTH_PASSWORD_RESET_POLICY.tokenCharacterLength,
+        "Password-reset token is invalid.",
+      )
+      .regex(
+        PASSWORD_RESET_TOKEN_PATTERN,
+        "Password-reset token is invalid.",
+      ),
+
+    password: registrationPasswordSchema,
+  })
+  .strict();
+
+export type PasswordResetInput = z.input<
+  typeof passwordResetInputSchema
+>;
+
+export type NormalizedPasswordResetInput = z.output<
+  typeof passwordResetInputSchema
+>;
+
+export function parsePasswordResetInput(
+  value: unknown,
+): NormalizedPasswordResetInput {
+  return passwordResetInputSchema.parse(value);
+}
+
+export const recentAuthenticationInputSchema = z
+  .object({
+    password: loginPasswordSchema,
+  })
+  .strict();
+
+export type RecentAuthenticationInput = z.input<
+  typeof recentAuthenticationInputSchema
+>;
+
+export type NormalizedRecentAuthenticationInput = z.output<
+  typeof recentAuthenticationInputSchema
+>;
+
+export function parseRecentAuthenticationInput(
+  value: unknown,
+): NormalizedRecentAuthenticationInput {
+  return recentAuthenticationInputSchema.parse(value);
+}
+
+export const accountProfileUpdateInputSchema = z
+  .object({
+    displayName: registrationDisplayNameSchema,
+  })
+  .strict();
+
+export type AccountProfileUpdateInput = z.input<
+  typeof accountProfileUpdateInputSchema
+>;
+
+export type NormalizedAccountProfileUpdateInput = z.output<
+  typeof accountProfileUpdateInputSchema
+>;
+
+export function parseAccountProfileUpdateInput(
+  value: unknown,
+): NormalizedAccountProfileUpdateInput {
+  return accountProfileUpdateInputSchema.parse(value);
+}
+
+export const accountPasswordChangeInputSchema = z
+  .object({
+    newPassword: registrationPasswordSchema,
+  })
+  .strict();
+
+export type AccountPasswordChangeInput = z.input<
+  typeof accountPasswordChangeInputSchema
+>;
+
+export type NormalizedAccountPasswordChangeInput = z.output<
+  typeof accountPasswordChangeInputSchema
+>;
+
+export function parseAccountPasswordChangeInput(
+  value: unknown,
+): NormalizedAccountPasswordChangeInput {
+  return accountPasswordChangeInputSchema.parse(value);
+}
+
+
+const ACCOUNT_EMAIL_CHANGE_CODE_PATTERN =
+  new RegExp(
+    `^\\d{${AUTH_EMAIL_CHANGE_POLICY.codeDigits}}$`,
+    "u",
+  );
+
+const accountEmailChangeChallengeIdSchema = z.uuid({
+  version: "v4",
+  error: "Email-change challenge ID is invalid.",
+});
+
+export const accountEmailChangeRequestInputSchema = z
+  .object({
+    newEmail: registrationEmailSchema,
+  })
+  .strict()
+  .transform(({ newEmail }) => ({
+    emailDisplay: newEmail,
+    emailNormalized: normalizeEmail(newEmail),
+  }));
+
+export type AccountEmailChangeRequestInput = z.input<
+  typeof accountEmailChangeRequestInputSchema
+>;
+
+export type NormalizedAccountEmailChangeRequestInput = z.output<
+  typeof accountEmailChangeRequestInputSchema
+>;
+
+export function parseAccountEmailChangeRequestInput(
+  value: unknown,
+): NormalizedAccountEmailChangeRequestInput {
+  return accountEmailChangeRequestInputSchema.parse(value);
+}
+
+export const accountEmailChangeVerifyInputSchema = z
+  .object({
+    challengeId: accountEmailChangeChallengeIdSchema,
+    code: z
+      .string({
+        error: "Verification code must be text.",
+      })
+      .trim()
+      .regex(
+        ACCOUNT_EMAIL_CHANGE_CODE_PATTERN,
+        `Verification code must contain exactly ${AUTH_EMAIL_CHANGE_POLICY.codeDigits} digits.`,
+      ),
+  })
+  .strict();
+
+export type AccountEmailChangeVerifyInput = z.input<
+  typeof accountEmailChangeVerifyInputSchema
+>;
+
+export type NormalizedAccountEmailChangeVerifyInput = z.output<
+  typeof accountEmailChangeVerifyInputSchema
+>;
+
+export function parseAccountEmailChangeVerifyInput(
+  value: unknown,
+): NormalizedAccountEmailChangeVerifyInput {
+  return accountEmailChangeVerifyInputSchema.parse(value);
+}
+
+export const accountEmailChangeResendInputSchema = z
+  .object({
+    challengeId: accountEmailChangeChallengeIdSchema,
+  })
+  .strict();
+
+export type AccountEmailChangeResendInput = z.input<
+  typeof accountEmailChangeResendInputSchema
+>;
+
+export type NormalizedAccountEmailChangeResendInput = z.output<
+  typeof accountEmailChangeResendInputSchema
+>;
+
+export function parseAccountEmailChangeResendInput(
+  value: unknown,
+): NormalizedAccountEmailChangeResendInput {
+  return accountEmailChangeResendInputSchema.parse(value);
+}
+
+export type AccountEmailChangeChallengeIdInput = z.input<
+  typeof accountEmailChangeChallengeIdSchema
+>;
+
+export function parseAccountEmailChangeChallengeId(
+  value: unknown,
+): AccountEmailChangeChallengeIdInput {
+  return accountEmailChangeChallengeIdSchema.parse(value);
+}
+
+
+export const accountDeactivationInputSchema = z
+  .object({
+    confirmation: z.literal("DEACTIVATE", {
+      error:
+        "Type DEACTIVATE to confirm account deactivation.",
+    }),
+  })
+  .strict();
+
+export type AccountDeactivationInput = z.input<
+  typeof accountDeactivationInputSchema
+>;
+
+export type NormalizedAccountDeactivationInput = z.output<
+  typeof accountDeactivationInputSchema
+>;
+
+export function parseAccountDeactivationInput(
+  value: unknown,
+): NormalizedAccountDeactivationInput {
+  return accountDeactivationInputSchema.parse(value);
+}
+
+
+const AUTH_SESSION_REFERENCE_PATTERN =
+  /^[A-Za-z0-9_-]{43}$/u;
+
+export const accountSessionReferenceSchema = z
+  .string({
+    error: "Session reference must be text.",
+  })
+  .regex(
+    AUTH_SESSION_REFERENCE_PATTERN,
+    "Session reference is invalid.",
+  );
+
+export type AccountSessionReferenceInput = z.input<
+  typeof accountSessionReferenceSchema
+>;
+
+export function parseAccountSessionReference(
+  value: unknown,
+): AccountSessionReferenceInput {
+  return accountSessionReferenceSchema.parse(value);
+}

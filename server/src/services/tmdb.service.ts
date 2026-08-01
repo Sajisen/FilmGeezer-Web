@@ -1,3 +1,5 @@
+import { env } from "../config/env.js";
+
 import type {
   BrowseCategory,
   MediaDetails,
@@ -122,15 +124,7 @@ export class TmdbRequestError extends Error {
 }
 
 function getAccessToken() {
-  const token = process.env.TMDB_READ_ACCESS_TOKEN;
-
-  if (!token) {
-    throw new Error(
-      "TMDB_READ_ACCESS_TOKEN is missing from the server environment.",
-    );
-  }
-
-  return token;
+  return env.TMDB_READ_ACCESS_TOKEN;
 }
 
 async function tmdbFetch<T>(path: string): Promise<T> {
