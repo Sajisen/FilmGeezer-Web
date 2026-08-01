@@ -25,62 +25,159 @@ const secretPepperSchema = z
   .string()
   .min(32, "Secret pepper must contain at least 32 characters.");
 
-const environmentSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
+const optionalTrimmedStringSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
 
-  PORT: z.coerce.number().int().min(1).max(65_535).default(5000),
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  z.string().min(1).optional(),
+);
 
-  HOST: z.string().trim().min(1).default("0.0.0.0"),
+const optionalUrlSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
 
-  CLIENT_APP_ORIGIN: z
-    .string()
-    .trim()
-    .url("CLIENT_APP_ORIGIN must be a valid URL.")
-    .refine((value) => {
-      const url = new URL(value);
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  z.string().url().optional(),
+);
 
-      return (
-        (url.protocol === "http:" ||
-          url.protocol === "https:") &&
-        url.pathname === "/" &&
-        url.search === "" &&
-        url.hash === ""
-      );
-    }, "CLIENT_APP_ORIGIN must be an http(s) origin without a path, query, or fragment."),
+const booleanEnvironmentSchema = z.preprocess(
+  (value) => {
+    if (typeof value === "boolean") {
+      return value;
+    }
 
-  TMDB_READ_ACCESS_TOKEN: z
-    .string()
-    .trim()
-    .min(1, "TMDB_READ_ACCESS_TOKEN is required."),
+    if (typeof value !== "string") {
+      return value;
+    }
 
-  MONGODB_URI: z
-    .string()
-    .trim()
-    .min(1, "MONGODB_URI is required.")
-    .refine(
-      (value) =>
-        value.startsWith("mongodb://") || value.startsWith("mongodb+srv://"),
-      "MONGODB_URI must begin with mongodb:// or mongodb+srv://.",
-    ),
+    const normalized = value.trim().toLowerCase();
 
-  MONGODB_CONTENT_DB_NAME: mongoDatabaseNameSchema.default("filmgeezer_bot"),
+    if (normalized === "true" || normalized === "1") {
+      return true;
+    }
 
-  MONGODB_WEB_DB_NAME: mongoDatabaseNameSchema.default("filmgeezer_web"),
+    if (normalized === "false" || normalized === "0") {
+      return false;
+    }
 
-  MONGODB_CONTENT_LINKS_COLLECTION:
-    mongoCollectionNameSchema.default("content_links"),
+    return value;
+  },
+  z.boolean(),
+);
 
-  AUTH_CHALLENGE_PEPPER: secretPepperSchema,
+const environmentSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
 
-  /*
-   * Session tokens, CSRF material, and privacy-preserving IP hashes use a
-   * different pepper from short-lived verification challenges. Separating
-   * these secrets limits the impact of a future secret rotation or leak.
-   */
-  AUTH_SESSION_PEPPER: secretPepperSchema,
-});
+    PORT: z.coerce.number().int().min(1).max(65_535).default(5000),
+
+    HOST: z.string().trim().min(1).default("0.0.0.0"),
+
+    CLIENT_APP_ORIGIN: z
+      .string()
+      .trim()
+      .url("CLIENT_APP_ORIGIN must be a valid URL.")
+      .refine((value) => {
+        const url = new URL(value);
+
+        return (
+          (url.protocol === "http:" || url.protocol === "https:") &&
+          url.pathname === "/" &&
+          url.search === "" &&
+          url.hash === ""
+        );
+      }, "CLIENT_APP_ORIGIN must be an http(s) origin without a path, query, or fragment."),
+
+    TMDB_READ_ACCESS_TOKEN: z
+      .string()
+      .trim()
+      .min(1, "TMDB_READ_ACCESS_TOKEN is required."),
+
+    MONGODB_URI: z
+      .string()
+      .trim()
+      .min(1, "MONGODB_URI is required.")
+      .refine(
+        (value) =>
+          value.startsWith("mongodb://") || value.startsWith("mongodb+srv://"),
+        "MONGODB_URI must begin with mongodb:// or mongodb+srv://.",
+      ),
+
+    MONGODB_CONTENT_DB_NAME: mongoDatabaseNameSchema.default("filmgeezer_bot"),
+
+    MONGODB_WEB_DB_NAME: mongoDatabaseNameSchema.default("filmgeezer_web"),
+
+    MONGODB_CONTENT_LINKS_COLLECTION:
+      mongoCollectionNameSchema.default("content_links"),
+
+    AUTH_CHALLENGE_PEPPER: secretPepperSchema,
+
+    AUTH_SESSION_PEPPER: secretPepperSchema,
+
+    PROFILE_IMAGE_STORAGE_DRIVER: z
+      .enum(["local", "railway-bucket"])
+      .default("local"),
+
+    PROFILE_IMAGE_LOCAL_DIRECTORY: z
+      .string()
+      .trim()
+      .min(1)
+      .default(".data/profile-images"),
+
+    PROFILE_IMAGE_BUCKET_NAME: optionalTrimmedStringSchema,
+    PROFILE_IMAGE_BUCKET_ENDPOINT: optionalUrlSchema,
+    PROFILE_IMAGE_BUCKET_REGION: optionalTrimmedStringSchema,
+    PROFILE_IMAGE_BUCKET_ACCESS_KEY_ID: optionalTrimmedStringSchema,
+    PROFILE_IMAGE_BUCKET_SECRET_ACCESS_KEY: optionalTrimmedStringSchema,
+    PROFILE_IMAGE_BUCKET_FORCE_PATH_STYLE:
+      booleanEnvironmentSchema.default(false),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.NODE_ENV === "production" &&
+      value.PROFILE_IMAGE_STORAGE_DRIVER === "local"
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["PROFILE_IMAGE_STORAGE_DRIVER"],
+        message:
+          "Production must use railway-bucket because Railway service filesystems are not durable profile-image storage.",
+      });
+    }
+
+    if (value.PROFILE_IMAGE_STORAGE_DRIVER !== "railway-bucket") {
+      return;
+    }
+
+    const requiredBucketValues = [
+      ["PROFILE_IMAGE_BUCKET_NAME", value.PROFILE_IMAGE_BUCKET_NAME],
+      ["PROFILE_IMAGE_BUCKET_ENDPOINT", value.PROFILE_IMAGE_BUCKET_ENDPOINT],
+      ["PROFILE_IMAGE_BUCKET_REGION", value.PROFILE_IMAGE_BUCKET_REGION],
+      ["PROFILE_IMAGE_BUCKET_ACCESS_KEY_ID", value.PROFILE_IMAGE_BUCKET_ACCESS_KEY_ID],
+      ["PROFILE_IMAGE_BUCKET_SECRET_ACCESS_KEY", value.PROFILE_IMAGE_BUCKET_SECRET_ACCESS_KEY],
+    ] as const;
+
+    for (const [name, configuredValue] of requiredBucketValues) {
+      if (!configuredValue) {
+        context.addIssue({
+          code: "custom",
+          path: [name],
+          message: `${name} is required when PROFILE_IMAGE_STORAGE_DRIVER is railway-bucket.`,
+        });
+      }
+    }
+  });
 
 const environmentResult = environmentSchema.safeParse(process.env);
 

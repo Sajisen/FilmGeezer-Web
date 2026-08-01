@@ -47,6 +47,19 @@ async function prepareUserAuthenticationStorage():
       },
     },
   );
+
+  await users.updateMany(
+    {
+      profileImage: {
+        $exists: false,
+      },
+    },
+    {
+      $set: {
+        profileImage: null,
+      },
+    },
+  );
 }
 
 

@@ -89,6 +89,8 @@ export const AUTH_AUDIT_EVENT_VALUES = [
   "account-suspended",
   "account-deactivated",
   "account-deactivation-notice-sent",
+  "profile-image-updated",
+  "profile-image-removed",
   "account-reactivated",
 ] as const;
 
@@ -104,6 +106,17 @@ export interface AuthenticatedUser {
   roles: AuthRole[];
 }
 
+
+export interface FilmGeezerProfileImage {
+  objectKey: string;
+  version: string;
+  contentType: "image/webp";
+  byteSize: number;
+  width: number;
+  height: number;
+  updatedAt: Date;
+}
+
 export interface FilmGeezerUserDocument {
   _id: ObjectId;
   schemaVersion: number;
@@ -111,6 +124,7 @@ export interface FilmGeezerUserDocument {
   emailNormalized: string;
   emailDisplay: string;
   displayName: string;
+  profileImage: FilmGeezerProfileImage | null;
 
   status: UserStatus;
   roles: AuthRole[];

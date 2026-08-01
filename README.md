@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform, manual authentication/account-management foundation, guest Watchlist, authenticated MongoDB Watchlist, overflow-safe guest-to-account merging, and the compact Watchlist experience are implemented.
+The discovery platform, manual authentication/account-management foundation, persistent Watchlist, and the secure backend foundation for profile-picture uploads are implemented.
 
 ## Technology stack
 
@@ -25,6 +25,9 @@ The discovery platform, manual authentication/account-management foundation, gue
 - MongoDB
 - Zod validation
 - Argon2id password hashing
+- Sharp image decoding and safe WebP re-encoding
+- Multer multipart upload limits
+- Railway Buckets-compatible S3 storage adapter
 
 ### External data
 
@@ -80,6 +83,17 @@ The discovery platform, manual authentication/account-management foundation, gue
 - Accessible add/remove controls on media cards and Media Details
 - Defensive storage and API-response validation
 
+### Profile-picture foundation
+
+- Authenticated, CSRF-protected profile-picture upload and removal endpoints
+- JPEG, PNG, and WebP input allowlist
+- Five-megabyte request limit and twelve-megapixel decode limit
+- Server-side decode, orientation correction, square crop, resize, metadata removal, and WebP re-encoding
+- Maximum 256 KiB stored output
+- Local development storage and private Railway Bucket support
+- Presigned bucket delivery to avoid proxying image bytes through the application service
+- Replacement cleanup, deactivation cleanup, rate limiting, and audit events
+
 ### User experience
 
 - Route-backed authentication modals with direct-route fallbacks
@@ -108,7 +122,7 @@ Authentication uses opaque session tokens stored in HttpOnly cookies. The server
 
 The next planned phases are:
 
-1. Profile-picture upload through Railway Buckets object storage
+1. Profile-picture account UI and avatar integration
 2. Entertainment preferences and personalised recommendations
 3. Notifications and contact/support completion
 4. Protected administration features
@@ -187,3 +201,52 @@ npm run build
 ## Data and attribution
 
 FilmGeezer Web uses TMDB data but is not endorsed or certified by TMDB. FilmGeezer content links are served through the backend and are identified by the canonical combination of TMDB media type and TMDB ID.
+
+
+===== server/.env.example =====
+# This file documents the environment variables used by the FilmGeezer
+# server. Copy it to a local file named .env and replace every placeholder.
+# Never commit the real .env file to version control.
+
+# Server runtime
+NODE_ENV=development
+PORT=5000
+HOST=0.0.0.0
+
+# Public FilmGeezer client origin used in password-reset links
+# Use the LAN address while testing reset links from another device.
+CLIENT_APP_ORIGIN=http://localhost:5173
+
+# TMDB
+TMDB_READ_ACCESS_TOKEN=replace_with_your_tmdb_read_access_token
+
+# MongoDB connection
+MONGODB_URI=replace_with_your_mongodb_connection_string
+
+# Telegram bot-owned read-only content database
+MONGODB_CONTENT_DB_NAME=filmgeezer_bot
+MONGODB_CONTENT_LINKS_COLLECTION=content_links
+
+# FilmGeezer Web-owned application database
+MONGODB_WEB_DB_NAME=filmgeezer_web
+
+# Authentication secrets
+# Generate separate random values. Each must contain at least 32 characters.
+AUTH_CHALLENGE_PEPPER=replace_with_a_random_32_byte_secret
+AUTH_SESSION_PEPPER=replace_with_a_different_random_32_byte_secret
+
+# Profile pictures
+# Local development writes processed WebP files under server/.data.
+# Railway production must use railway-bucket.
+PROFILE_IMAGE_STORAGE_DRIVER=local
+PROFILE_IMAGE_LOCAL_DIRECTORY=.data/profile-images
+
+# Railway Bucket variables are required only when the driver is railway-bucket.
+# Map these values from the Bucket service's BUCKET, ENDPOINT, REGION,
+# ACCESS_KEY_ID, and SECRET_ACCESS_KEY variables.
+PROFILE_IMAGE_BUCKET_NAME=
+PROFILE_IMAGE_BUCKET_ENDPOINT=
+PROFILE_IMAGE_BUCKET_REGION=auto
+PROFILE_IMAGE_BUCKET_ACCESS_KEY_ID=
+PROFILE_IMAGE_BUCKET_SECRET_ACCESS_KEY=
+PROFILE_IMAGE_BUCKET_FORCE_PATH_STYLE=false
