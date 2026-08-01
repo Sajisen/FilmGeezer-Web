@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -173,24 +174,40 @@ function AccountPage() {
       null,
     );
 
+  const [isSigningOutCurrent, setIsSigningOutCurrent] =
+    useState(false);
+
+  const [currentSignOutError, setCurrentSignOutError] =
+    useState<string | null>(null);
+
   const [isSigningOutAll, setIsSigningOutAll] =
     useState(false);
+
+  const currentSignOutRedirectRef =
+    useRef(false);
 
   const [revokingSessionReference, setRevokingSessionReference] =
     useState<string | null>(null);
 
   useEffect(() => {
-    if (auth.status === "guest") {
-      navigate(
-        "/login",
-        {
-          replace: true,
-          state: {
-            returnTo: `/account?section=${activeTab}`,
-          },
-        },
-      );
+    if (auth.status !== "guest") {
+      return;
     }
+
+    if (currentSignOutRedirectRef.current) {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    navigate(
+      "/login",
+      {
+        replace: true,
+        state: {
+          returnTo: `/account?section=${activeTab}`,
+        },
+      },
+    );
   }, [auth.status, activeTab, navigate]);
 
   const loadDetails = useCallback(
@@ -389,6 +406,28 @@ function AccountPage() {
         loadSessions,
       ],
     );
+
+  async function handleSignOutCurrentDevice() {
+    if (isSigningOutCurrent) {
+      return;
+    }
+
+    currentSignOutRedirectRef.current = true;
+    setIsSigningOutCurrent(true);
+    setCurrentSignOutError(null);
+
+    try {
+      await auth.signOut();
+    } catch (error) {
+      currentSignOutRedirectRef.current = false;
+      setIsSigningOutCurrent(false);
+      setCurrentSignOutError(
+        error instanceof Error
+          ? error.message
+          : "FilmGeezer could not sign you out.",
+      );
+    }
+  }
 
   async function handleSignOutAll() {
     if (isSigningOutAll) {
@@ -625,13 +664,38 @@ function AccountPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[30rem] bg-[radial-gradient(circle_at_12%_0%,rgba(14,165,233,0.12),transparent_36%),radial-gradient(circle_at_88%_8%,rgba(79,70,229,0.08),transparent_34%)]" />
 
       <div className="relative mx-auto w-full max-w-[1080px] px-4 py-7 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-        <header className="mb-5 px-1 lg:hidden">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-            FilmGeezer account
-          </p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-            Account settings
-          </h1>
+        <header className="mb-5 flex items-end justify-between gap-3 px-1 lg:hidden">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
+              FilmGeezer account
+            </p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+              Account settings
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              void handleSignOutCurrentDevice();
+            }}
+            disabled={isSigningOutCurrent}
+            aria-busy={isSigningOutCurrent}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 text-sm font-bold text-rose-100 shadow-lg shadow-black/10 transition hover:border-rose-300/35 hover:bg-rose-400/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-wait disabled:opacity-70"
+          >
+            {isSigningOutCurrent ? (
+              <span
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin rounded-full border-2 border-rose-100/30 border-t-rose-100 motion-reduce:animate-none"
+              />
+            ) : (
+              <AccountIcon
+                name="logout"
+                className="h-4 w-4"
+              />
+            )}
+            <span>Sign out</span>
+          </button>
         </header>
 
         <div className="space-y-4 lg:space-y-6">
@@ -641,7 +705,20 @@ function AccountPage() {
             memberSinceLabel={formatDateOnly(
               details.account.memberSince,
             )}
+            isSigningOut={isSigningOutCurrent}
+            onSignOut={() => {
+              void handleSignOutCurrentDevice();
+            }}
           />
+
+          {currentSignOutError && activeTab !== "account" && (
+            <p
+              role="alert"
+              className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+            >
+              {currentSignOutError}
+            </p>
+          )}
 
           <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start lg:gap-6">
             <aside className="hidden min-w-0 lg:sticky lg:top-24 lg:block lg:self-start">
@@ -852,6 +929,11 @@ function AccountPage() {
 
               {activeTab === "account" && (
                 <AccountControls
+                  isSigningOutCurrent={isSigningOutCurrent}
+                  currentSignOutError={currentSignOutError}
+                  onSignOutCurrent={() => {
+                    void handleSignOutCurrentDevice();
+                  }}
                   isSigningOutAll={isSigningOutAll}
                   onSignOutAll={() => {
                     beginSensitiveAction(

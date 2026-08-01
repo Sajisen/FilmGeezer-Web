@@ -20,7 +20,10 @@ import {
 
 interface MobileNavigationDrawerProps {
   onClose: () => void;
-  onPlannedFeature: (featureName: string) => void;
+  onWatchlist: () => void;
+  onAccountAction: () => void;
+  accountLabel: string;
+  accountInitials: string | null;
 }
 
 const EXIT_DURATION_MS = 280;
@@ -37,7 +40,10 @@ function getExitDuration() {
 
 function MobileNavigationDrawer({
   onClose,
-  onPlannedFeature,
+  onWatchlist,
+  onAccountAction,
+  accountLabel,
+  accountInitials,
 }: MobileNavigationDrawerProps) {
   const [isEntered, setIsEntered] = useState(() =>
   prefersReducedMotion(),
@@ -68,27 +74,35 @@ function MobileNavigationDrawer({
     }, exitDuration);
   }, [onClose]);
 
-  const requestPlannedFeature = useCallback(
-    (featureName: string) => {
+  const requestAction = useCallback(
+    (action: () => void) => {
       if (closeTimerRef.current !== null) {
         return;
       }
 
       const exitDuration = getExitDuration();
 
+      const finishAction = () => {
+        onClose();
+
+        window.setTimeout(() => {
+          action();
+        }, 0);
+      };
+
       setIsEntered(false);
 
       if (exitDuration === 0) {
-        onPlannedFeature(featureName);
+        finishAction();
         return;
       }
 
       closeTimerRef.current = window.setTimeout(() => {
         closeTimerRef.current = null;
-        onPlannedFeature(featureName);
+        finishAction();
       }, exitDuration);
     },
-    [onPlannedFeature],
+    [onClose],
   );
 
 useEffect(() => {
@@ -285,7 +299,7 @@ useEffect(() => {
         tabIndex={-1}
         aria-label="Close navigation menu"
         onClick={requestClose}
-        className={`absolute inset-0 bg-slate-950/[0.82] backdrop-blur-md transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity duration-300 ${
           isEntered ? "opacity-100" : "opacity-0"
         }`}
       />
@@ -297,34 +311,47 @@ useEffect(() => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-navigation-title"
-        className={`absolute bottom-3 right-3 top-3 flex w-[min(84vw,22rem)] max-w-full touch-pan-y flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/[0.98] shadow-2xl shadow-black/70 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`absolute bottom-2 right-2 top-2 flex w-[min(88vw,22rem)] max-w-full touch-pan-y flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/[0.98] shadow-2xl shadow-black/70 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isEntered ? "translate-x-0" : "translate-x-[105%]"
         }`}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 pb-4 pt-[max(1.1rem,env(safe-area-inset-top))]">
-          <div>
-            <NavLink
-              id="mobile-navigation-title"
-              to="/"
-              onClick={requestClose}
-              className="text-xl font-bold tracking-tight"
-            >
-              Film<span className="text-sky-400">Geezer</span>
-            </NavLink>
+        <div className="relative flex shrink-0 items-center justify-between overflow-hidden border-b border-white/10 px-5 pb-4 pt-[max(1.1rem,env(safe-area-inset-top))]">
+          <div
+            aria-hidden="true"
+            className="absolute -left-16 -top-20 h-40 w-40 rounded-full bg-sky-500/15 blur-3xl"
+          />
 
-            <p className="mt-1 text-xs text-slate-500">
-              Discover your next watch.
-            </p>
-          </div>
+          <NavLink
+            id="mobile-navigation-title"
+            to="/"
+            onClick={requestClose}
+            className="relative inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            <img
+              src="/filmgeezer-logo7.png"
+              alt=""
+              className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-sky-950/35"
+            />
+
+            <span>
+              <span className="block text-xl font-black tracking-tight text-white">
+                Film<span className="text-sky-400">Geezer</span>
+              </span>
+
+              <span className="mt-0.5 block text-xs text-slate-500">
+                Discover your next watch
+              </span>
+            </span>
+          </NavLink>
 
           <button
             ref={closeButtonRef}
             type="button"
             onClick={requestClose}
             aria-label="Close navigation menu"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-100 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 text-slate-100 transition hover:border-sky-300/25 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
-            <CloseIcon />
+            <CloseIcon className="h-5 w-5" />
           </button>
         </div>
 
@@ -332,7 +359,7 @@ useEffect(() => {
           <NavLink
             to="/search"
             onClick={requestClose}
-            className="group flex min-h-[3.75rem] items-center gap-3 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 text-left transition hover:border-sky-300/35 hover:bg-sky-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            className="group flex min-h-[3.75rem] items-center gap-3 rounded-2xl border border-sky-400/20 bg-gradient-to-r from-sky-500/12 to-blue-500/5 px-4 text-left transition hover:border-sky-300/35 hover:from-sky-500/18 hover:to-blue-500/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sky-300/20 bg-sky-400/10 text-sky-300">
               <SearchIcon />
@@ -386,8 +413,25 @@ useEffect(() => {
             ))}
           </div>
 
+          {accountInitials && (
+            <>
+              <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
+                Account
+              </p>
+
+              <NavLink
+                to="/account?section=security"
+                onClick={requestClose}
+                className="mt-3 flex min-h-12 items-center justify-between rounded-2xl border border-white/10 bg-white/[0.025] px-4 text-base font-medium text-slate-200 transition hover:border-sky-300/20 hover:bg-white/[0.055] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
+                <span>Settings</span>
+                <ArrowRightIcon className="h-4 w-4 text-slate-600" />
+              </NavLink>
+            </>
+          )}
+
           <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
-            Support
+            More
           </p>
 
           <div className="mt-3 flex flex-col gap-1 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] p-1">
@@ -421,11 +465,11 @@ useEffect(() => {
           </div>
         </div>
 
-        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-white/10 bg-slate-950/90 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+        <div className="grid shrink-0 grid-cols-[0.85fr_1.15fr] gap-2.5 border-t border-white/10 bg-slate-950/90 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
           <button
             type="button"
-            onClick={() => requestPlannedFeature("Watchlist")}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            onClick={() => requestAction(onWatchlist)}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 text-sm font-semibold text-slate-100 transition hover:border-sky-400/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
             <BookmarkIcon />
             Watchlist
@@ -433,11 +477,21 @@ useEffect(() => {
 
           <button
             type="button"
-            onClick={() => requestPlannedFeature("Profile and login")}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-3 text-sm font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
+            onClick={() => requestAction(onAccountAction)}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-3 text-sm font-bold text-white shadow-lg shadow-sky-950/25 transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
           >
-            <UserIcon />
-            Profile
+            {accountInitials ? (
+              <span
+                aria-hidden="true"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950/25 text-[0.65rem] font-black tracking-wide"
+              >
+                {accountInitials}
+              </span>
+            ) : (
+              <UserIcon />
+            )}
+
+            {accountLabel}
           </button>
         </div>
       </aside>
