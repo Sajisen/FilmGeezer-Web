@@ -31,9 +31,7 @@ function formatExpiry(
     Math.ceil(remainingMilliseconds / (24 * 60 * 60 * 1_000)),
   );
 
-  return remainingDays === 1
-    ? "1 day left"
-    : `${remainingDays} days left`;
+  return remainingDays === 1 ? "1 day left" : `${remainingDays} days left`;
 }
 
 function WatchlistCard({
@@ -127,8 +125,7 @@ function WatchlistPage() {
     retrySync,
   } = useWatchlist();
 
-  const [activeFilter, setActiveFilter] =
-    useState<WatchlistFilter>("all");
+  const [activeFilter, setActiveFilter] = useState<WatchlistFilter>("all");
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [currentTime] = useState(() => Date.now());
 
@@ -156,10 +153,8 @@ function WatchlistPage() {
     Math.round((itemCount / Math.max(1, maxItems)) * 100),
   );
 
-  const showAccountError =
-    isAccountWatchlist && syncStatus === "error";
-  const showGuestStorageError =
-    !isAccountWatchlist && !storageAvailable;
+  const showAccountError = isAccountWatchlist && syncStatus === "error";
+  const showGuestStorageError = !isAccountWatchlist && !storageAvailable;
   const showGuestInformation =
     !isAccountWatchlist && storageAvailable && itemCount > 0;
   const showStatusPanel =
@@ -177,12 +172,14 @@ function WatchlistPage() {
       ? "Save movies and series for later."
       : `${itemCount} ${itemCount === 1 ? "title" : "titles"} saved.`;
 
-  function renderFilterButtons() {
+  function renderFilterButtons(fullWidth = false) {
     return (
       <div
         role="group"
         aria-label="Filter saved titles"
-        className="inline-flex w-full rounded-xl border border-white/10 bg-slate-900/70 p-1 sm:w-auto"
+        className={`inline-flex rounded-xl border border-white/10 bg-slate-900/70 p-1 ${
+          fullWidth ? "w-full" : "w-full sm:w-auto"
+        }`}
       >
         {([
           ["all", "All", itemCount],
@@ -194,7 +191,7 @@ function WatchlistPage() {
             type="button"
             onClick={() => setActiveFilter(value)}
             aria-pressed={activeFilter === value}
-            className={`min-h-9 flex-1 rounded-lg px-2 text-xs font-bold transition sm:flex-none sm:px-3 ${
+            className={`min-h-9 flex-1 rounded-lg px-2 text-xs font-bold transition sm:px-3 ${
               activeFilter === value
                 ? "bg-sky-500 text-white shadow-sm shadow-sky-950/40"
                 : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -214,39 +211,40 @@ function WatchlistPage() {
   }
 
   function renderDesktopClearControls() {
-    if (isConfirmingClear) {
-      return (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsConfirmingClear(false)}
-            disabled={isMutationPending}
-            className="min-h-10 rounded-full border border-white/15 px-4 text-sm font-bold text-slate-300 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-60"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void handleClear()}
-            disabled={isMutationPending}
-            className="min-h-10 rounded-full border border-red-300/25 bg-red-400/10 px-4 text-sm font-bold text-red-200 transition hover:bg-red-400/15 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
-          >
-            {isMutationPending ? "Clearing…" : "Confirm clear"}
-          </button>
-        </div>
-      );
-    }
-
     return (
-      <button
-        type="button"
-        onClick={() => setIsConfirmingClear(true)}
-        disabled={isMutationPending}
-        className="min-h-10 rounded-full border border-white/12 bg-white/[0.03] px-4 text-sm font-bold text-slate-400 transition hover:border-red-300/25 hover:bg-red-400/[0.07] hover:text-red-200 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-60"
-      >
-        Clear all
-      </button>
+      <div className="flex h-10 w-[10.75rem] shrink-0 items-center justify-end gap-2">
+        {isConfirmingClear ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setIsConfirmingClear(false)}
+              disabled={isMutationPending}
+              className="h-9 min-w-[4.75rem] whitespace-nowrap rounded-full border border-white/15 px-3 text-xs font-bold text-slate-300 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleClear()}
+              disabled={isMutationPending}
+              aria-label="Confirm clearing all saved titles"
+              className="h-9 min-w-[4.75rem] whitespace-nowrap rounded-full border border-red-300/25 bg-red-400/10 px-3 text-xs font-bold text-red-200 transition hover:bg-red-400/15 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:opacity-60"
+            >
+              {isMutationPending ? "Clearing…" : "Clear"}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsConfirmingClear(true)}
+            disabled={isMutationPending}
+            className="h-9 whitespace-nowrap rounded-full border border-white/12 bg-white/[0.03] px-4 text-xs font-bold text-slate-400 transition hover:border-red-300/25 hover:bg-red-400/[0.07] hover:text-red-200 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-60"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
     );
   }
 
@@ -332,55 +330,83 @@ function WatchlistPage() {
             </div>
           </div>
 
-          <div className="hidden grid-cols-[minmax(0,1fr)_15rem_auto] items-end gap-5 xl:grid">
-            <div className="min-w-0 max-w-xl">
+          <div className="hidden grid-cols-[minmax(0,1fr)_minmax(0,36.5rem)] items-end gap-8 xl:grid">
+            <div className="min-w-0 max-w-[39rem]">
               <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1.5 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-sky-300">
                 <BookmarkIcon className="h-4 w-4" />
                 Watchlist
               </div>
 
-              <h1 className="mt-4 text-[2.6rem] font-black leading-tight tracking-tight">
+              <h1
+                className={`mt-4 whitespace-nowrap font-black leading-tight tracking-tight ${
+                  items.length > 0 ? "text-[2.45rem]" : "text-[2.65rem]"
+                }`}
+              >
                 Saved for your next watch.
               </h1>
 
-              <p className="mt-3 max-w-lg text-sm leading-6 text-slate-400 xl:text-base xl:leading-7">
+              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-400">
                 Keep movies and series close without losing your place in
                 FilmGeezer.
               </p>
             </div>
 
-            <div className="w-full rounded-2xl border border-white/10 bg-slate-900/65 p-4 shadow-lg shadow-black/20 backdrop-blur-sm">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Capacity
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-300">
-                    {itemCount} of {maxItems} titles
-                  </p>
+            <div
+              className={`grid gap-3 ${
+                items.length > 0
+                  ? "grid-cols-[14.25rem_minmax(0,1fr)]"
+                  : "grid-cols-[14.25rem] justify-end"
+              }`}
+            >
+              <div
+                className={`flex flex-col justify-between rounded-2xl border border-white/10 bg-slate-900/65 p-4 shadow-lg shadow-black/20 backdrop-blur-sm ${
+                  items.length > 0 ? "min-h-[7.75rem]" : "h-[7rem]"
+                }`}
+              >
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Capacity
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-300">
+                      {itemCount} of {maxItems} titles
+                    </p>
+                  </div>
+
+                  <span className="text-2xl font-black text-white">
+                    {capacityPercentage}%
+                  </span>
                 </div>
 
-                <span className="text-2xl font-black text-white">
-                  {capacityPercentage}%
-                </span>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-[width] duration-300"
+                    style={{ width: `${capacityPercentage}%` }}
+                  />
+                </div>
               </div>
 
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-[width] duration-300"
-                  style={{ width: `${capacityPercentage}%` }}
-                />
-              </div>
+              {items.length > 0 && (
+                <div className="flex min-h-[7.75rem] min-w-0 flex-col justify-between rounded-2xl border border-white/10 bg-slate-900/45 p-3.5 shadow-lg shadow-black/15 backdrop-blur-sm">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Saved titles
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-300">
+                        {filteredItems.length} shown
+                      </p>
+                    </div>
+
+                    {renderDesktopClearControls()}
+                  </div>
+
+                  <div className="mt-2.5 w-full">
+                    {renderFilterButtons(true)}
+                  </div>
+                </div>
+              )}
             </div>
-
-            {items.length > 0 ? (
-              <div className="flex min-w-0 flex-col items-end gap-3">
-                {renderFilterButtons()}
-                {renderDesktopClearControls()}
-              </div>
-            ) : (
-              <div aria-hidden="true" />
-            )}
           </div>
         </header>
 
@@ -488,25 +514,27 @@ function WatchlistPage() {
             </div>
           </section>
         ) : items.length === 0 ? (
-          <section className="mt-5 rounded-3xl border border-dashed border-white/10 bg-slate-900/45 px-5 py-8 text-center sm:mt-8 sm:px-10 sm:py-16 lg:mt-6">
-            <span className="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300 sm:h-14 sm:w-14">
-              <BookmarkIcon className="h-5 w-5 sm:h-7 sm:w-7" />
-            </span>
+          <section className="mt-5 rounded-3xl border border-dashed border-white/10 bg-slate-900/45 px-5 py-8 text-center sm:mt-8 sm:px-10 sm:py-14 xl:mt-8 xl:px-12 xl:py-16">
+            <div className="mx-auto flex max-w-xl flex-col items-center">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300 sm:h-14 sm:w-14 xl:h-16 xl:w-16">
+                <BookmarkIcon className="h-5 w-5 sm:h-7 sm:w-7" />
+              </span>
 
-            <h2 className="mt-4 text-xl font-black tracking-tight sm:mt-5 sm:text-3xl">
-              Start building your Watchlist.
-            </h2>
+              <h2 className="mt-4 text-xl font-black tracking-tight sm:mt-5 sm:text-3xl xl:text-[2rem]">
+                Start building your Watchlist.
+              </h2>
 
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-400 sm:mt-3 sm:text-base sm:leading-7">
-              Save a movie or series while browsing, and it will appear here.
-            </p>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-400 sm:mt-3 sm:text-base sm:leading-7">
+                Save a movie or series while browsing, and it will appear here.
+              </p>
 
-            <Link
-              to="/search"
-              className="mx-auto mt-6 inline-flex min-h-11 w-full max-w-[20rem] items-center justify-center rounded-full bg-sky-500 px-7 text-sm font-bold text-white transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300 sm:mt-7 sm:w-auto"
-            >
-              Search FilmGeezer
-            </Link>
+              <Link
+                to="/search"
+                className="mx-auto mt-6 inline-flex min-h-11 w-full max-w-[20rem] items-center justify-center rounded-full bg-sky-500 px-7 text-sm font-bold text-white transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300 sm:mt-7 sm:w-auto"
+              >
+                Search FilmGeezer
+              </Link>
+            </div>
           </section>
         ) : (
           <section aria-label="Saved titles" className="mt-5 sm:mt-8 lg:mt-6">
