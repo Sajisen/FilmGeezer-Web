@@ -12,6 +12,10 @@ import {
   readAuthRouteState,
 } from "../../features/auth/authNavigation";
 
+import {
+  dismissActiveBrowserInput,
+} from "../../utils/browserInput";
+
 function getFallbackAnnouncement(
   pathname: string,
 ) {
@@ -47,6 +51,10 @@ function getFallbackAnnouncement(
     return "Media details";
   }
 
+  if (pathname === "/watchlist") {
+    return "Watchlist";
+  }
+
   if (pathname === "/account") {
     return "FilmGeezer account";
   }
@@ -57,6 +65,10 @@ function getFallbackAnnouncement(
 
   if (pathname === "/contact") {
     return "Contact";
+  }
+
+  if (pathname === "/about") {
+    return "About FilmGeezer";
   }
 
   return "FilmGeezer page";
@@ -86,6 +98,8 @@ function RouteAccessibility() {
     ) {
       return;
     }
+
+    dismissActiveBrowserInput();
 
     const animationFrame =
       window.requestAnimationFrame(

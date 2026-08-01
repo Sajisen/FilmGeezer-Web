@@ -578,7 +578,7 @@ function MediaDetailsPage() {
 
               <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row lg:mx-0 lg:justify-start">
                 <WatchlistButton
-                  itemTitle={selectedMedia.title}
+                  item={selectedMedia}
                   variant="labeled"
                   className="w-full sm:min-w-[13.5rem]"
                 />

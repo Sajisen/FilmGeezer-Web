@@ -3,6 +3,7 @@ import { closeMongoConnection } from "./config/database.js";
 import { env } from "./config/env.js";
 
 import { initializeAuthStorage } from "./features/auth/auth.indexes.js";
+import { initializeWatchlistStorage } from "./features/watchlist/watchlist.indexes.js";
 
 const { PORT, HOST } = env;
 
@@ -12,13 +13,16 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`Listening on all network interfaces at port ${PORT}`);
 });
 
-void initializeAuthStorage()
+void Promise.all([
+  initializeAuthStorage(),
+  initializeWatchlistStorage(),
+])
   .then(() => {
-    console.log("FilmGeezer authentication storage is ready.");
+    console.log("FilmGeezer application storage is ready.");
   })
   .catch((error) => {
     console.error(
-      "FilmGeezer authentication storage could not be initialized.",
+      "FilmGeezer application storage could not be initialized.",
       {
         name:
           error instanceof Error

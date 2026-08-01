@@ -22,6 +22,7 @@ import seasonDetailsRoutes from "./routes/seasonDetails.routes.js";
 import moreLikeThisRoutes from "./routes/moreLikeThis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import accountRoutes from "./routes/account.routes.js";
+import watchlistRoutes from "./routes/watchlist.routes.js";
 
 import {
   handleHttpError,
@@ -62,6 +63,11 @@ app.use(
 app.use(
   "/api/account",
   accountRoutes,
+);
+
+app.use(
+  "/api/watchlist",
+  watchlistRoutes,
 );
 
 app.use(

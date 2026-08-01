@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform and the manual authentication/account-management foundation are implemented. The next major product feature is a persistent Watchlist for guests and signed-in users.
+The discovery platform, manual authentication/account-management foundation, guest Watchlist, authenticated MongoDB Watchlist, overflow-safe guest-to-account merging, and the compact Watchlist experience are implemented.
 
 ## Technology stack
 
@@ -67,6 +67,19 @@ The discovery platform and the manual authentication/account-management foundati
 - Account deactivation
 - Authentication audit events
 
+### Watchlist
+
+- Browser-local saving without requiring an account
+- Seven-day expiry and a twenty-title limit for guest Watchlists
+- MongoDB-backed account Watchlists with a server-enforced fifty-title limit
+- Safe guest-to-account merging after authentication
+- Overflow-safe merge handling that preserves browser titles when an account is full
+- Cross-tab guest synchronization and user-specific authenticated caching
+- Optimistic account updates with rollback and retry handling
+- Dedicated compact, filterable, responsive Watchlist page
+- Accessible add/remove controls on media cards and Media Details
+- Defensive storage and API-response validation
+
 ### User experience
 
 - Route-backed authentication modals with direct-route fallbacks
@@ -95,13 +108,11 @@ Authentication uses opaque session tokens stored in HttpOnly cookies. The server
 
 The next planned phases are:
 
-1. Guest and authenticated persistent Watchlists
-2. Guest-to-account Watchlist merging
-3. Profile-picture upload and object storage
-4. Entertainment preferences and personalised recommendations
-5. Notifications and contact/support completion
-6. Protected administration features
-7. Production email delivery, shared rate limiting, automated tests, and deployment hardening
+1. Profile-picture upload through Railway Buckets object storage
+2. Entertainment preferences and personalised recommendations
+3. Notifications and contact/support completion
+4. Protected administration features
+5. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
 
 ## Local development
 

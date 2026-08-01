@@ -205,6 +205,43 @@ export function InfoIcon({
   );
 }
 
+export function CheckIcon({
+  className = "h-5 w-5",
+}: NavigationIconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="m5 12.5 4.25 4.25L19 7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </IconShell>
+  );
+}
+
+export function WarningIcon({
+  className = "h-5 w-5",
+}: NavigationIconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="M10.5 4.75 3.6 17a1.5 1.5 0 0 0 1.3 2.25h14.2A1.5 1.5 0 0 0 20.4 17L13.5 4.75a1.72 1.72 0 0 0-3 0Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 9v4.25M12 16.5h.01"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </IconShell>
+  );
+}
+
 export function LogOutIcon({
   className = "h-5 w-5",
 }: NavigationIconProps) {
