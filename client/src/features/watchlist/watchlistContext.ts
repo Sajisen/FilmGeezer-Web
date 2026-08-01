@@ -4,6 +4,8 @@ import type { MediaType } from "../../types/media";
 import type {
   WatchlistCandidate,
   WatchlistItem,
+  WatchlistStorageMode,
+  WatchlistSyncStatus,
   WatchlistToggleResult,
 } from "../../types/watchlist";
 
@@ -12,11 +14,18 @@ export interface WatchlistContextValue {
   itemCount: number;
   maxItems: number;
   expiryDays: number;
+  storageMode: WatchlistStorageMode;
   storageAvailable: boolean;
+  syncStatus: WatchlistSyncStatus;
+  syncError: string | null;
+  isMutationPending: boolean;
+
   hasItem: (mediaType: MediaType, tmdbId: number) => boolean;
-  toggleItem: (item: WatchlistCandidate) => WatchlistToggleResult;
-  removeItem: (mediaType: MediaType, tmdbId: number) => boolean;
-  clearItems: () => boolean;
+  isItemPending: (mediaType: MediaType, tmdbId: number) => boolean;
+  toggleItem: (item: WatchlistCandidate) => Promise<WatchlistToggleResult>;
+  removeItem: (mediaType: MediaType, tmdbId: number) => Promise<boolean>;
+  clearItems: () => Promise<boolean>;
+  retrySync: () => Promise<void>;
 }
 
 export const WatchlistContext =

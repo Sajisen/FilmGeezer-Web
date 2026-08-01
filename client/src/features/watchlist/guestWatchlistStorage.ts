@@ -1,6 +1,6 @@
 import type {
+  GuestWatchlistItem,
   WatchlistCandidate,
-  WatchlistItem,
 } from "../../types/watchlist";
 
 export const GUEST_WATCHLIST_STORAGE_KEY =
@@ -11,15 +11,15 @@ export const GUEST_WATCHLIST_EXPIRY_DAYS = 7;
 
 const GUEST_WATCHLIST_VERSION = 1;
 const GUEST_WATCHLIST_TTL_MS =
-  GUEST_WATCHLIST_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+  GUEST_WATCHLIST_EXPIRY_DAYS * 24 * 60 * 60 * 1_000;
 
 interface StoredGuestWatchlist {
   version: number;
-  items: WatchlistItem[];
+  items: GuestWatchlistItem[];
 }
 
 export interface GuestWatchlistSnapshot {
-  items: WatchlistItem[];
+  items: GuestWatchlistItem[];
   storageAvailable: boolean;
 }
 
@@ -28,7 +28,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function createIdentityKey(
-  mediaType: WatchlistItem["mediaType"],
+  mediaType: GuestWatchlistItem["mediaType"],
   tmdbId: number,
 ): string {
   return `${mediaType}:${tmdbId}`;
@@ -37,7 +37,7 @@ function createIdentityKey(
 function parseStoredItem(
   value: unknown,
   now: number,
-): WatchlistItem | null {
+): GuestWatchlistItem | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -97,8 +97,8 @@ function parseStoredItem(
 function normalizeItems(
   values: unknown[],
   now: number,
-): WatchlistItem[] {
-  const uniqueItems = new Map<string, WatchlistItem>();
+): GuestWatchlistItem[] {
+  const uniqueItems = new Map<string, GuestWatchlistItem>();
 
   for (const value of values) {
     const item = parseStoredItem(value, now);
@@ -107,11 +107,7 @@ function normalizeItems(
       continue;
     }
 
-    const identityKey = createIdentityKey(
-      item.mediaType,
-      item.tmdbId,
-    );
-
+    const identityKey = createIdentityKey(item.mediaType, item.tmdbId);
     const existingItem = uniqueItems.get(identityKey);
 
     if (
@@ -156,9 +152,7 @@ export function loadGuestWatchlist(
   }
 
   try {
-    const rawValue = storage.getItem(
-      GUEST_WATCHLIST_STORAGE_KEY,
-    );
+    const rawValue = storage.getItem(GUEST_WATCHLIST_STORAGE_KEY);
 
     if (!rawValue) {
       return {
@@ -210,7 +204,9 @@ export function loadGuestWatchlist(
   }
 }
 
-export function saveGuestWatchlist(items: WatchlistItem[]): boolean {
+export function saveGuestWatchlist(
+  items: GuestWatchlistItem[],
+): boolean {
   const storage = getBrowserStorage();
 
   if (!storage) {
@@ -241,10 +237,14 @@ export function saveGuestWatchlist(items: WatchlistItem[]): boolean {
   }
 }
 
+export function clearGuestWatchlist(): boolean {
+  return saveGuestWatchlist([]);
+}
+
 export function createGuestWatchlistItem(
   candidate: WatchlistCandidate,
   now: number = Date.now(),
-): WatchlistItem {
+): GuestWatchlistItem {
   return {
     mediaType: candidate.mediaType,
     tmdbId: candidate.tmdbId,

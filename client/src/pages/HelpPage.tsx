@@ -152,19 +152,19 @@ function HelpPage() {
             </p>
 
             <h2 className="mt-3 text-2xl font-black tracking-tight">
-              Browser Watchlist
+              Persistent Watchlist
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-300">
               Select the bookmark control on a media card or details page to save
-              the title immediately. Your browser Watchlist supports up to 20
-              titles and each title expires after seven days.
+              the title immediately. Guest Watchlists support up to 20 titles,
+              and each guest title expires after seven days.
             </p>
 
             <p className="mt-4 text-sm leading-7 text-slate-400">
-              Account-based MongoDB synchronization and safe guest-list merging
-              are the next Watchlist phase. Until then, saved titles stay on this
-              browser.
+              When you sign in, FilmGeezer safely merges the browser list into a
+              MongoDB-backed account Watchlist. Account Watchlists support up to
+              50 titles and are available across signed-in devices.
             </p>
           </article>
         </section>

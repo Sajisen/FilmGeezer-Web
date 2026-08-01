@@ -4,7 +4,6 @@ import { Link } from "react-router";
 import WatchlistButton from "../components/WatchlistButton";
 import ContentContainer from "../components/layout/ContentContainer";
 import { BookmarkIcon } from "../components/navigation/NavigationIcons";
-import { useAuth } from "../features/auth/authContext";
 import { useWatchlist } from "../features/watchlist/watchlistContext";
 import type { WatchlistItem } from "../types/watchlist";
 
@@ -13,14 +12,18 @@ function getMediaTypeLabel(mediaType: WatchlistItem["mediaType"]): string {
 }
 
 function formatExpiry(
-  expiresAt: string,
+  expiresAt: string | null,
   currentTime: number,
 ): string {
+  if (!expiresAt) {
+    return "Saved to account";
+  }
+
   const expiryTime = Date.parse(expiresAt);
   const remainingMilliseconds = expiryTime - currentTime;
   const remainingDays = Math.max(
     1,
-    Math.ceil(remainingMilliseconds / (24 * 60 * 60 * 1000)),
+    Math.ceil(remainingMilliseconds / (24 * 60 * 60 * 1_000)),
   );
 
   return remainingDays === 1
@@ -86,21 +89,29 @@ function WatchlistCard({
 }
 
 function WatchlistPage() {
-  const auth = useAuth();
   const {
     items,
     itemCount,
     maxItems,
     expiryDays,
+    storageMode,
     storageAvailable,
+    syncStatus,
+    syncError,
+    isMutationPending,
     clearItems,
+    retrySync,
   } = useWatchlist();
 
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [currentTime] = useState(() => Date.now());
 
-  function handleClear() {
-    if (clearItems()) {
+  const isAccountWatchlist = storageMode === "account";
+  const isInitialAccountLoad =
+    isAccountWatchlist && syncStatus === "loading" && items.length === 0;
+
+  async function handleClear() {
+    if (await clearItems()) {
       setIsConfirmingClear(false);
     }
   }
@@ -147,67 +158,109 @@ function WatchlistPage() {
         <section
           aria-label="Watchlist storage information"
           className={`mt-6 rounded-3xl border p-5 sm:p-6 ${
-            storageAvailable
-              ? "border-sky-300/15 bg-sky-400/[0.07]"
-              : "border-red-300/20 bg-red-500/10"
+            syncStatus === "error" ||
+            (!isAccountWatchlist && !storageAvailable)
+              ? "border-red-300/20 bg-red-500/10"
+              : isAccountWatchlist
+                ? "border-emerald-300/15 bg-emerald-400/[0.07]"
+                : "border-sky-300/15 bg-sky-400/[0.07]"
           }`}
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-3xl">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-300">
-                {storageAvailable ? "Saved on this browser" : "Storage unavailable"}
+                {syncStatus === "error"
+                  ? "Watchlist sync needs attention"
+                  : isAccountWatchlist
+                    ? syncStatus === "loading" || syncStatus === "syncing"
+                      ? "Syncing your account"
+                      : "Synced to your account"
+                    : storageAvailable
+                      ? "Saved on this browser"
+                      : "Storage unavailable"}
               </p>
 
               <p className="mt-2 text-sm leading-7 text-slate-300">
-                {storageAvailable
-                  ? `Each title stays on this browser for ${expiryDays} days. This first Watchlist phase supports up to ${maxItems} titles and synchronizes between FilmGeezer tabs in the same browser.`
-                  : "FilmGeezer cannot currently access local browser storage. Check private-browsing or site-storage restrictions before trying again."}
+                {syncStatus === "error"
+                  ? syncError ??
+                    "FilmGeezer could not synchronize your account Watchlist."
+                  : isAccountWatchlist
+                    ? syncStatus === "loading" || syncStatus === "syncing"
+                      ? "FilmGeezer is loading the canonical Watchlist saved to your account."
+                      : `Your account Watchlist is stored in MongoDB, available across signed-in devices, and limited to ${maxItems} titles.`
+                    : storageAvailable
+                      ? `Each title stays on this browser for ${expiryDays} days. Guest Watchlists support up to ${maxItems} titles and synchronize between FilmGeezer tabs in the same browser.`
+                      : "FilmGeezer cannot currently access local browser storage. Check private-browsing or site-storage restrictions before trying again."}
               </p>
 
-              {storageAvailable && (
+              {!isAccountWatchlist && storageAvailable && (
                 <p className="mt-2 text-sm leading-7 text-slate-400">
-                  {auth.status === "authenticated"
-                    ? "Your account is signed in, but cross-device MongoDB synchronization is the next Watchlist phase. Until then, these titles remain local to this browser."
-                    : "You do not need an account for this temporary list. Account-based saving and safe guest-list merging will be connected in the next phase."}
+                  Sign in to merge these temporary titles safely into a
+                  permanent account Watchlist.
                 </p>
               )}
             </div>
 
-            {itemCount > 0 && (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {isConfirmingClear ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {syncStatus === "error" && isAccountWatchlist && (
+                <button
+                  type="button"
+                  onClick={() => void retrySync()}
+                  disabled={isMutationPending}
+                  className="min-h-11 rounded-full border border-sky-300/35 bg-sky-400/10 px-4 text-sm font-bold text-sky-100 transition hover:bg-sky-400/15 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:cursor-wait disabled:opacity-60"
+                >
+                  Retry sync
+                </button>
+              )}
+
+              {itemCount > 0 &&
+                (isConfirmingClear ? (
                   <>
                     <button
                       type="button"
                       onClick={() => setIsConfirmingClear(false)}
-                      className="min-h-11 rounded-full border border-white/15 px-4 text-sm font-bold text-slate-200 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                      disabled={isMutationPending}
+                      className="min-h-11 rounded-full border border-white/15 px-4 text-sm font-bold text-slate-200 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-60"
                     >
                       Cancel
                     </button>
 
                     <button
                       type="button"
-                      onClick={handleClear}
-                      className="min-h-11 rounded-full bg-red-500 px-4 text-sm font-bold text-white transition hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+                      onClick={() => void handleClear()}
+                      disabled={isMutationPending}
+                      className="min-h-11 rounded-full bg-red-500 px-4 text-sm font-bold text-white transition hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-wait disabled:opacity-60"
                     >
-                      Clear {itemCount} {itemCount === 1 ? "title" : "titles"}
+                      {isMutationPending
+                        ? "Clearing…"
+                        : `Clear ${itemCount} ${itemCount === 1 ? "title" : "titles"}`}
                     </button>
                   </>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setIsConfirmingClear(true)}
-                    className="min-h-11 rounded-full border border-white/15 bg-white/5 px-4 text-sm font-bold text-slate-200 transition hover:border-red-300/35 hover:bg-red-500/10 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                    disabled={isMutationPending}
+                    className="min-h-11 rounded-full border border-white/15 bg-white/5 px-4 text-sm font-bold text-slate-200 transition hover:border-red-300/35 hover:bg-red-500/10 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-60"
                   >
                     Clear Watchlist
                   </button>
-                )}
-              </div>
-            )}
+                ))}
+            </div>
           </div>
         </section>
 
-        {items.length === 0 ? (
+        {isInitialAccountLoad ? (
+          <section
+            aria-live="polite"
+            className="mt-8 rounded-[2rem] border border-white/10 bg-slate-900/55 px-6 py-16 text-center"
+          >
+            <span className="mx-auto block h-9 w-9 animate-spin rounded-full border-2 border-sky-300/25 border-t-sky-300" />
+            <p className="mt-5 text-sm font-semibold text-slate-300">
+              Loading your account Watchlist…
+            </p>
+          </section>
+        ) : items.length === 0 ? (
           <section className="mt-8 rounded-[2rem] border border-dashed border-white/10 bg-slate-900/55 px-6 py-14 text-center sm:px-10 sm:py-20">
             <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300">
               <BookmarkIcon className="h-8 w-8" />

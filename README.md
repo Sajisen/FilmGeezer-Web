@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform and the manual authentication/account-management foundation are implemented. A browser-based guest Watchlist is also available, with authenticated MongoDB synchronization and guest-to-account merging planned next.
+The discovery platform, manual authentication/account-management foundation, guest Watchlist, authenticated MongoDB Watchlist, and safe guest-to-account merging are implemented.
 
 ## Technology stack
 
@@ -70,12 +70,14 @@ The discovery platform and the manual authentication/account-management foundati
 ### Watchlist
 
 - Browser-local saving without requiring an account
-- Seven-day expiry for each saved title
-- Twenty-title browser limit
-- Cross-tab synchronization in the same browser
+- Seven-day expiry and a twenty-title limit for guest Watchlists
+- MongoDB-backed account Watchlists with a server-enforced fifty-title limit
+- Safe guest-to-account merging after authentication
+- Cross-tab guest synchronization and user-specific authenticated caching
+- Optimistic account updates with rollback and retry handling
 - Dedicated responsive Watchlist page
 - Accessible add/remove controls on media cards and Media Details
-- Defensive storage validation and graceful storage-unavailable handling
+- Defensive storage and API-response validation
 
 ### User experience
 
@@ -105,13 +107,12 @@ Authentication uses opaque session tokens stored in HttpOnly cookies. The server
 
 The next planned phases are:
 
-1. Authenticated MongoDB Watchlist persistence
-2. Safe guest-to-account Watchlist merging
-3. Profile-picture upload and object storage
-4. Entertainment preferences and personalised recommendations
-5. Notifications and contact/support completion
-6. Protected administration features
-7. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
+1. Final Watchlist page visual redesign and compact card system
+2. Profile-picture upload through Railway Buckets object storage
+3. Entertainment preferences and personalised recommendations
+4. Notifications and contact/support completion
+5. Protected administration features
+6. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
 
 ## Local development
 

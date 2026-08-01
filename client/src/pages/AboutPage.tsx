@@ -54,7 +54,7 @@ function AboutPage() {
               Keep your place
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Save a temporary Watchlist on this browser today. Secure account-based synchronization across devices is the next Watchlist phase.
+              Save up to 20 temporary titles as a guest, then sign in to merge them into a secure 50-title account Watchlist available across devices.
             </p>
           </article>
         </div>
