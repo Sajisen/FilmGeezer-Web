@@ -1,5 +1,10 @@
 import express from "express";
 import cors from "cors";
+
+import {
+  isAllowedClientOrigin,
+} from "./config/cors.js";
+
 import healthRoutes from "./routes/health.routes.js";
 import searchRoutes from "./routes/search.routes.js";
 import mediaRoutes from "./routes/media.routes.js";
@@ -15,16 +20,56 @@ import watchAvailabilityRoutes from "./routes/watchAvailability.routes.js";
 import featuredCharactersRoutes from "./routes/featuredCharacters.routes.js";
 import seasonDetailsRoutes from "./routes/seasonDetails.routes.js";
 import moreLikeThisRoutes from "./routes/moreLikeThis.routes.js";
+import authRoutes from "./routes/auth.routes.js";
+import accountRoutes from "./routes/account.routes.js";
 
-const app = express();
+import {
+  handleHttpError,
+} from "./middleware/httpError.middleware.js";
+
+const app =
+  express();
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://192.168.1.2:5173", "http://192.168.1.3:5173", "http://192.168.1.4:5173", "http://192.168.17.250:5173"],
+    origin: (
+      origin,
+      callback,
+    ) => {
+      callback(
+        null,
+        !origin ||
+          isAllowedClientOrigin(
+            origin,
+          ),
+      );
+    },
+
+    credentials:
+      true,
   }),
 );
 
-app.use(express.json());
+/*
+ * Authentication mounts before the general JSON parser because its
+ * routes own stricter body-size limits and run rate limiting first.
+ */
+app.use(
+  "/api/auth",
+  authRoutes,
+);
+
+app.use(
+  "/api/account",
+  accountRoutes,
+);
+
+app.use(
+  express.json({
+    limit: "64kb",
+    strict: true,
+  }),
+);
 
 app.use("/api", healthRoutes);
 app.use("/api", searchRoutes);
@@ -42,11 +87,13 @@ app.use("/api", featuredCharactersRoutes);
 app.use("/api", seasonDetailsRoutes);
 app.use("/api", moreLikeThisRoutes);
 
-app.use((_req, res) => {
-  res.status(404).json({
+app.use((_request, response) => {
+  response.status(404).json({
     status: "error",
     message: "Route not found",
   });
 });
+
+app.use(handleHttpError);
 
 export default app;

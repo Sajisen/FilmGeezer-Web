@@ -1,18 +1,43 @@
-import { useEffect } from 'react'
-import { useLocation } from 'react-router'
+import {
+  useEffect,
+} from "react";
+
+import {
+  useLocation,
+} from "react-router";
+
+import {
+  readAuthRouteState,
+} from "../../features/auth/authNavigation";
 
 function ScrollToTop() {
-  const { pathname } = useLocation()
+  const location =
+    useLocation();
 
   useEffect(() => {
+    const authRouteState =
+      readAuthRouteState(
+        location.state,
+      );
+
+    if (
+      authRouteState
+        .backgroundLocation
+    ) {
+      return;
+    }
+
     window.scrollTo({
       top: 0,
       left: 0,
-      behavior: 'auto',
-    })
-  }, [pathname])
+      behavior: "auto",
+    });
+  }, [
+    location.pathname,
+    location.state,
+  ]);
 
-  return null
+  return null;
 }
 
-export default ScrollToTop
+export default ScrollToTop;

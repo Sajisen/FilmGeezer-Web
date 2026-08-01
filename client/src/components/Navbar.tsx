@@ -1,95 +1,212 @@
-import { useCallback, useEffect, useState } from "react";
-import { NavLink } from "react-router";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  NavLink,
+  useLocation,
+  useNavigate,
+} from "react-router";
+
 import ContentContainer from "./layout/ContentContainer";
+
 import MobileNavigationDrawer from "./navigation/MobileNavigationDrawer";
+
 import {
   BookmarkIcon,
   MenuIcon,
   SearchIcon,
   UserIcon,
 } from "./navigation/NavigationIcons";
-import { primaryNavigation } from "./navigation/NavigationItems";
-import { usePlannedFeature } from "../features/plannedFeature/plannedFeatureContext";
+
+import {
+  primaryNavigation,
+} from "./navigation/NavigationItems";
+
+import ProfileMenu from "./navigation/ProfileMenu";
+
+import {
+  useAuth,
+} from "../features/auth/authContext";
+
+import {
+  createAuthRouteState,
+} from "../features/auth/authNavigation";
+
+import {
+  usePlannedFeature,
+} from "../features/plannedFeature/plannedFeatureContext";
+
+function createInitials(
+  displayName: string,
+): string {
+  const parts =
+    displayName
+      .trim()
+      .split(/\s+/u)
+      .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "FG";
+  }
+
+  if (parts.length === 1) {
+    return Array.from(
+      parts[0],
+    )
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  }
+
+  return `${Array.from(parts[0])[0] ?? ""}${Array.from(parts.at(-1) ?? "")[0] ?? ""}`.toUpperCase();
+}
 
 function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { showPlannedFeature } = usePlannedFeature();
+  const [isMenuOpen, setIsMenuOpen] =
+    useState(false);
 
-  const openMenu = useCallback(() => {
-    setIsMenuOpen(true);
-  }, []);
+  const auth = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const closeMenu = useCallback(() => {
-    setIsMenuOpen(false);
-  }, []);
+  const {
+    showPlannedFeature,
+  } = usePlannedFeature();
 
+  const openMenu =
+    useCallback(() => {
+      setIsMenuOpen(true);
+    }, []);
+
+  const closeMenu =
+    useCallback(() => {
+      setIsMenuOpen(false);
+    }, []);
 
   useEffect(() => {
-    window.addEventListener("popstate", closeMenu);
+    window.addEventListener(
+      "popstate",
+      closeMenu,
+    );
 
     return () => {
-      window.removeEventListener("popstate", closeMenu);
+      window.removeEventListener(
+        "popstate",
+        closeMenu,
+      );
     };
   }, [closeMenu]);
 
-  const showPlannedFeatureNotice = useCallback(
-    (featureName: string) => {
-      const isWatchlist = featureName === "Watchlist";
+  const openAuthentication =
+    useCallback(() => {
+      navigate(
+        "/login",
+        {
+          state:
+            createAuthRouteState(
+              location,
+            ),
+        },
+      );
+    }, [
+      location,
+      navigate,
+    ]);
 
+  const openAccount =
+    useCallback(() => {
+      if (
+        auth.status ===
+        "authenticated"
+      ) {
+        navigate("/account?section=profile");
+        return;
+      }
+
+      openAuthentication();
+    }, [
+      auth.status,
+      navigate,
+      openAuthentication,
+    ]);
+
+  const showWatchlistNotice =
+    useCallback(() => {
       showPlannedFeature({
-        title: isWatchlist
-          ? "Watchlist requires an account"
-          : "Profile and login are coming next",
-        message: isWatchlist
-          ? "Nothing has been saved yet. Persistent watchlists will be connected after authentication is implemented."
-          : "Registration, login, and profile management will be added during the authentication phase.",
+        title:
+          auth.status ===
+          "authenticated"
+            ? "Your Watchlist is coming next"
+            : "Sign in to keep a Watchlist",
+
+        message:
+          auth.status ===
+          "authenticated"
+            ? "Your account is ready. Persistent FilmGeezer Watchlists will be connected in the next feature phase."
+            : "Create an account or sign in to keep titles across devices. Guest saving will also be added with a seven-day local limit.",
       });
-    },
-    [showPlannedFeature],
-  );
+    }, [
+      auth.status,
+      showPlannedFeature,
+    ]);
 
-  const handleDrawerPlannedFeature = useCallback(
-    (featureName: string) => {
-      closeMenu();
-
-      window.setTimeout(() => {
-        showPlannedFeatureNotice(featureName);
-      }, 0);
-    },
-    [closeMenu, showPlannedFeatureNotice],
-  );
+  const accountInitials =
+    auth.user
+      ? createInitials(
+          auth.user.displayName,
+        )
+      : null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 text-white backdrop-blur-xl">
       <ContentContainer>
         <nav
-  aria-label="Primary navigation"
-  className="grid min-h-18 grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-4 lg:grid-cols-[1fr_auto_1fr]"
->
+          aria-label="Primary navigation"
+          className="grid min-h-18 grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-4 lg:grid-cols-[1fr_auto_1fr]"
+        >
           <NavLink
             to="/"
-            className="shrink-0 justify-self-start text-xl font-bold tracking-tight"
+            aria-label="FilmGeezer home"
+            className="inline-flex shrink-0 items-center gap-2.5 justify-self-start rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
-            Film<span className="text-sky-400">Geezer</span>
+            <img
+              src="/filmgeezer-logo7.png"
+              alt=""
+              className="h-8 w-8 rounded-xl object-cover shadow-lg shadow-sky-950/35 sm:h-9 sm:w-9"
+            />
+
+            <span className="text-xl font-black tracking-tight">
+              Film
+              <span className="text-sky-400">
+                Geezer
+              </span>
+            </span>
           </NavLink>
 
           <div className="hidden items-center justify-self-center gap-1 lg:flex">
-            {primaryNavigation.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  `rounded-full px-4 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-sky-500/15 text-sky-300"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+            {primaryNavigation.map(
+              (item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({
+                    isActive,
+                  }) =>
+                    `rounded-full px-4 py-2 text-sm font-medium transition ${
+                      isActive
+                        ? "bg-sky-500/15 text-sky-300"
+                        : "text-slate-300 hover:bg-white/5 hover:text-white"
+                    }`
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ),
+            )}
           </div>
 
           <div className="flex items-center justify-self-end gap-2">
@@ -97,11 +214,13 @@ function Navbar() {
               to="/search"
               aria-label="Search FilmGeezer"
               title="Search FilmGeezer"
-              className={({ isActive }) =>
-                `group inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:w-11 xl:w-44 xl:justify-start ${
+              className={({
+                isActive,
+              }) =>
+                `group inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:w-11 xl:w-48 xl:justify-start ${
                   isActive
                     ? "border-sky-400/40 bg-sky-500/15 text-sky-200"
-                    : "border-white/10 bg-white/5 text-slate-300 hover:border-sky-400/30 hover:bg-white/10 hover:text-white"
+                    : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-sky-400/30 hover:bg-white/[0.08] hover:text-white"
                 }`
               }
             >
@@ -112,25 +231,43 @@ function Navbar() {
               </span>
             </NavLink>
 
-            <button
-              type="button"
-              onClick={() => showPlannedFeatureNotice("Watchlist")}
-              aria-label="Open watchlist"
-              title="Watchlist"
-              className="hidden min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:border-sky-400/40 hover:bg-sky-400/10 hover:text-white sm:inline-flex"
-            >
-              <BookmarkIcon />
-            </button>
+            <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-sm shadow-black/20 sm:flex">
+              <button
+                type="button"
+                onClick={showWatchlistNotice}
+                aria-label="Open watchlist"
+                title="Watchlist"
+                className="grid h-10 w-10 place-items-center rounded-full text-slate-300 transition hover:bg-sky-400/10 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
+                <BookmarkIcon />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => showPlannedFeatureNotice("Profile and login")}
-              aria-label="Open profile or login"
-              title="Profile or login"
-              className="hidden min-h-11 min-w-11 items-center justify-center rounded-full bg-sky-500 text-white transition hover:bg-sky-400 sm:inline-flex"
-            >
-              <UserIcon />
-            </button>
+              {auth.status ===
+              "loading" ? (
+                <span
+                  aria-label="Checking account status"
+                  role="status"
+                  className="h-10 w-10 animate-pulse rounded-full bg-white/5 motion-reduce:animate-none"
+                />
+              ) : auth.status ===
+                  "authenticated" ? (
+                <ProfileMenu />
+              ) : (
+                <button
+                  type="button"
+                  onClick={openAuthentication}
+                  aria-label="Sign in or create an account"
+                  title="Sign in or create an account"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-sky-500 px-3.5 text-sm font-semibold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 xl:px-4"
+                >
+                  <UserIcon />
+
+                  <span className="hidden xl:inline">
+                    Sign in
+                  </span>
+                </button>
+              )}
+            </div>
 
             <button
               type="button"
@@ -139,7 +276,7 @@ function Navbar() {
               aria-expanded={isMenuOpen}
               aria-controls="mobile-navigation"
               aria-haspopup="dialog"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-100 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:hidden"
+              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.045] text-slate-100 transition hover:border-sky-400/25 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:hidden"
             >
               <MenuIcon />
             </button>
@@ -150,7 +287,21 @@ function Navbar() {
       {isMenuOpen && (
         <MobileNavigationDrawer
           onClose={closeMenu}
-          onPlannedFeature={handleDrawerPlannedFeature}
+          onWatchlist={
+            showWatchlistNotice
+          }
+          onAccountAction={
+            openAccount
+          }
+          accountLabel={
+            auth.status ===
+            "authenticated"
+              ? "Profile"
+              : "Sign in"
+          }
+          accountInitials={
+            accountInitials
+          }
         />
       )}
     </header>
