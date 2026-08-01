@@ -618,11 +618,10 @@ export function WatchlistProvider({
           storageAvailable: latestSnapshot.storageAvailable,
         });
 
-        showNotice(
-          "error",
-          "Your Watchlist is full",
-          `This browser can hold ${GUEST_WATCHLIST_MAX_ITEMS} titles. Sign in to save more, or remove one before adding another.`,
-        );
+        // The invitation dialog is the complete, actionable explanation for
+        // this limit. Clear any earlier toast so the two feedback patterns do
+        // not compete or repeat the same message.
+        setNotice(null);
         setIsGuestLimitDialogOpen(true);
 
         return "limit-reached";
