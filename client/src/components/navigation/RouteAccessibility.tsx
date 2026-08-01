@@ -47,6 +47,10 @@ function getFallbackAnnouncement(
     return "Media details";
   }
 
+  if (pathname === "/watchlist") {
+    return "Watchlist";
+  }
+
   if (pathname === "/account") {
     return "FilmGeezer account";
   }
@@ -57,6 +61,10 @@ function getFallbackAnnouncement(
 
   if (pathname === "/contact") {
     return "Contact";
+  }
+
+  if (pathname === "/about") {
+    return "About FilmGeezer";
   }
 
   return "FilmGeezer page";

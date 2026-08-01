@@ -68,10 +68,10 @@ function HelpPage() {
             </Link>
 
             <Link
-              to="/about"
+              to="/watchlist"
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 bg-white/5 px-6 text-sm font-bold text-slate-100 transition hover:border-sky-300/60 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-slate-950"
             >
-              About FilmGeezer
+              Open Watchlist
             </Link>
           </div>
         </section>
@@ -148,22 +148,23 @@ function HelpPage() {
 
           <article className="rounded-3xl border border-sky-300/15 bg-[linear-gradient(145deg,rgba(14,165,233,0.12),rgba(15,23,42,0.82)_60%)] p-6 sm:p-7">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-              Coming next
+              Available now
             </p>
 
             <h2 className="mt-3 text-2xl font-black tracking-tight">
-              Persistent Watchlists
+              Browser Watchlist
             </h2>
 
             <p className="mt-4 text-sm leading-7 text-slate-300">
-              Watchlist saving is not connected yet. It is the next major
-              FilmGeezer feature and will support both temporary guest saving and
-              permanent account-based saving across devices.
+              Select the bookmark control on a media card or details page to save
+              the title immediately. Your browser Watchlist supports up to 20
+              titles and each title expires after seven days.
             </p>
 
             <p className="mt-4 text-sm leading-7 text-slate-400">
-              Until that feature is released, selecting a Watchlist button shows
-              a notice and does not save the title.
+              Account-based MongoDB synchronization and safe guest-list merging
+              are the next Watchlist phase. Until then, saved titles stay on this
+              browser.
             </p>
           </article>
         </section>

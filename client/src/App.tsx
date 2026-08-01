@@ -19,6 +19,10 @@ import {
 import AuthRoute from "./features/auth/AuthRoute";
 
 import {
+  WatchlistProvider,
+} from "./features/watchlist/WatchlistProvider";
+
+import {
   isAuthRoutePath,
   readAuthRouteState,
 } from "./features/auth/authNavigation";
@@ -36,6 +40,7 @@ import MoviesPage from "./pages/MoviesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import SearchPage from "./pages/SearchPage";
 import TVSeriesPage from "./pages/TVSeriesPage";
+import WatchlistPage from "./pages/WatchlistPage";
 
 function ApplicationRoutes() {
   const location =
@@ -123,6 +128,13 @@ function ApplicationRoutes() {
           path="/media/:mediaType/:tmdbId"
           element={
             <MediaDetailsPage />
+          }
+        />
+
+        <Route
+          path="/watchlist"
+          element={
+            <WatchlistPage />
           }
         />
 
@@ -272,7 +284,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ApplicationRoutes />
+        <WatchlistProvider>
+          <ApplicationRoutes />
+        </WatchlistProvider>
       </AuthProvider>
     </BrowserRouter>
   );

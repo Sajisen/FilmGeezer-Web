@@ -36,8 +36,8 @@ import {
 } from "../features/auth/authNavigation";
 
 import {
-  usePlannedFeature,
-} from "../features/plannedFeature/plannedFeatureContext";
+  useWatchlist,
+} from "../features/watchlist/watchlistContext";
 
 function createInitials(
   displayName: string,
@@ -69,12 +69,9 @@ function Navbar() {
     useState(false);
 
   const auth = useAuth();
+  const { itemCount } = useWatchlist();
   const location = useLocation();
   const navigate = useNavigate();
-
-  const {
-    showPlannedFeature,
-  } = usePlannedFeature();
 
   const openMenu =
     useCallback(() => {
@@ -133,25 +130,10 @@ function Navbar() {
       openAuthentication,
     ]);
 
-  const showWatchlistNotice =
+  const openWatchlist =
     useCallback(() => {
-      showPlannedFeature({
-        title:
-          auth.status ===
-          "authenticated"
-            ? "Your Watchlist is coming next"
-            : "Sign in to keep a Watchlist",
-
-        message:
-          auth.status ===
-          "authenticated"
-            ? "Your account is ready. Persistent FilmGeezer Watchlists will be connected in the next feature phase."
-            : "Create an account or sign in to keep titles across devices. Guest saving will also be added with a seven-day local limit.",
-      });
-    }, [
-      auth.status,
-      showPlannedFeature,
-    ]);
+      navigate("/watchlist");
+    }, [navigate]);
 
   const accountInitials =
     auth.user
@@ -159,6 +141,11 @@ function Navbar() {
           auth.user.displayName,
         )
       : null;
+
+  const watchlistLabel =
+    itemCount === 0
+      ? "Open Watchlist"
+      : `Open Watchlist, ${itemCount} saved ${itemCount === 1 ? "title" : "titles"}`;
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 text-white backdrop-blur-xl">
@@ -232,15 +219,29 @@ function Navbar() {
             </NavLink>
 
             <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-sm shadow-black/20 sm:flex">
-              <button
-                type="button"
-                onClick={showWatchlistNotice}
-                aria-label="Open watchlist"
+              <NavLink
+                to="/watchlist"
+                aria-label={watchlistLabel}
                 title="Watchlist"
-                className="grid h-10 w-10 place-items-center rounded-full text-slate-300 transition hover:bg-sky-400/10 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                className={({ isActive }) =>
+                  `relative grid h-10 w-10 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                    isActive
+                      ? "bg-sky-400 text-slate-950 [&_path]:fill-current"
+                      : "text-slate-300 hover:bg-sky-400/10 hover:text-sky-200"
+                  }`
+                }
               >
                 <BookmarkIcon />
-              </button>
+
+                {itemCount > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-slate-950 bg-sky-400 px-1 text-[0.62rem] font-black leading-none text-slate-950"
+                  >
+                    {itemCount}
+                  </span>
+                )}
+              </NavLink>
 
               {auth.status ===
               "loading" ? (
@@ -288,7 +289,7 @@ function Navbar() {
         <MobileNavigationDrawer
           onClose={closeMenu}
           onWatchlist={
-            showWatchlistNotice
+            openWatchlist
           }
           onAccountAction={
             openAccount

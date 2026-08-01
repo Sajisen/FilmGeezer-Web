@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform and the manual authentication/account-management foundation are implemented. The next major product feature is a persistent Watchlist for guests and signed-in users.
+The discovery platform and the manual authentication/account-management foundation are implemented. A browser-based guest Watchlist is also available, with authenticated MongoDB synchronization and guest-to-account merging planned next.
 
 ## Technology stack
 
@@ -67,6 +67,16 @@ The discovery platform and the manual authentication/account-management foundati
 - Account deactivation
 - Authentication audit events
 
+### Watchlist
+
+- Browser-local saving without requiring an account
+- Seven-day expiry for each saved title
+- Twenty-title browser limit
+- Cross-tab synchronization in the same browser
+- Dedicated responsive Watchlist page
+- Accessible add/remove controls on media cards and Media Details
+- Defensive storage validation and graceful storage-unavailable handling
+
 ### User experience
 
 - Route-backed authentication modals with direct-route fallbacks
@@ -95,13 +105,13 @@ Authentication uses opaque session tokens stored in HttpOnly cookies. The server
 
 The next planned phases are:
 
-1. Guest and authenticated persistent Watchlists
-2. Guest-to-account Watchlist merging
+1. Authenticated MongoDB Watchlist persistence
+2. Safe guest-to-account Watchlist merging
 3. Profile-picture upload and object storage
 4. Entertainment preferences and personalised recommendations
 5. Notifications and contact/support completion
 6. Protected administration features
-7. Production email delivery, shared rate limiting, automated tests, and deployment hardening
+7. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
 
 ## Local development
 
