@@ -14,6 +14,11 @@ import {
   CloseIcon,
 } from "../../../components/navigation/NavigationIcons";
 
+import {
+  dismissActiveBrowserInput,
+  isTextEntryElement,
+} from "../../../utils/browserInput";
+
 interface AuthSurfaceProps {
   isModal: boolean;
   isBusy: boolean;
@@ -325,12 +330,17 @@ function AuthSurface({
           previousPaddingRight;
       }
 
+      dismissActiveBrowserInput();
+
       const previouslyFocusedElement =
         previouslyFocusedElementRef.current;
 
       if (
         previouslyFocusedElement
-          ?.isConnected
+          ?.isConnected &&
+        !isTextEntryElement(
+          previouslyFocusedElement,
+        )
       ) {
         previouslyFocusedElement.focus({
           preventScroll: true,

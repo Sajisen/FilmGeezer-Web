@@ -39,6 +39,10 @@ import {
   useWatchlist,
 } from "../features/watchlist/watchlistContext";
 
+import {
+  dismissActiveBrowserInput,
+} from "../utils/browserInput";
+
 function createInitials(
   displayName: string,
 ): string {
@@ -75,6 +79,7 @@ function Navbar() {
 
   const openMenu =
     useCallback(() => {
+      dismissActiveBrowserInput();
       setIsMenuOpen(true);
     }, []);
 
@@ -99,6 +104,8 @@ function Navbar() {
 
   const openAuthentication =
     useCallback(() => {
+      dismissActiveBrowserInput();
+
       navigate(
         "/login",
         {

@@ -229,3 +229,18 @@ export function saveAccountWatchlistCache(input: {
     return false;
   }
 }
+
+export function removeAccountWatchlistCache(userId: string): boolean {
+  const storage = getStorage();
+
+  if (!storage) {
+    return false;
+  }
+
+  try {
+    storage.removeItem(getAccountWatchlistCacheKey(userId));
+    return true;
+  } catch {
+    return false;
+  }
+}

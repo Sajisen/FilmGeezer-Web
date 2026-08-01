@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform, manual authentication/account-management foundation, guest Watchlist, authenticated MongoDB Watchlist, and safe guest-to-account merging are implemented.
+The discovery platform, manual authentication/account-management foundation, guest Watchlist, authenticated MongoDB Watchlist, overflow-safe guest-to-account merging, and the compact Watchlist experience are implemented.
 
 ## Technology stack
 
@@ -73,9 +73,10 @@ The discovery platform, manual authentication/account-management foundation, gue
 - Seven-day expiry and a twenty-title limit for guest Watchlists
 - MongoDB-backed account Watchlists with a server-enforced fifty-title limit
 - Safe guest-to-account merging after authentication
+- Overflow-safe merge handling that preserves browser titles when an account is full
 - Cross-tab guest synchronization and user-specific authenticated caching
 - Optimistic account updates with rollback and retry handling
-- Dedicated responsive Watchlist page
+- Dedicated compact, filterable, responsive Watchlist page
 - Accessible add/remove controls on media cards and Media Details
 - Defensive storage and API-response validation
 
@@ -107,12 +108,11 @@ Authentication uses opaque session tokens stored in HttpOnly cookies. The server
 
 The next planned phases are:
 
-1. Final Watchlist page visual redesign and compact card system
-2. Profile-picture upload through Railway Buckets object storage
-3. Entertainment preferences and personalised recommendations
-4. Notifications and contact/support completion
-5. Protected administration features
-6. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
+1. Profile-picture upload through Railway Buckets object storage
+2. Entertainment preferences and personalised recommendations
+3. Notifications and contact/support completion
+4. Protected administration features
+5. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
 
 ## Local development
 

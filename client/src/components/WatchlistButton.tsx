@@ -15,23 +15,17 @@ function WatchlistButton({
   className = "",
   variant = "icon",
 }: WatchlistButtonProps) {
-  const {
-    hasItem,
-    isItemPending,
-    isMutationPending,
-    toggleItem,
-  } = useWatchlist();
+  const { hasItem, isItemPending, toggleItem } = useWatchlist();
 
   const isSaved = hasItem(item.mediaType, item.tmdbId);
   const isPending = isItemPending(item.mediaType, item.tmdbId);
   const isLabeled = variant === "labeled";
-  const isDisabled = isMutationPending;
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (isDisabled) {
+    if (isPending) {
       return;
     }
 
@@ -53,20 +47,18 @@ function WatchlistButton({
     <button
       type="button"
       onClick={handleClick}
-      disabled={isDisabled}
       aria-label={actionLabel}
       aria-pressed={isSaved}
       aria-busy={isPending}
+      aria-disabled={isPending}
       title={isSaved ? "Remove from Watchlist" : "Add to Watchlist"}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border font-semibold shadow-lg shadow-black/30 backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:cursor-wait disabled:opacity-70 ${
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border font-semibold shadow-lg shadow-black/30 backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 focus:ring-offset-slate-950 ${
         isSaved ? savedClasses : unsavedClasses
       } ${isSaved ? "[&_path]:fill-current" : ""} ${
         isLabeled ? "px-5" : "min-w-11"
       } ${className}`}
     >
-      <BookmarkIcon
-        className={`h-5 w-5 ${isPending ? "animate-pulse" : ""}`}
-      />
+      <BookmarkIcon className="h-5 w-5" />
 
       {isLabeled && (
         <span>{isSaved ? "Saved" : "Add to Watchlist"}</span>

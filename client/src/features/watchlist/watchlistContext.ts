@@ -16,6 +16,7 @@ export interface WatchlistContextValue {
   expiryDays: number;
   storageMode: WatchlistStorageMode;
   storageAvailable: boolean;
+  pendingGuestCount: number;
   syncStatus: WatchlistSyncStatus;
   syncError: string | null;
   isMutationPending: boolean;

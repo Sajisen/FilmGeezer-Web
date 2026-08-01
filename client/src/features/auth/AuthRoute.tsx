@@ -17,6 +17,10 @@ import type {
 } from "../../types/auth";
 
 import {
+  dismissActiveBrowserInput,
+} from "../../utils/browserInput";
+
+import {
   useAuth,
 } from "./authContext";
 
@@ -198,6 +202,8 @@ function AuthRoute({
       return;
     }
 
+    dismissActiveBrowserInput();
+
     if (routeState.backgroundLocation) {
       navigate(-1);
       return;
@@ -241,6 +247,8 @@ function AuthRoute({
         nextVerification
           ? `?challengeId=${encodeURIComponent(nextVerification.challengeId)}`
           : "";
+
+      dismissActiveBrowserInput();
 
       setHasFormInput(
         options?.markDirty ?? false,
@@ -341,6 +349,7 @@ function AuthRoute({
         );
       }
 
+      dismissActiveBrowserInput();
       setHasFormInput(false);
 
       if (routeState.backgroundLocation) {

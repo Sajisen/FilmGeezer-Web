@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { useLocation, useNavigate } from "react-router";
+
 import {
   WatchlistApiError,
   addAccountWatchlistItem,
@@ -29,10 +31,12 @@ import type {
 } from "../../types/watchlist";
 
 import { useAuth } from "../auth/authContext";
+import { createAuthRouteState } from "../auth/authNavigation";
 
 import {
   getAccountWatchlistCacheKey,
   loadAccountWatchlistCache,
+  removeAccountWatchlistCache,
   saveAccountWatchlistCache,
 } from "./accountWatchlistCache";
 
@@ -40,7 +44,6 @@ import {
   GUEST_WATCHLIST_EXPIRY_DAYS,
   GUEST_WATCHLIST_MAX_ITEMS,
   GUEST_WATCHLIST_STORAGE_KEY,
-  clearGuestWatchlist,
   createGuestWatchlistItem,
   loadGuestWatchlist,
   saveGuestWatchlist,
@@ -50,6 +53,7 @@ import WatchlistToast, {
   type WatchlistToastNotice,
   type WatchlistToastTone,
 } from "./components/WatchlistToast";
+import WatchlistLimitDialog from "./components/WatchlistLimitDialog";
 
 import {
   WatchlistContext,
@@ -65,6 +69,7 @@ interface WatchlistState {
   maxItems: number;
   storageMode: WatchlistStorageMode;
   storageAvailable: boolean;
+  pendingGuestCount: number;
   syncStatus: WatchlistSyncStatus;
   syncError: string | null;
   updatedAt: string | null;
@@ -89,6 +94,7 @@ function createInitialState(): WatchlistState {
     maxItems: GUEST_WATCHLIST_MAX_ITEMS,
     storageMode: "guest",
     storageAvailable: guestSnapshot.storageAvailable,
+    pendingGuestCount: 0,
     syncStatus: "idle",
     syncError: null,
     updatedAt: null,
@@ -111,9 +117,14 @@ export function WatchlistProvider({
     refreshSession,
   } = useAuth();
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [state, setState] = useState<WatchlistState>(createInitialState);
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
   const [notice, setNotice] = useState<WatchlistToastNotice | null>(null);
+  const [isGuestLimitDialogOpen, setIsGuestLimitDialogOpen] =
+    useState(false);
 
   const stateRef = useRef(state);
   const pendingKeysRef = useRef(new Set<string>());
@@ -144,8 +155,27 @@ export function WatchlistProvider({
     [],
   );
 
+  const closeGuestLimitDialog = useCallback(() => {
+    setIsGuestLimitDialogOpen(false);
+  }, []);
+
+  const openAuthenticationFromLimit = useCallback(
+    (path: "/login" | "/register") => {
+      setIsGuestLimitDialogOpen(false);
+      navigate(path, {
+        state: createAuthRouteState(location),
+      });
+    },
+    [location, navigate],
+  );
+
   const applyGuestSnapshot = useCallback(() => {
     const snapshot = loadGuestWatchlist();
+    const previousUserId = activeUserIdRef.current;
+
+    if (previousUserId) {
+      removeAccountWatchlistCache(previousUserId);
+    }
 
     activeUserIdRef.current = null;
 
@@ -154,6 +184,7 @@ export function WatchlistProvider({
       maxItems: GUEST_WATCHLIST_MAX_ITEMS,
       storageMode: "guest",
       storageAvailable: snapshot.storageAvailable,
+      pendingGuestCount: 0,
       syncStatus: "idle",
       syncError: null,
       updatedAt: null,
@@ -165,6 +196,10 @@ export function WatchlistProvider({
       userId: string,
       response: WatchlistSnapshotResponse,
       syncStatus: WatchlistSyncStatus = "idle",
+      pendingGuestCount: number =
+        stateRef.current.storageMode === "account"
+          ? stateRef.current.pendingGuestCount
+          : 0,
     ) => {
       const accountItems = toAccountItems(response.items);
 
@@ -180,6 +215,7 @@ export function WatchlistProvider({
         maxItems: response.maximumItems,
         storageMode: "account",
         storageAvailable: true,
+        pendingGuestCount,
         syncStatus,
         syncError: null,
         updatedAt: response.updatedAt,
@@ -202,18 +238,18 @@ export function WatchlistProvider({
       activeUserIdRef.current = userId;
 
       const cache = loadAccountWatchlistCache(userId);
+      const guestSnapshot = loadGuestWatchlist();
 
       applyState({
         items: toAccountItems(cache.items),
         maxItems: cache.maximumItems,
         storageMode: "account",
         storageAvailable: true,
+        pendingGuestCount: guestSnapshot.items.length,
         syncStatus: cache.items.length > 0 ? "syncing" : "loading",
         syncError: null,
         updatedAt: cache.updatedAt,
       });
-
-      const guestSnapshot = loadGuestWatchlist();
 
       try {
         if (guestSnapshot.items.length > 0) {
@@ -230,16 +266,36 @@ export function WatchlistProvider({
             return;
           }
 
-          applyAccountResponse(userId, response);
+          const accountIdentityKeys = new Set(
+            response.items.map((item) =>
+              createIdentityKey(item.mediaType, item.tmdbId),
+            ),
+          );
 
-          const guestStorageCleared = clearGuestWatchlist();
+          const remainingGuestItems = guestSnapshot.items.filter(
+            (item) =>
+              !accountIdentityKeys.has(
+                createIdentityKey(item.mediaType, item.tmdbId),
+              ),
+          );
+
+          const guestStorageUpdated = saveGuestWatchlist(
+            remainingGuestItems,
+          );
+
+          applyAccountResponse(
+            userId,
+            response,
+            "idle",
+            remainingGuestItems.length,
+          );
 
           if (options.announceMerge) {
             if (response.skippedForLimitCount > 0) {
               showNotice(
                 "info",
                 "Watchlist synced",
-                `${response.addedCount} browser ${response.addedCount === 1 ? "title was" : "titles were"} added. ${response.skippedForLimitCount} could not be added because the account limit was reached.`,
+                `${response.addedCount} browser ${response.addedCount === 1 ? "title was" : "titles were"} added. ${response.skippedForLimitCount} ${response.skippedForLimitCount === 1 ? "title remains" : "titles remain"} safely on this browser because the account limit is full.`,
               );
             } else if (response.addedCount > 0) {
               showNotice(
@@ -250,11 +306,11 @@ export function WatchlistProvider({
             }
           }
 
-          if (!guestStorageCleared) {
+          if (!guestStorageUpdated) {
             showNotice(
               "info",
               "Account copy is safe",
-              "The titles were saved to your account, but this browser could not clear its temporary copy.",
+              "Your account copy was updated, but FilmGeezer could not refresh the temporary browser copy.",
             );
           }
 
@@ -285,6 +341,7 @@ export function WatchlistProvider({
           maxItems: cache.maximumItems,
           storageMode: "account",
           storageAvailable: true,
+          pendingGuestCount: guestSnapshot.items.length,
           syncStatus: "error",
           syncError: getErrorMessage(error),
           updatedAt: cache.updatedAt,
@@ -314,6 +371,7 @@ export function WatchlistProvider({
         userId &&
         csrfToken
       ) {
+        setIsGuestLimitDialogOpen(false);
         void synchronizeAccount(userId, csrfToken, {
           signal: controller.signal,
           announceMerge: true,
@@ -355,6 +413,18 @@ export function WatchlistProvider({
 
       if (
         currentState.storageMode === "account" &&
+        (event.key === GUEST_WATCHLIST_STORAGE_KEY || event.key === null)
+      ) {
+        const guestSnapshot = loadGuestWatchlist();
+
+        applyState({
+          ...stateRef.current,
+          pendingGuestCount: guestSnapshot.items.length,
+        });
+      }
+
+      if (
+        currentState.storageMode === "account" &&
         userId &&
         pendingKeysRef.current.size === 0 &&
         (event.key === getAccountWatchlistCacheKey(userId) ||
@@ -367,6 +437,7 @@ export function WatchlistProvider({
           maxItems: cache.maximumItems,
           storageMode: "account",
           storageAvailable: true,
+          pendingGuestCount: stateRef.current.pendingGuestCount,
           syncStatus: "idle",
           syncError: null,
           updatedAt: cache.updatedAt,
@@ -493,6 +564,7 @@ export function WatchlistProvider({
         maxItems: GUEST_WATCHLIST_MAX_ITEMS,
         storageMode: "guest",
         storageAvailable: true,
+        pendingGuestCount: 0,
         syncStatus: "idle",
         syncError: null,
         updatedAt: null,
@@ -548,9 +620,10 @@ export function WatchlistProvider({
 
         showNotice(
           "error",
-          "Watchlist limit reached",
-          `This browser can keep up to ${GUEST_WATCHLIST_MAX_ITEMS} titles. Remove one before adding another.`,
+          "Your Watchlist is full",
+          `This browser can hold ${GUEST_WATCHLIST_MAX_ITEMS} titles. Sign in to save more, or remove one before adding another.`,
         );
+        setIsGuestLimitDialogOpen(true);
 
         return "limit-reached";
       }
@@ -873,6 +946,7 @@ export function WatchlistProvider({
       expiryDays: GUEST_WATCHLIST_EXPIRY_DAYS,
       storageMode: state.storageMode,
       storageAvailable: state.storageAvailable,
+      pendingGuestCount: state.pendingGuestCount,
       syncStatus: state.syncStatus,
       syncError: state.syncError,
       isMutationPending:
@@ -895,6 +969,7 @@ export function WatchlistProvider({
       retrySync,
       state.items,
       state.maxItems,
+      state.pendingGuestCount,
       state.storageAvailable,
       state.storageMode,
       state.syncError,
@@ -911,6 +986,14 @@ export function WatchlistProvider({
         <WatchlistToast
           notice={notice}
           onDismiss={() => setNotice(null)}
+        />
+      )}
+
+      {isGuestLimitDialogOpen && authStatus !== "authenticated" && (
+        <WatchlistLimitDialog
+          onClose={closeGuestLimitDialog}
+          onSignIn={() => openAuthenticationFromLimit("/login")}
+          onRegister={() => openAuthenticationFromLimit("/register")}
         />
       )}
     </WatchlistContext.Provider>

@@ -31,10 +31,21 @@ function isAllowedPosterUrl(value: string): boolean {
   try {
     const url = new URL(value);
 
-    return (
-      url.protocol === "https:" &&
+    if (url.protocol !== "https:") {
+      return false;
+    }
+
+    if (
       url.hostname === "image.tmdb.org" &&
       url.pathname.startsWith("/t/p/")
+    ) {
+      return true;
+    }
+
+    return (
+      url.hostname === "placehold.co" &&
+      url.pathname === "/500x750" &&
+      url.searchParams.get("text") === "No Poster"
     );
   } catch {
     return false;

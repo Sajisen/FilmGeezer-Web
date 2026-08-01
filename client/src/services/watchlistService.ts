@@ -24,6 +24,16 @@ interface WatchlistRequestOptions {
 
 type PayloadGuard<T> = (value: unknown) => value is T;
 
+function createWatchlistItemPayload(item: WatchlistCandidate) {
+  return {
+    mediaType: item.mediaType,
+    tmdbId: item.tmdbId,
+    title: item.title.trim(),
+    posterUrl: item.posterUrl.trim(),
+    year: item.year.trim(),
+  };
+}
+
 export class WatchlistApiError extends Error {
   readonly status: number;
   readonly code: string | null;
@@ -255,7 +265,7 @@ export function addAccountWatchlistItem(
     isMutationResponse,
     {
       method: "POST",
-      body: item,
+      body: createWatchlistItemPayload(item),
       csrfToken,
     },
   );
@@ -301,11 +311,7 @@ export function mergeGuestWatchlistIntoAccount(
       method: "POST",
       body: {
         items: items.map((item) => ({
-          mediaType: item.mediaType,
-          tmdbId: item.tmdbId,
-          title: item.title,
-          posterUrl: item.posterUrl,
-          year: item.year,
+          ...createWatchlistItemPayload(item),
           addedAt: item.addedAt,
         })),
       },

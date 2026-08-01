@@ -12,6 +12,10 @@ import {
   readAuthRouteState,
 } from "../../features/auth/authNavigation";
 
+import {
+  dismissActiveBrowserInput,
+} from "../../utils/browserInput";
+
 function getFallbackAnnouncement(
   pathname: string,
 ) {
@@ -94,6 +98,8 @@ function RouteAccessibility() {
     ) {
       return;
     }
+
+    dismissActiveBrowserInput();
 
     const animationFrame =
       window.requestAnimationFrame(
