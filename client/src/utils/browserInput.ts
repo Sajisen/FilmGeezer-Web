@@ -13,7 +13,7 @@ const NON_TEXT_INPUT_TYPES = new Set([
 
 export function isTextEntryElement(
   element: Element | null,
-): element is HTMLElement {
+): boolean {
   if (!element) {
     return false;
   }
@@ -29,13 +29,19 @@ export function isTextEntryElement(
     return !NON_TEXT_INPUT_TYPES.has(element.type);
   }
 
-  return element instanceof HTMLElement && element.isContentEditable;
+  return (
+    element instanceof HTMLElement &&
+    element.isContentEditable
+  );
 }
 
 export function dismissActiveBrowserInput(): void {
   const activeElement = document.activeElement;
 
-  if (isTextEntryElement(activeElement)) {
+  if (
+    activeElement instanceof HTMLElement &&
+    isTextEntryElement(activeElement)
+  ) {
     activeElement.blur();
   }
 }
