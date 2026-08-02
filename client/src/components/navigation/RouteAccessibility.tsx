@@ -59,10 +59,6 @@ function getFallbackAnnouncement(
     return "FilmGeezer account";
   }
 
-  if (pathname === "/help") {
-    return "Help";
-  }
-
   if (pathname === "/contact") {
     return "Contact";
   }

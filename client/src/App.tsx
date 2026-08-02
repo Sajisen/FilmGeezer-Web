@@ -32,7 +32,6 @@ import AccountPage from "./pages/AccountPage";
 import AnimePage from "./pages/AnimePage";
 import ApiTestPage from "./pages/ApiTestPage";
 import ContactPage from "./pages/ContactPage";
-import HelpPage from "./pages/HelpPage";
 import HomePage from "./pages/HomePage";
 import KDramaPage from "./pages/KDramaPage";
 import MediaDetailsPage from "./pages/MediaDetailsPage";
@@ -142,13 +141,6 @@ function ApplicationRoutes() {
           path="/account"
           element={
             <AccountPage />
-          }
-        />
-
-        <Route
-          path="/help"
-          element={
-            <HelpPage />
           }
         />
 
