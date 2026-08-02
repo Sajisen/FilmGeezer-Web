@@ -24,6 +24,10 @@ import {
   makeRoomForNewSession,
 } from "./repositories/authSession.repository.js";
 
+import {
+  createProfileImagePath,
+} from "../profile-image/profileImage.path.js";
+
 export interface PreparedLocalAuthSession {
   sessionId: ObjectId;
 
@@ -44,6 +48,7 @@ export interface LocalAuthSessionResult {
     provider: "local";
     email: string;
     displayName: string;
+    profileImagePath: string | null;
     roles: AuthRole[];
   };
 
@@ -58,6 +63,7 @@ type LocalSessionUser = Pick<
   | "_id"
   | "emailDisplay"
   | "displayName"
+  | "profileImage"
   | "roles"
 >;
 
@@ -164,6 +170,9 @@ export function createLocalAuthSessionResult(
 
       displayName:
         user.displayName,
+
+      profileImagePath:
+        createProfileImagePath(user),
 
       roles:
         [...user.roles],

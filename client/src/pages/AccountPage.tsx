@@ -97,6 +97,8 @@ function AccountPage() {
     useSearchParams();
   const refreshAuthSession =
     auth.refreshSession;
+  const updateAuthUser =
+    auth.updateUser;
 
   const requestedSection =
     searchParams.get("section");
@@ -703,6 +705,7 @@ function AccountPage() {
           <AccountHero
             displayName={details.account.displayName}
             email={details.account.email}
+            profileImagePath={details.account.profileImagePath}
             memberSinceLabel={formatDateOnly(
               details.account.memberSince,
             )}
@@ -769,8 +772,9 @@ function AccountPage() {
                 <ProfileEditor
                   key={details.account.displayName}
                   displayName={details.account.displayName}
+                  profileImagePath={details.account.profileImagePath}
                   csrfToken={csrfToken}
-                  onUpdated={async (
+                  onDisplayNameUpdated={async (
                     displayName,
                     message,
                   ) => {
@@ -785,8 +789,24 @@ function AccountPage() {
                           }
                         : current,
                     );
-                    await refreshAuthSession();
+                    updateAuthUser({ displayName });
                     setSecurityMessage(message);
+                  }}
+                  onProfileImageUpdated={async (
+                    profileImagePath,
+                  ) => {
+                    setDetails((current) =>
+                      current
+                        ? {
+                            ...current,
+                            account: {
+                              ...current.account,
+                              profileImagePath,
+                            },
+                          }
+                        : current,
+                    );
+                    updateAuthUser({ profileImagePath });
                   }}
                 />
               )}

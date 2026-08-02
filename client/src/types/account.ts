@@ -8,6 +8,7 @@ export interface AccountSummary {
   provider: "local";
   email: string;
   displayName: string;
+  profileImagePath: string | null;
   roles: AuthUser["roles"];
   emailVerifiedAt: string;
   memberSince: string;

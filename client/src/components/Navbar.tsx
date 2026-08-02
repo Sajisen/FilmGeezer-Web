@@ -43,30 +43,9 @@ import {
   dismissActiveBrowserInput,
 } from "../utils/browserInput";
 
-function createInitials(
-  displayName: string,
-): string {
-  const parts =
-    displayName
-      .trim()
-      .split(/\s+/u)
-      .filter(Boolean);
-
-  if (parts.length === 0) {
-    return "FG";
-  }
-
-  if (parts.length === 1) {
-    return Array.from(
-      parts[0],
-    )
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  }
-
-  return `${Array.from(parts[0])[0] ?? ""}${Array.from(parts.at(-1) ?? "")[0] ?? ""}`.toUpperCase();
-}
+import {
+  createProfileInitials,
+} from "../utils/profileImage";
 
 function Navbar() {
   const [isMenuOpen, setIsMenuOpen] =
@@ -144,7 +123,7 @@ function Navbar() {
 
   const accountInitials =
     auth.user
-      ? createInitials(
+      ? createProfileInitials(
           auth.user.displayName,
         )
       : null;
@@ -309,6 +288,9 @@ function Navbar() {
           }
           accountInitials={
             accountInitials
+          }
+          accountProfileImagePath={
+            auth.user?.profileImagePath ?? null
           }
         />
       )}

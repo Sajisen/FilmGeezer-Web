@@ -23,6 +23,7 @@ import moreLikeThisRoutes from "./routes/moreLikeThis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import accountRoutes from "./routes/account.routes.js";
 import watchlistRoutes from "./routes/watchlist.routes.js";
+import profileImageRoutes from "./routes/profileImage.routes.js";
 
 import {
   handleHttpError,
@@ -68,6 +69,11 @@ app.use(
 app.use(
   "/api/watchlist",
   watchlistRoutes,
+);
+
+app.use(
+  "/api",
+  profileImageRoutes,
 );
 
 app.use(

@@ -48,6 +48,10 @@ import type {
   AuthenticatedSessionContext,
 } from "../auth/auth.session.service.js";
 
+import {
+  getProfileImageStorage,
+} from "../profile-image/profileImage.storage.js";
+
 const ACCOUNT_DEACTIVATION_TRANSACTION_OPTIONS:
   TransactionOptions = {
     readPreference: "primary",
@@ -170,6 +174,8 @@ export async function deactivateAccount(
               user.emailDisplay,
             displayName:
               user.displayName,
+            profileImageObjectKey:
+              user.profileImage?.objectKey ?? null,
           };
         },
         ACCOUNT_DEACTIVATION_TRANSACTION_OPTIONS,
@@ -179,6 +185,24 @@ export async function deactivateAccount(
       throw new AuthPersistenceError(
         "Account deactivation completed without returning a result.",
       );
+    }
+
+    if (result.profileImageObjectKey) {
+      try {
+        await getProfileImageStorage().remove(
+          result.profileImageObjectKey,
+        );
+      } catch (storageError) {
+        console.error(
+          "[account-deactivation] Profile-picture storage cleanup failed.",
+          {
+            name:
+              storageError instanceof Error
+                ? storageError.name
+                : "UnknownError",
+          },
+        );
+      }
     }
 
     try {

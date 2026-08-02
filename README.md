@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform, manual authentication/account-management foundation, guest Watchlist, authenticated MongoDB Watchlist, overflow-safe guest-to-account merging, and the compact Watchlist experience are implemented.
+The discovery platform, manual authentication/account management, persistent Watchlist, and secure profile-picture upload experience are implemented.
 
 ## Technology stack
 
@@ -25,6 +25,9 @@ The discovery platform, manual authentication/account-management foundation, gue
 - MongoDB
 - Zod validation
 - Argon2id password hashing
+- Sharp image decoding and safe WebP re-encoding
+- Multer multipart upload limits
+- Railway Buckets-compatible S3 storage adapter
 
 ### External data
 
@@ -80,6 +83,19 @@ The discovery platform, manual authentication/account-management foundation, gue
 - Accessible add/remove controls on media cards and Media Details
 - Defensive storage and API-response validation
 
+### Profile pictures
+
+- Authenticated, CSRF-protected profile-picture upload and removal endpoints
+- JPEG, PNG, and WebP input allowlist
+- Five-megabyte request limit and twelve-megapixel decode limit
+- Server-side decode, orientation correction, square crop, resize, metadata removal, and WebP re-encoding
+- Maximum 256 KiB stored output
+- Local development storage and private Railway Bucket support
+- Presigned bucket delivery to avoid proxying image bytes through the application service
+- Replacement cleanup, deactivation cleanup, rate limiting, and audit events
+- Responsive Account-page preview, upload progress, replacement, removal, and initials fallback
+- Live profile-picture updates in the Navbar, profile menu, mobile navigation, and account summary
+
 ### User experience
 
 - Route-backed authentication modals with direct-route fallbacks
@@ -108,11 +124,10 @@ Authentication uses opaque session tokens stored in HttpOnly cookies. The server
 
 The next planned phases are:
 
-1. Profile-picture upload through Railway Buckets object storage
-2. Entertainment preferences and personalised recommendations
-3. Notifications and contact/support completion
-4. Protected administration features
-5. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
+1. Entertainment preferences and personalised recommendations
+2. Notifications and contact/support completion
+3. Protected administration features
+4. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
 
 ## Local development
 

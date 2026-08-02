@@ -73,6 +73,9 @@ export function getCurrentAuthSession(
         displayName:
           auth.displayName,
 
+        profileImagePath:
+          auth.profileImagePath,
+
         roles:
           auth.roles,
       },
@@ -248,3 +251,4 @@ export async function logoutAllAuthSessions(
     next(error);
   }
 }
+

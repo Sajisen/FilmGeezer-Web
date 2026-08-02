@@ -42,3 +42,6 @@ Thumbs.db
 **/*.pdf
 **/*.doc
 **/*.docx
+
+# Local development object storage
+**/.data/
