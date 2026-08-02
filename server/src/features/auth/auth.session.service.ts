@@ -46,6 +46,10 @@ import {
   findActiveUserById,
 } from "./repositories/authUser.repository.js";
 
+import {
+  createProfileImagePath,
+} from "../profile-image/profileImage.path.js";
+
 export interface AuthenticatedSessionContext {
   sessionId: ObjectId;
   userId: ObjectId;
@@ -55,6 +59,7 @@ export interface AuthenticatedSessionContext {
 
   email: string;
   displayName: string;
+  profileImagePath: string | null;
   roles: AuthRole[];
 
   csrfToken: string;
@@ -330,6 +335,8 @@ export async function resolveAuthenticatedSession(
         user.emailDisplay,
       displayName:
         user.displayName,
+      profileImagePath:
+        createProfileImagePath(user),
       roles:
         [...user.roles],
 

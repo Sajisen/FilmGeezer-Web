@@ -6,6 +6,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { NavLink } from "react-router";
+
+import ProfileAvatar from "../ProfileAvatar";
 import {
   ArrowRightIcon,
   BookmarkIcon,
@@ -24,6 +26,7 @@ interface MobileNavigationDrawerProps {
   onAccountAction: () => void;
   accountLabel: string;
   accountInitials: string | null;
+  accountProfileImagePath: string | null;
 }
 
 const EXIT_DURATION_MS = 280;
@@ -44,6 +47,7 @@ function MobileNavigationDrawer({
   onAccountAction,
   accountLabel,
   accountInitials,
+  accountProfileImagePath,
 }: MobileNavigationDrawerProps) {
   const [isEntered, setIsEntered] = useState(() =>
   prefersReducedMotion(),
@@ -481,12 +485,13 @@ useEffect(() => {
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-3 text-sm font-bold text-white shadow-lg shadow-sky-950/25 transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
           >
             {accountInitials ? (
-              <span
-                aria-hidden="true"
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950/25 text-[0.65rem] font-black tracking-wide"
-              >
-                {accountInitials}
-              </span>
+              <ProfileAvatar
+                displayName={accountInitials}
+                profileImagePath={accountProfileImagePath}
+                alt=""
+                className="h-7 w-7 border-white/15 shadow-none"
+                initialsClassName="text-[0.65rem] tracking-wide"
+              />
             ) : (
               <UserIcon />
             )}

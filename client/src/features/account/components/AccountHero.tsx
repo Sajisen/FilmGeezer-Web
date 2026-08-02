@@ -1,38 +1,20 @@
+import ProfileAvatar from "../../../components/ProfileAvatar";
+
 import AccountIcon from "./AccountSectionIcons";
 
 interface AccountHeroProps {
   displayName: string;
   email: string;
+  profileImagePath: string | null;
   memberSinceLabel: string;
   isSigningOut: boolean;
   onSignOut: () => void;
 }
 
-function createInitials(
-  displayName: string,
-): string {
-  const parts = displayName
-    .trim()
-    .split(/\s+/u)
-    .filter(Boolean);
-
-  if (parts.length === 0) {
-    return "FG";
-  }
-
-  if (parts.length === 1) {
-    return Array.from(parts[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  }
-
-  return `${Array.from(parts[0])[0] ?? ""}${Array.from(parts.at(-1) ?? "")[0] ?? ""}`.toUpperCase();
-}
-
 function AccountHero({
   displayName,
   email,
+  profileImagePath,
   memberSinceLabel,
   isSigningOut,
   onSignOut,
@@ -52,16 +34,18 @@ function AccountHero({
           className="h-4.5 w-4.5"
         />
         <span>
-          {isSigningOut
-            ? "Signing out…"
-            : "Sign out"}
+          {isSigningOut ? "Signing out…" : "Sign out"}
         </span>
       </button>
 
       <div className="relative flex flex-col items-center gap-4 px-5 py-7 text-center sm:flex-row sm:px-7 sm:py-6 sm:text-left lg:px-6 lg:py-5 lg:pr-36">
-        <div className="grid h-24 w-24 shrink-0 place-items-center rounded-full border border-sky-200/20 bg-[radial-gradient(circle_at_30%_20%,rgba(125,211,252,0.34),rgba(14,116,144,0.18)_45%,rgba(15,23,42,0.92))] text-3xl font-black text-sky-50 shadow-xl shadow-sky-950/35 sm:h-20 sm:w-20 sm:text-2xl lg:h-16 lg:w-16 lg:text-xl">
-          {createInitials(displayName)}
-        </div>
+        <ProfileAvatar
+          displayName={displayName}
+          profileImagePath={profileImagePath}
+          className="h-24 w-24 sm:h-20 sm:w-20 lg:h-16 lg:w-16"
+          initialsClassName="text-3xl sm:text-2xl lg:text-xl"
+          alt={`${displayName}'s profile picture`}
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">

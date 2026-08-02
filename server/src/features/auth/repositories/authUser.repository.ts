@@ -12,6 +12,7 @@ import {
 } from "../auth.collections.js";
 
 import type {
+  FilmGeezerProfileImage,
   FilmGeezerUserDocument,
 } from "../auth.types.js";
 
@@ -42,6 +43,7 @@ export async function createPendingUser(
         input.emailDisplay,
       displayName:
         input.displayName,
+      profileImage: null,
 
       status: "pending",
       roles: ["user"],
@@ -418,14 +420,80 @@ export async function deactivateActiveUser(
         status: "deactivated",
         deactivatedAt:
           input.deactivatedAt,
+        profileImage: null,
         updatedAt:
           input.deactivatedAt,
       },
     },
     {
-      returnDocument: "after",
+      returnDocument: "before",
       session,
     },
   );
 }
 
+export interface ReplaceActiveUserProfileImageInput {
+  userId: ObjectId;
+  profileImage: FilmGeezerProfileImage;
+  updatedAt: Date;
+}
+
+export async function replaceActiveUserProfileImage(
+  input: ReplaceActiveUserProfileImageInput,
+  session: ClientSession,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } = await getAuthCollections();
+
+  return users.findOneAndUpdate(
+    {
+      _id: input.userId,
+      status: "active",
+      emailVerifiedAt: { $ne: null },
+      suspendedAt: null,
+      deactivatedAt: null,
+      deletedAt: null,
+    },
+    {
+      $set: {
+        profileImage: input.profileImage,
+        updatedAt: input.updatedAt,
+      },
+    },
+    {
+      returnDocument: "before",
+      session,
+    },
+  );
+}
+
+export async function removeActiveUserProfileImage(
+  input: {
+    userId: ObjectId;
+    updatedAt: Date;
+  },
+  session: ClientSession,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } = await getAuthCollections();
+
+  return users.findOneAndUpdate(
+    {
+      _id: input.userId,
+      status: "active",
+      emailVerifiedAt: { $ne: null },
+      suspendedAt: null,
+      deactivatedAt: null,
+      deletedAt: null,
+      profileImage: { $ne: null },
+    },
+    {
+      $set: {
+        profileImage: null,
+        updatedAt: input.updatedAt,
+      },
+    },
+    {
+      returnDocument: "before",
+      session,
+    },
+  );
+}

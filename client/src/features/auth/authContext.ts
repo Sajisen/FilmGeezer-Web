@@ -15,6 +15,14 @@ export interface AuthContextValue {
 
   refreshSession: () => Promise<boolean>;
   completeAuthentication: () => Promise<boolean>;
+  updateUser: (
+    updates: Partial<
+      Pick<
+        AuthUser,
+        "displayName" | "email" | "profileImagePath"
+      >
+    >,
+  ) => void;
 
   signOut: () => Promise<void>;
   signOutAll: () => Promise<void>;

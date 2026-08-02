@@ -122,6 +122,8 @@ export async function getCurrentAccountDetails(
           result.account.email,
         displayName:
           result.account.displayName,
+        profileImagePath:
+          result.account.profileImagePath,
         roles:
           result.account.roles,
         emailVerifiedAt:
@@ -686,4 +688,3 @@ export async function revokeCurrentAccountSession(
     next(error);
   }
 }
-

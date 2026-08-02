@@ -78,6 +78,10 @@ import type {
   AuthenticatedSessionContext,
 } from "../auth/auth.session.service.js";
 
+import {
+  createProfileImagePath,
+} from "../profile-image/profileImage.path.js";
+
 const ACCOUNT_MUTATION_TRANSACTION_OPTIONS:
   TransactionOptions = {
     readPreference: "primary",
@@ -98,6 +102,7 @@ export interface AccountUserSummary {
   provider: "local";
   email: string;
   displayName: string;
+  profileImagePath: string | null;
   roles: AuthRole[];
   emailVerifiedAt: Date;
   memberSince: Date;
@@ -131,6 +136,7 @@ export interface AccountProfileUpdateResult {
     provider: "local";
     email: string;
     displayName: string;
+    profileImagePath: string | null;
     roles: AuthRole[];
   };
 
@@ -157,6 +163,8 @@ function createAccountUserSummary(
     provider: "local",
     email: user.emailDisplay,
     displayName: user.displayName,
+    profileImagePath:
+      createProfileImagePath(user),
     roles: [...user.roles],
     emailVerifiedAt: user.emailVerifiedAt,
     memberSince: user.createdAt,
@@ -396,6 +404,8 @@ export async function updateAccountProfile(
         email: auth.email,
         displayName:
           auth.displayName,
+        profileImagePath:
+          auth.profileImagePath,
         roles: [...auth.roles],
       },
       changed: false,
@@ -473,6 +483,8 @@ export async function updateAccountProfile(
         email: result.emailDisplay,
         displayName:
           result.displayName,
+        profileImagePath:
+          createProfileImagePath(result),
         roles: [...result.roles],
       },
       changed: true,

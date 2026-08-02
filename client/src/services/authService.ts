@@ -104,6 +104,7 @@ function isAuthUser(
       "string" &&
     typeof value.displayName ===
       "string" &&
+    isNullableString(value.profileImagePath) &&
     isStringArray(value.roles) &&
     value.roles.every(
       (

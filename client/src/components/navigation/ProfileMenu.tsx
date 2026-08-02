@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ComponentType,
@@ -21,6 +20,8 @@ import {
 import {
   useAuth,
 } from "../../features/auth/authContext";
+
+import ProfileAvatar from "../ProfileAvatar";
 
 interface MenuLinkDefinition {
   label: string;
@@ -56,28 +57,6 @@ const SUPPORT_LINKS: MenuLinkDefinition[] = [
   },
 ];
 
-function createInitials(
-  displayName: string,
-): string {
-  const parts = displayName
-    .trim()
-    .split(/\s+/u)
-    .filter(Boolean);
-
-  if (parts.length === 0) {
-    return "FG";
-  }
-
-  if (parts.length === 1) {
-    return Array.from(parts[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  }
-
-  return `${Array.from(parts[0])[0] ?? ""}${Array.from(parts.at(-1) ?? "")[0] ?? ""}`.toUpperCase();
-}
-
 function ProfileMenu() {
   const auth = useAuth();
 
@@ -98,15 +77,6 @@ function ProfileMenu() {
 
   const triggerRef =
     useRef<HTMLButtonElement>(null);
-
-  const initials = useMemo(
-    () =>
-      createInitials(
-        auth.user?.displayName ??
-          "FilmGeezer",
-      ),
-    [auth.user?.displayName],
-  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -282,9 +252,13 @@ function ProfileMenu() {
         title={auth.user.displayName}
         className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 p-0.5 text-white shadow-md shadow-sky-950/30 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/25 text-xs font-black tracking-wide">
-          {initials}
-        </span>
+        <ProfileAvatar
+          displayName={auth.user.displayName}
+          profileImagePath={auth.user.profileImagePath}
+          alt=""
+          className="h-9 w-9 border-white/15 shadow-none"
+          initialsClassName="text-xs tracking-wide"
+        />
       </button>
 
       {isOpen && (
@@ -301,12 +275,13 @@ function ProfileMenu() {
             className="group block rounded-xl bg-slate-950/65 p-3.5 transition hover:bg-slate-950/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
             <span className="flex items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-black text-white shadow-lg shadow-sky-950/25"
-              >
-                {initials}
-              </span>
+              <ProfileAvatar
+                displayName={auth.user.displayName}
+                profileImagePath={auth.user.profileImagePath}
+                alt=""
+                className="h-11 w-11 border-white/15 shadow-lg shadow-sky-950/25"
+                initialsClassName="text-sm"
+              />
 
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-bold text-white">

@@ -97,6 +97,7 @@ function isAuthUser(
     value.provider === "local" &&
     typeof value.email === "string" &&
     typeof value.displayName === "string" &&
+    isNullableString(value.profileImagePath) &&
     isRoles(value.roles)
   );
 }
@@ -148,6 +149,7 @@ function isAccountSummary(
     value.provider === "local" &&
     typeof value.email === "string" &&
     typeof value.displayName === "string" &&
+    isNullableString(value.profileImagePath) &&
     isRoles(value.roles) &&
     typeof value.emailVerifiedAt === "string" &&
     typeof value.memberSince === "string" &&

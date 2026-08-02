@@ -182,6 +182,30 @@ export function AuthProvider({
       return loadSession();
     }, [loadSession]);
 
+  const updateUser = useCallback(
+    (
+      updates: Partial<
+        Pick<
+          AuthUser,
+          "displayName" | "email" | "profileImagePath"
+        >
+      >,
+    ) => {
+      setState((current) =>
+        current.user
+          ? {
+              ...current,
+              user: {
+                ...current.user,
+                ...updates,
+              },
+            }
+          : current,
+      );
+    },
+    [],
+  );
+
   const getUsableCsrfToken =
     useCallback(async () => {
       if (csrfTokenRef.current) {
@@ -242,6 +266,7 @@ export function AuthProvider({
 
         refreshSession,
         completeAuthentication,
+        updateUser,
 
         signOut,
         signOutAll,
@@ -256,6 +281,7 @@ export function AuthProvider({
         state.session,
         state.status,
         state.user,
+        updateUser,
       ],
     );
 
