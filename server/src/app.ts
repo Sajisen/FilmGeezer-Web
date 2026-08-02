@@ -25,6 +25,7 @@ import accountRoutes from "./routes/account.routes.js";
 import watchlistRoutes from "./routes/watchlist.routes.js";
 import profileImageRoutes from "./routes/profileImage.routes.js";
 import accountPreferencesRoutes from "./routes/accountPreferences.routes.js";
+import recommendationsRoutes from "./routes/recommendations.routes.js";
 
 import {
   handleHttpError,
@@ -75,6 +76,11 @@ app.use(
 app.use(
   "/api/account/preferences",
   accountPreferencesRoutes,
+);
+
+app.use(
+  "/api/recommendations",
+  recommendationsRoutes,
 );
 
 app.use(

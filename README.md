@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform, manual authentication/account management, persistent Watchlist, secure profile-picture upload, and account entertainment-preference foundation are implemented.
+The discovery platform, manual authentication/account management, persistent Watchlist, secure profile-picture upload, account entertainment preferences, and personalised recommendation foundation are implemented.
 
 ## Technology stack
 
@@ -43,6 +43,17 @@ The discovery platform, manual authentication/account management, persistent Wat
 - Category-aware search and filtering
 - Request cancellation and stale-response protection
 - Loading, error, retry, and empty states
+- Expanded TMDB candidate reservoirs for Movie, TV, Anime, and K-Drama collections
+- Fair server-side row allocation so early rows do not consume every strong title
+- Cross-row deduplication that is preserved after personalised recommendations are inserted
+- Grounded Movie Drama and TV Comedy/Drama classification that penalises action-heavy mismatches
+- Sports Anime collection sourced through exact TMDB keyword discovery while preserving TMDB IDs
+- Quality-controlled filter-only Search discovery with category-aware rating and vote-confidence floors
+- Exact title searches remain broad so obscure titles can still be found deliberately
+- Era-balanced Movie Essentials that mix recent, modern, contemporary, and classic films instead of over-favouring older titles
+- Low-confidence Anime with only the Animation genre is suppressed from broad discovery unless it has at least 100 votes
+- Filter-only discovery enforces a universal minimum of rating 5 and 50 votes while exact title searches remain broad
+- Public collection pages use process-local stale-while-revalidate caching and short browser/proxy cache headers to reduce repeated TMDB work
 
 ### Media details
 
@@ -105,7 +116,22 @@ The discovery platform, manual authentication/account management, persistent Wat
 - Preferred genres, lower-priority genres, and preferred content languages
 - Strict backend allowlists, size limits, duplicate prevention, and CSRF protection
 - Optimistic revision checks to prevent one device from silently overwriting another
-- Responsive Account-page editor with reset, defaults, retry, and accessible selection states
+- Responsive Account-page editor with reset, retry, collapsed disabled state, and accessible selection controls
+
+### Personalised recommendations
+
+- Signed-in-only recommendation rows on Movies, TV Series, Anime, and K-Drama pages
+- Trending/current content remains the first row; personalised results appear second
+- Explicit saved interests receive more ranking weight than inferred Watchlist signals
+- Watchlist inference begins only after at least five saved account titles
+- Preferences are ignored while personalised suggestions are turned off
+- Recommendation rows stay hidden when neither source provides enough useful signal
+- Category-safe Movie, TV, Anime, and K-Drama candidate filtering
+- Watchlist titles and current trending titles are excluded from recommendation results
+- Recommended titles are removed from lower curated rows to prevent repeated cards
+- Media Details adds a signed-in-only “You may also like” row after More Like This
+- Media Details personal results exclude the current title and More Like This items
+- Server-side quality scoring, explicit-preference weighting, Watchlist affinity, TMDB seed boosts, diversity controls, revision-aware caching, and authenticated rate limiting
 
 ### User experience
 
@@ -131,14 +157,19 @@ React never connects directly to MongoDB. Controllers handle HTTP concerns, serv
 
 Authentication uses opaque session tokens stored in HttpOnly cookies. The server stores only hashed session material and remains authoritative for users, roles, account status, ownership, and security-sensitive operations.
 
+## Collection caching strategy
+
+Public Home, Movie, TV, Anime, and K-Drama collections are shared across users. The API keeps these responses in a process-local stale-while-revalidate cache and deduplicates concurrent refreshes. Home collections refresh after two hours; category collections refresh after six hours and may serve a previously successful result for up to twenty-four hours while TMDB temporarily fails or a background refresh runs.
+
+Redis is intentionally deferred while FilmGeezer runs one API instance. A shared Redis cache becomes useful when the API uses multiple replicas, requires shared rate-limit state, or measured traffic shows that process-local caching is no longer sufficient.
+
 ## Planned work
 
 The next planned phases are:
 
-1. Personalised recommendation rows powered by saved entertainment preferences and Watchlist signals
-2. Notifications and contact/support completion
-3. Protected administration features
-4. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
+1. Notifications and contact/support completion
+2. Protected administration features
+3. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
 
 ## Local development
 

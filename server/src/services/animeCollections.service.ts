@@ -1,235 +1,103 @@
+import { createStaleWhileRevalidateCache } from "../utils/staleWhileRevalidateCache.js";
 import type { MediaItem } from "../types/media.js";
+import {
+  allocateUniqueCollectionRows,
+  calculateCollectionQualityScore,
+  getCollectionCandidateKey,
+  interleaveCollectionCandidateGroups,
+  removeDuplicateCollectionCandidates,
+} from "../utils/collectionRanking.js";
+import { isSuitableForPublicAnime } from "../utils/categoryMedia.js";
 import {
   getTmdbAnimePrimarySources,
   type TmdbAnimeCollectionCandidate,
 } from "./tmdb.service.js";
 
-import {
-  getCategoryCandidateKey as getCandidateKey,
-  isSuitableForPublicAnime,
-} from "../utils/categoryMedia.js";
-
 export interface AnimeCollections {
   trendingAnime: MediaItem[];
   essentials: MediaItem[];
-
   actionAdventureThriller: MediaItem[];
-
   fantasyMysteryScienceFiction: MediaItem[];
-
-  romanceDrama: MediaItem[];
-
-  comedySliceOfLife: MediaItem[];
+  romanceDramaComedy: MediaItem[];
+  sports: MediaItem[];
 }
 
-const TRENDING_ROW_LIMIT = 20;
-const ESSENTIALS_ROW_LIMIT = 20;
-const GENRE_ROW_LIMIT = 16;
+const TRENDING_ROW_LIMIT = 24;
+const ESSENTIALS_RESERVOIR_LIMIT = 44;
+const GENRE_RESERVOIR_LIMIT = 40;
 
-const CACHE_DURATION_MS = 30 * 60 * 1000;
+const ACTION_MOVIE_GENRES = ["Action", "Adventure", "Thriller"];
+const ACTION_TV_GENRES = ["Action & Adventure"];
+const FANTASY_MOVIE_GENRES = ["Fantasy", "Mystery", "Science Fiction"];
+const FANTASY_TV_GENRES = ["Mystery", "Sci-Fi & Fantasy"];
+const ROMANCE_DRAMA_COMEDY_GENRES = ["Romance", "Drama", "Comedy"];
+const HEAVY_ANIME_GENRES = [
+  "Action",
+  "Adventure",
+  "Thriller",
+  "Action & Adventure",
+  "Mystery",
+  "Science Fiction",
+  "Sci-Fi & Fantasy",
+];
 
-function interleaveCandidates(
-  firstCandidates: TmdbAnimeCollectionCandidate[],
-
-  secondCandidates: TmdbAnimeCollectionCandidate[],
-) {
-  const combinedCandidates: TmdbAnimeCollectionCandidate[] = [];
-
-  const longestLength = Math.max(
-    firstCandidates.length,
-    secondCandidates.length,
-  );
-
-  for (let index = 0; index < longestLength; index += 1) {
-    const firstCandidate = firstCandidates[index];
-
-    const secondCandidate = secondCandidates[index];
-
-    if (firstCandidate) {
-      combinedCandidates.push(firstCandidate);
-    }
-
-    if (secondCandidate) {
-      combinedCandidates.push(secondCandidate);
-    }
-  }
-
-  return combinedCandidates;
+function qualityScore(candidate: TmdbAnimeCollectionCandidate) {
+  const confidenceVotes = candidate.item.mediaType === "movie" ? 220 : 180;
+  return calculateCollectionQualityScore(candidate, confidenceVotes, 6.5);
 }
 
-function removeDuplicateCandidates(candidates: TmdbAnimeCollectionCandidate[]) {
-  const seenKeys = new Set<string>();
-
-  return candidates.filter((candidate) => {
-    const candidateKey = getCandidateKey(candidate);
-
-    if (seenKeys.has(candidateKey)) {
-      return false;
-    }
-
-    seenKeys.add(candidateKey);
-    return true;
-  });
-}
-
-function calculateAnimeQualityScore(candidate: TmdbAnimeCollectionCandidate) {
-  const globalAverageRating = 6.5;
-  const confidenceVotes = 300;
-
-  const voteConfidence =
-    candidate.voteCount / (candidate.voteCount + confidenceVotes);
-
-  const weightedRating =
-    voteConfidence * candidate.voteAverage +
-    (1 - voteConfidence) * globalAverageRating;
-
-  const popularityBoost = Math.log10(candidate.popularity + 1) * 0.3;
-
-  const voteCountBoost = Math.log10(candidate.voteCount + 1) * 0.18;
-
-  const imageBoost = candidate.hasBackdrop ? 0.1 : 0;
-
-  return weightedRating + popularityBoost + voteCountBoost + imageBoost;
-}
-
-function rankCandidates(
-  candidates: TmdbAnimeCollectionCandidate[],
-
-  minVoteAverage: number,
-  minVoteCount: number,
-) {
-  return removeDuplicateCandidates(candidates)
-    .filter(
-      (candidate) =>
-        isSuitableForPublicAnime(candidate) &&
-        candidate.voteAverage >= minVoteAverage &&
-        candidate.voteCount >= minVoteCount,
-    )
-    .sort(
-      (firstCandidate, secondCandidate) =>
-        calculateAnimeQualityScore(secondCandidate) -
-        calculateAnimeQualityScore(firstCandidate),
-    );
-}
-
-function getCandidateGenres(
+function getTargetGenres(
   candidate: TmdbAnimeCollectionCandidate,
-
-  movieGenres: string[],
-  tvGenres: string[],
+  movieGenres: readonly string[],
+  tvGenres: readonly string[],
 ) {
   return candidate.item.mediaType === "movie" ? movieGenres : tvGenres;
 }
 
-function countMatchingGenres(
+function countTargetGenres(
   candidate: TmdbAnimeCollectionCandidate,
-
-  movieGenres: string[],
-  tvGenres: string[],
+  movieGenres: readonly string[],
+  tvGenres: readonly string[],
 ) {
-  const targetGenres = getCandidateGenres(candidate, movieGenres, tvGenres);
-
-  return targetGenres.filter((genre) => candidate.item.genres.includes(genre))
-    .length;
+  return getTargetGenres(candidate, movieGenres, tvGenres).filter((genre) =>
+    candidate.item.genres.includes(genre),
+  ).length;
 }
 
-function calculateGenreScore(
+function countGenres(
   candidate: TmdbAnimeCollectionCandidate,
-
-  movieGenres: string[],
-  tvGenres: string[],
-
-  targetedCandidateKeys: Set<string>,
-
-  targetedBoost: number,
+  genres: readonly string[],
 ) {
-  const genreRelevanceBoost =
-    countMatchingGenres(candidate, movieGenres, tvGenres) * 0.08;
-
-  const keywordTargetBoost = targetedCandidateKeys.has(
-    getCandidateKey(candidate),
-  )
-    ? targetedBoost
-    : 0;
-
-  return (
-    calculateAnimeQualityScore(candidate) +
-    genreRelevanceBoost +
-    keywordTargetBoost
-  );
+  return genres.filter((genre) => candidate.item.genres.includes(genre)).length;
 }
 
-function buildGenreCandidates(
-  qualityPool: TmdbAnimeCollectionCandidate[],
-
-  targetedCandidates: TmdbAnimeCollectionCandidate[],
-
-  movieGenres: string[],
-  tvGenres: string[],
-
-  minVoteAverage: number,
-  minVoteCount: number,
-
-  targetedBoost = 0,
-) {
-  const targetedCandidateKeys = new Set(
-    targetedCandidates.map(getCandidateKey),
-  );
-
-  const genreCandidates = qualityPool.filter((candidate) => {
-    const targetGenres = getCandidateGenres(candidate, movieGenres, tvGenres);
-
-    return targetGenres.some((genre) => candidate.item.genres.includes(genre));
-  });
-
-  return removeDuplicateCandidates([...targetedCandidates, ...genreCandidates])
-    .filter(
-      (candidate) =>
-        isSuitableForPublicAnime(candidate) &&
-        candidate.voteAverage >= minVoteAverage &&
-        candidate.voteCount >= minVoteCount,
-    )
-    .sort(
-      (firstCandidate, secondCandidate) =>
-        calculateGenreScore(
-          secondCandidate,
-          movieGenres,
-          tvGenres,
-          targetedCandidateKeys,
-          targetedBoost,
-        ) -
-        calculateGenreScore(
-          firstCandidate,
-          movieGenres,
-          tvGenres,
-          targetedCandidateKeys,
-          targetedBoost,
-        ),
-    );
-}
-
-function takeUniqueMedia(
+function rankCandidates(
   candidates: TmdbAnimeCollectionCandidate[],
+  predicate: (candidate: TmdbAnimeCollectionCandidate) => boolean,
+  score: (candidate: TmdbAnimeCollectionCandidate) => number,
+) {
+  return removeDuplicateCollectionCandidates(candidates)
+    .filter((candidate) => isSuitableForPublicAnime(candidate) && predicate(candidate))
+    .sort((first, second) => score(second) - score(first));
+}
 
-  usedMediaKeys: Set<string>,
-  limit: number,
+function takeTrending(
+  candidates: TmdbAnimeCollectionCandidate[],
+  usedKeys: Set<string>,
 ) {
   const items: MediaItem[] = [];
 
-  for (const candidate of candidates) {
-    const candidateKey = getCandidateKey(candidate);
+  for (const candidate of removeDuplicateCollectionCandidates(candidates)) {
+    const key = getCollectionCandidateKey(candidate);
 
-    if (
-      usedMediaKeys.has(candidateKey) ||
-      !isSuitableForPublicAnime(candidate)
-    ) {
+    if (usedKeys.has(key) || !isSuitableForPublicAnime(candidate)) {
       continue;
     }
 
-    usedMediaKeys.add(candidateKey);
+    usedKeys.add(key);
     items.push(candidate.item);
 
-    if (items.length === limit) {
+    if (items.length >= TRENDING_ROW_LIMIT) {
       break;
     }
   }
@@ -237,171 +105,182 @@ function takeUniqueMedia(
   return items;
 }
 
-let cachedCollections: {
-  expiresAt: number;
-  data: AnimeCollections;
-} | null = null;
-
-let pendingCollectionsRequest: Promise<AnimeCollections> | null = null;
 
 async function buildAnimeCollections(): Promise<AnimeCollections> {
   const sources = await getTmdbAnimePrimarySources();
+  const usedKeys = new Set<string>();
 
-  const usedMediaKeys = new Set<string>();
-
-  const popularMixed = interleaveCandidates(
-    sources.popularTv,
-    sources.popularMovies,
+  const trendingAnime = takeTrending(
+    [
+      ...interleaveCollectionCandidateGroups([
+        sources.trendingTv,
+        sources.trendingMovies,
+      ]),
+      ...interleaveCollectionCandidateGroups([
+        sources.popularTv,
+        sources.popularMovies,
+      ]),
+    ],
+    usedKeys,
   );
 
-  const trendingCandidates = [
-    ...interleaveCandidates(
-      sources.trendingTv.filter(isSuitableForPublicAnime),
-
-      sources.trendingMovies.filter(isSuitableForPublicAnime),
-    ),
-
-    ...popularMixed,
-  ];
-
-  const trendingAnime = takeUniqueMedia(
-    removeDuplicateCandidates(trendingCandidates),
-
-    usedMediaKeys,
-    TRENDING_ROW_LIMIT,
-  );
-
-  const qualityPool = removeDuplicateCandidates([
+  const qualityPool = removeDuplicateCollectionCandidates([
     ...sources.mostVotedTv,
     ...sources.popularTv,
-
     ...sources.mostVotedMovies,
     ...sources.popularMovies,
   ]).filter(isSuitableForPublicAnime);
 
-  const essentialsCandidates = rankCandidates(qualityPool, 7, 100);
-
-  const essentials = takeUniqueMedia(
-    essentialsCandidates,
-    usedMediaKeys,
-    ESSENTIALS_ROW_LIMIT,
+  const essentialsCandidates = rankCandidates(
+    qualityPool,
+    (candidate) =>
+      candidate.voteAverage >= 6.8 &&
+      candidate.voteCount >= (candidate.item.mediaType === "movie" ? 60 : 55),
+    qualityScore,
   );
 
-  const actionAdventureThriller = takeUniqueMedia(
-    buildGenreCandidates(
-      qualityPool,
-      [],
+  const actionCandidates = rankCandidates(
+    qualityPool,
+    (candidate) =>
+      countTargetGenres(
+        candidate,
+        ACTION_MOVIE_GENRES,
+        ACTION_TV_GENRES,
+      ) > 0 &&
+      candidate.voteAverage >= 6.2 &&
+      candidate.voteCount >= 20,
+    (candidate) =>
+      qualityScore(candidate) +
+      countTargetGenres(candidate, ACTION_MOVIE_GENRES, ACTION_TV_GENRES) *
+        0.5,
+  );
 
-      ["Action", "Adventure", "Thriller"],
+  const fantasyCandidates = rankCandidates(
+    qualityPool,
+    (candidate) =>
+      countTargetGenres(
+        candidate,
+        FANTASY_MOVIE_GENRES,
+        FANTASY_TV_GENRES,
+      ) > 0 &&
+      candidate.voteAverage >= 6.3 &&
+      candidate.voteCount >= 20,
+    (candidate) =>
+      qualityScore(candidate) +
+      countTargetGenres(candidate, FANTASY_MOVIE_GENRES, FANTASY_TV_GENRES) *
+        0.48,
+  );
 
-      ["Action & Adventure"],
-
-      6.3,
-      30,
+  const romanceTargetKeys = new Set(
+    [...sources.romanceKeywordMovies, ...sources.romanceKeywordTv].map(
+      getCollectionCandidateKey,
     ),
+  );
+  const romanceDramaComedyCandidates = rankCandidates(
+    [
+      ...sources.romanceKeywordTv,
+      ...sources.romanceKeywordMovies,
+      ...qualityPool,
+    ],
+    (candidate) => {
+      const matches = countGenres(candidate, ROMANCE_DRAMA_COMEDY_GENRES);
+      const hasRomance = candidate.item.genres.includes("Romance");
+      const hasComedy = candidate.item.genres.includes("Comedy");
+      const heavyCount = countGenres(candidate, HEAVY_ANIME_GENRES);
 
-    usedMediaKeys,
-    GENRE_ROW_LIMIT,
+      return (
+        matches > 0 &&
+        candidate.voteAverage >= 6.2 &&
+        candidate.voteCount >= 15 &&
+        (hasRomance ||
+          (hasComedy && heavyCount <= 2) ||
+          (candidate.item.genres.includes("Drama") && heavyCount <= 1))
+      );
+    },
+    (candidate) => {
+      const romanceBoost = candidate.item.genres.includes("Romance") ? 0.95 : 0;
+      const comedyBoost = candidate.item.genres.includes("Comedy") ? 0.72 : 0;
+      const dramaBoost = candidate.item.genres.includes("Drama") ? 0.3 : 0;
+      const targetedBoost = romanceTargetKeys.has(
+        getCollectionCandidateKey(candidate),
+      )
+        ? 0.65
+        : 0;
+      const heavyPenalty = countGenres(candidate, HEAVY_ANIME_GENRES) * 0.28;
+
+      return (
+        qualityScore(candidate) +
+        romanceBoost +
+        comedyBoost +
+        dramaBoost +
+        targetedBoost -
+        heavyPenalty
+      );
+    },
   );
 
-  const fantasyMysteryScienceFiction = takeUniqueMedia(
-    buildGenreCandidates(
-      qualityPool,
-      [],
-
-      ["Fantasy", "Mystery", "Science Fiction"],
-
-      ["Mystery", "Sci-Fi & Fantasy"],
-
-      6.5,
-      30,
-    ),
-
-    usedMediaKeys,
-    GENRE_ROW_LIMIT,
+  const sportsTargeted = removeDuplicateCollectionCandidates([
+    ...sources.sportsKeywordTv,
+    ...sources.sportsKeywordMovies,
+  ]);
+  const sportsTargetKeys = new Set(sportsTargeted.map(getCollectionCandidateKey));
+  const sportsCandidates = rankCandidates(
+    sportsTargeted,
+    (candidate) =>
+      candidate.voteAverage >= 6.2 && candidate.voteCount >= 10,
+    (candidate) =>
+      qualityScore(candidate) +
+      (sportsTargetKeys.has(getCollectionCandidateKey(candidate)) ? 1.2 : 0),
   );
 
-  const romanceTargetedCandidates = interleaveCandidates(
-    sources.romanceKeywordTv,
-    sources.romanceKeywordMovies,
-  );
-
-  const romanceDrama = takeUniqueMedia(
-    buildGenreCandidates(
-      qualityPool,
-      romanceTargetedCandidates,
-
-      ["Romance", "Drama"],
-
-      ["Drama"],
-
-      6.5,
-      20,
-
-      0.3,
-    ),
-
-    usedMediaKeys,
-    GENRE_ROW_LIMIT,
-  );
-
-  const sliceOfLifeTargetedCandidates = interleaveCandidates(
-    sources.sliceOfLifeTv,
-    sources.sliceOfLifeMovies,
-  );
-
-  const comedySliceOfLife = takeUniqueMedia(
-    buildGenreCandidates(
-      qualityPool,
-      sliceOfLifeTargetedCandidates,
-
-      ["Comedy"],
-      ["Comedy"],
-
-      6.3,
-      20,
-
-      0.25,
-    ),
-
-    usedMediaKeys,
-    GENRE_ROW_LIMIT,
+  const rows = allocateUniqueCollectionRows(
+    [
+      {
+        key: "essentials",
+        candidates: essentialsCandidates,
+        limit: ESSENTIALS_RESERVOIR_LIMIT,
+      },
+      {
+        key: "actionAdventureThriller",
+        candidates: actionCandidates,
+        limit: GENRE_RESERVOIR_LIMIT,
+      },
+      {
+        key: "fantasyMysteryScienceFiction",
+        candidates: fantasyCandidates,
+        limit: GENRE_RESERVOIR_LIMIT,
+      },
+      {
+        key: "romanceDramaComedy",
+        candidates: romanceDramaComedyCandidates,
+        limit: GENRE_RESERVOIR_LIMIT,
+      },
+      {
+        key: "sports",
+        candidates: sportsCandidates,
+        limit: GENRE_RESERVOIR_LIMIT,
+      },
+    ] as const,
+    usedKeys,
+    isSuitableForPublicAnime,
   );
 
   return {
     trendingAnime,
-    essentials,
-    actionAdventureThriller,
-    fantasyMysteryScienceFiction,
-    romanceDrama,
-    comedySliceOfLife,
+    essentials: rows.essentials,
+    actionAdventureThriller: rows.actionAdventureThriller,
+    fantasyMysteryScienceFiction: rows.fantasyMysteryScienceFiction,
+    romanceDramaComedy: rows.romanceDramaComedy,
+    sports: rows.sports,
   };
 }
 
-export async function getAnimeCollections(): Promise<AnimeCollections> {
-  const now = Date.now();
+const collectionsCache = createStaleWhileRevalidateCache<AnimeCollections>({
+  freshDurationMs: 6 * 60 * 60 * 1000,
+  staleDurationMs: 24 * 60 * 60 * 1000,
+  label: "anime collections",
+});
 
-  if (cachedCollections && cachedCollections.expiresAt > now) {
-    return cachedCollections.data;
-  }
-
-  if (pendingCollectionsRequest) {
-    return pendingCollectionsRequest;
-  }
-
-  pendingCollectionsRequest = buildAnimeCollections();
-
-  try {
-    const data = await pendingCollectionsRequest;
-
-    cachedCollections = {
-      data,
-
-      expiresAt: Date.now() + CACHE_DURATION_MS,
-    };
-
-    return data;
-  } finally {
-    pendingCollectionsRequest = null;
-  }
+export function getAnimeCollections(): Promise<AnimeCollections> {
+  return collectionsCache.get(buildAnimeCollections);
 }

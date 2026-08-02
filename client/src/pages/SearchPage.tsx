@@ -80,7 +80,15 @@ function getGenreMatchMode(value: string | null): GenreMatchMode {
 }
 
 function getSearchPreset(value: string | null): SearchPreset {
-  if (value === "trending" || value === "essentials") {
+  if (
+    value === "trending" ||
+    value === "essentials" ||
+    value === "sports" ||
+    value === "movie-drama" ||
+    value === "movie-drama-romance" ||
+    value === "tv-comedy-drama" ||
+    value === "anime-romance-drama-comedy"
+  ) {
     return value;
   }
 
@@ -96,6 +104,22 @@ function getPresetLabel(preset: SearchPreset) {
     return "FilmGeezer essentials";
   }
 
+  if (preset === "sports") {
+    return "Sports anime";
+  }
+
+  if (preset === "movie-drama" || preset === "movie-drama-romance") {
+    return "Drama";
+  }
+
+  if (preset === "tv-comedy-drama") {
+    return "Comedy & Drama";
+  }
+
+  if (preset === "anime-romance-drama-comedy") {
+    return "Romance, Drama & Comedy";
+  }
+
   return "";
 }
 
@@ -104,6 +128,22 @@ function getPresetTitle(preset: SearchPreset, scope: SearchScope) {
     return scope === "all"
       ? "Trending titles"
       : `Trending ${getScopeLabel(scope)}`;
+  }
+
+  if (preset === "sports") {
+    return "Sports Anime";
+  }
+
+  if (preset === "movie-drama" || preset === "movie-drama-romance") {
+    return "Drama Movies";
+  }
+
+  if (preset === "tv-comedy-drama") {
+    return "Comedy & Drama Series";
+  }
+
+  if (preset === "anime-romance-drama-comedy") {
+    return "Romance, Drama & Comedy Anime";
   }
 
   if (preset === "essentials") {

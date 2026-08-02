@@ -6,8 +6,7 @@ const emptyCollections: TvCollections = {
   trendingAndCurrentlyAiring: [],
   essentials: [],
   actionCrimeThriller: [],
-  comedy: [],
-  dramaRomance: [],
+  comedyDrama: [],
   mysteryScienceFiction: [],
 };
 

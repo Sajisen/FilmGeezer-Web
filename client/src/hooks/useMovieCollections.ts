@@ -11,7 +11,7 @@ const emptyCollections: MovieCollections = {
   essentials: [],
   actionAdventureCrimeThriller: [],
   comedy: [],
-  dramaRomance: [],
+  drama: [],
   family: [],
 }
 

@@ -7,7 +7,7 @@ import ErrorState from "../components/states/ErrorState";
 import WatchlistButton from "../components/WatchlistButton";
 import { getMediaByTmdbId } from "../services/mediaService";
 import { getProviderLinksByMedia } from "../services/providerLinkService";
-import type { MediaDetails } from "../types/media";
+import type { MediaDetails, MediaItem } from "../types/media";
 import type { ProviderLinksPayload } from "../types/providerLink";
 import { getLanguageName } from "../utils/language";
 import MediaDetailsContainer from "../components/details/MediaDetailsContainer";
@@ -17,8 +17,10 @@ import FeaturedCharactersSection from "../components/details/FeaturedCharactersS
 import EpisodeExplorerSection from "../components/details/EpisodeExplorerSection";
 import MediaDetailsQuickNav from "../components/details/MediaDetailsQuickNav";
 import MoreLikeThisSection from "../components/details/MoreLikeThisSection";
+import YouMayAlsoLikeSection from "../components/details/YouMayAlsoLikeSection";
 import ExternalLink from "../features/externalNavigation/ExternalLink";
 import TelegramIcon from "../components/icons/TelegramIcon";
+import { getRecommendationCategoryForMedia } from "../utils/recommendations";
 
 interface MediaDetailsRequestState {
   mediaType: string | null;
@@ -130,6 +132,16 @@ function MediaDetailsPage() {
   const [characterAvailability, setCharacterAvailability] = useState({
     mediaKey: "",
     hasCharacters: false,
+  });
+
+  const [moreLikeThisState, setMoreLikeThisState] = useState<{
+    mediaKey: string;
+    items: MediaItem[];
+    isReady: boolean;
+  }>({
+    mediaKey: "",
+    items: [],
+    isReady: false,
   });
 
   const [mediaRequestState, setMediaRequestState] =
@@ -313,6 +325,17 @@ function MediaDetailsPage() {
           mediaKey: currentMediaKey,
           hasCharacters,
         };
+      });
+    },
+    [currentMediaKey],
+  );
+
+  const handleMoreLikeThisItemsChange = useCallback(
+    (items: MediaItem[], isReady: boolean) => {
+      setMoreLikeThisState({
+        mediaKey: currentMediaKey,
+        items,
+        isReady,
       });
     },
     [currentMediaKey],
@@ -711,6 +734,21 @@ function MediaDetailsPage() {
       <MoreLikeThisSection
         mediaType={selectedMedia.mediaType}
         tmdbId={selectedMedia.tmdbId}
+        onItemsChange={handleMoreLikeThisItemsChange}
+      />
+
+      <YouMayAlsoLikeSection
+        category={getRecommendationCategoryForMedia(selectedMedia)}
+        currentItem={selectedMedia}
+        excludedItems={
+          moreLikeThisState.mediaKey === currentMediaKey
+            ? moreLikeThisState.items
+            : []
+        }
+        isRelatedSectionReady={
+          moreLikeThisState.mediaKey === currentMediaKey &&
+          moreLikeThisState.isReady
+        }
       />
     </main>
   );

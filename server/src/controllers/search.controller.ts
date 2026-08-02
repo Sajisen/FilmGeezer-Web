@@ -160,14 +160,41 @@ export async function searchMedia(req: Request, res: Response) {
     return;
   }
 
-  if (
-    presetText !== "default" &&
-    presetText !== "trending" &&
-    presetText !== "essentials"
-  ) {
+  const allowedPresets = new Set<SearchPreset>([
+    "default",
+    "trending",
+    "essentials",
+    "sports",
+    "movie-drama",
+    "movie-drama-romance",
+    "tv-comedy-drama",
+    "anime-romance-drama-comedy",
+  ]);
+
+  if (!allowedPresets.has(presetText as SearchPreset)) {
     res.status(400).json({
       status: "error",
-      message: "Search preset must be default, trending, or essentials.",
+      message: "The selected collection preset is not supported.",
+    });
+    return;
+  }
+
+  const presetScopeRequirements: Partial<
+    Record<SearchPreset, SearchScope>
+  > = {
+    sports: "anime",
+    "movie-drama": "movie",
+    "movie-drama-romance": "movie",
+    "tv-comedy-drama": "tv",
+    "anime-romance-drama-comedy": "anime",
+  };
+  const requiredPresetScope =
+    presetScopeRequirements[presetText as SearchPreset];
+
+  if (requiredPresetScope && scopeText !== requiredPresetScope) {
+    res.status(400).json({
+      status: "error",
+      message: "This collection preset is not available for the selected category.",
     });
     return;
   }
@@ -258,44 +285,6 @@ export async function searchMedia(req: Request, res: Response) {
     scope === "movie" ? "movie" : scope === "tv" ? "tv" : requestedFormat;
   const establishedOnly = establishedText === "true";
 
-  if (
-    !query &&
-    scope === "all" &&
-    genres.length === 0 &&
-    !language &&
-    minRating === undefined &&
-    format === "all" &&
-    releaseYearFrom === undefined &&
-    releaseYearTo === undefined &&
-    sortBy === "best-match" &&
-    !establishedOnly &&
-    preset === "default"
-  ) {
-    res.status(200).json({
-      status: "success",
-      query,
-      scope,
-      preset,
-      filters: {
-        genres,
-        genreMode,
-        language: null,
-        minRating: null,
-        format,
-        releaseYearFrom: null,
-        releaseYearTo: null,
-        sortBy,
-        establishedOnly,
-      },
-      page: 1,
-      totalPages: 0,
-      totalResults: 0,
-      hasMore: false,
-      count: 0,
-      results: [],
-    });
-    return;
-  }
 
   try {
     const data = await getSearchResults(query, scope, preset, page, {

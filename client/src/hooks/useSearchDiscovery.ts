@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { getHomeCollections } from "../services/homeService";
-import type { HomeCollections } from "../types/home";
+import { searchMedia } from "../services/mediaService";
 import type { MediaItem } from "../types/media";
-import { removeDuplicateMedia } from "../utils/media";
+import { createDefaultSearchFilters } from "../config/searchFilters";
 
 interface DiscoveryRequestState {
   requestKey: number;
@@ -15,45 +14,6 @@ const initialRequestState: DiscoveryRequestState = {
   items: [],
   errorMessage: "",
 };
-
-function shuffled<T>(items: T[]) {
-  const copy = [...items];
-
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [copy[index], copy[randomIndex]] = [copy[randomIndex], copy[index]];
-  }
-
-  return copy;
-}
-
-function createMixedDiscoveryItems(collections: HomeCollections) {
-  const categoryPools = [
-    shuffled(collections.trendingMovies),
-    shuffled(collections.trendingTv),
-    shuffled(collections.trendingAnime),
-    shuffled(collections.trendingKDrama),
-  ];
-
-  const maximumPoolLength = Math.max(
-    0,
-    ...categoryPools.map((items) => items.length),
-  );
-
-  const mixedItems: MediaItem[] = [];
-
-  for (let index = 0; index < maximumPoolLength; index += 1) {
-    categoryPools.forEach((items) => {
-      const item = items[index];
-
-      if (item) {
-        mixedItems.push(item);
-      }
-    });
-  }
-
-  return removeDuplicateMedia(mixedItems).slice(0, 32);
-}
 
 export function useSearchDiscovery(enabled: boolean) {
   const [reloadKey, setReloadKey] = useState(0);
@@ -69,7 +29,14 @@ export function useSearchDiscovery(enabled: boolean) {
 
     async function loadDiscoveryItems() {
       try {
-        const collections = await getHomeCollections(controller.signal);
+        const response = await searchMedia(
+          "",
+          "all",
+          createDefaultSearchFilters("all"),
+          "default",
+          1,
+          controller.signal,
+        );
 
         if (controller.signal.aborted) {
           return;
@@ -77,7 +44,7 @@ export function useSearchDiscovery(enabled: boolean) {
 
         setRequestState({
           requestKey: reloadKey,
-          items: createMixedDiscoveryItems(collections),
+          items: response.results,
           errorMessage: "",
         });
       } catch (error: unknown) {

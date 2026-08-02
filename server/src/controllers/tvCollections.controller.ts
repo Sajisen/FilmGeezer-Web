@@ -1,3 +1,4 @@
+import { setPublicCollectionCacheHeaders } from "../utils/publicCacheHeaders.js";
 import type {
   Request,
   Response,
@@ -12,6 +13,8 @@ export async function getTvCollectionPage(
   try {
     const collections =
       await getTvCollections()
+
+    setPublicCollectionCacheHeaders(res);
 
     res.status(200).json({
       status: 'success',

@@ -2,19 +2,57 @@ import BannerSearch from "../components/BannerSearch";
 import ContentContainer from "../components/layout/ContentContainer";
 import MediaRow from "../components/MediaRow";
 import PageBanner from "../components/PageBanner";
+import PersonalRecommendationsRow from "../components/PersonalRecommendationsRow";
 import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
 import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
+import { usePersonalRecommendations } from "../hooks/usePersonalRecommendations";
 import { useTvCollections } from "../hooks/useTvCollections";
+import { createCollectionRowAllocator } from "../utils/collectionRows";
+import { excludeMediaItems } from "../utils/recommendations";
 import { buildSearchHref } from "../utils/searchLinks";
 import tvSeriesBanner from "../assets/images/tvseries-banner.png";
 
+const CURATED_ROW_LIMIT = 28;
+
 function TVSeriesPage() {
   const { collections, isLoading, errorMessage, reload } = useTvCollections();
+  const recommendations = usePersonalRecommendations("tv");
 
-  const hasTvCollections = Object.values(collections).some(
-    (items) => items.length > 0,
+  const recommendationItems =
+    recommendations.available && recommendations.basis
+      ? excludeMediaItems(
+          recommendations.items,
+          collections.trendingAndCurrentlyAiring,
+        ).slice(0, 24)
+      : [];
+
+  const allocateRow = createCollectionRowAllocator([
+    ...collections.trendingAndCurrentlyAiring,
+    ...recommendationItems,
+  ]);
+
+  const essentials = allocateRow(collections.essentials, CURATED_ROW_LIMIT);
+  const actionCrimeThriller = allocateRow(
+    collections.actionCrimeThriller,
+    CURATED_ROW_LIMIT,
   );
+  const comedyDrama = allocateRow(
+    collections.comedyDrama,
+    CURATED_ROW_LIMIT,
+  );
+  const mysteryScienceFiction = allocateRow(
+    collections.mysteryScienceFiction,
+    CURATED_ROW_LIMIT,
+  );
+
+  const hasTvCollections = [
+    collections.trendingAndCurrentlyAiring,
+    collections.essentials,
+    collections.actionCrimeThriller,
+    collections.comedyDrama,
+    collections.mysteryScienceFiction,
+  ].some((items) => items.length > 0);
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -38,7 +76,7 @@ function TVSeriesPage() {
 
       {isLoading && (
         <CollectionRowsSkeleton
-          rowCount={4}
+          rowCount={5}
           label="Loading curated TV Series collections"
         />
       )}
@@ -69,52 +107,73 @@ function TVSeriesPage() {
               title="Trending & Currently Airing"
               description="Current TV series and shows receiving strong audience attention."
               items={collections.trendingAndCurrentlyAiring}
-              viewMoreHref={buildSearchHref({ scope: "tv", preset: "trending" })}
+              viewMoreHref={buildSearchHref({
+                scope: "tv",
+                preset: "trending",
+              })}
             />
           )}
 
-          {collections.essentials.length > 0 && (
+          {recommendations.basis && recommendationItems.length > 0 && (
+            <PersonalRecommendationsRow
+              category="tv"
+              basis={recommendations.basis}
+              items={recommendationItems}
+            />
+          )}
+
+          {essentials.length > 0 && (
             <MediaRow
               title="FilmGeezer TV Essentials"
               description="Recognisable, highly regarded series selected using rating, popularity, and audience confidence."
-              items={collections.essentials}
-              viewMoreHref={buildSearchHref({ scope: "tv", preset: "essentials" })}
+              items={essentials}
+              viewMoreHref={buildSearchHref({
+                scope: "tv",
+                preset: "essentials",
+              })}
             />
           )}
 
-          {collections.actionCrimeThriller.length > 0 && (
+          {actionCrimeThriller.length > 0 && (
             <MediaRow
               title="Action, Crime & Thriller"
               description="High-stakes adventures, investigations, dangerous conflicts, and suspense."
-              items={collections.actionCrimeThriller}
-              viewMoreHref={buildSearchHref({ scope: "tv", genres: ["Action & Adventure", "Crime", "Mystery"], genreMode: "any", minRating: "6" })}
+              items={actionCrimeThriller}
+              viewMoreHref={buildSearchHref({
+                scope: "tv",
+                genres: ["Action & Adventure", "Crime", "Mystery"],
+                genreMode: "any",
+                minRating: "6",
+              })}
             />
           )}
 
-          {collections.comedy.length > 0 && (
+          {comedyDrama.length > 0 && (
             <MediaRow
-              title="Comedy"
-              description="Popular comedies and lighter series worth adding to your watch list."
-              items={collections.comedy}
-              viewMoreHref={buildSearchHref({ scope: "tv", genres: ["Comedy"], minRating: "6" })}
+              title="Comedy & Drama"
+              description="Funny, warm, and grounded character stories without action-heavy series taking over the row."
+              items={comedyDrama}
+              viewMoreHref={buildSearchHref({
+                scope: "tv",
+                preset: "tv-comedy-drama",
+                genres: ["Comedy", "Drama"],
+                genreMode: "any",
+                minRating: "6",
+              })}
             />
           )}
 
-          {collections.dramaRomance.length > 0 && (
-            <MediaRow
-              title="Drama & Romance"
-              description="Character-driven and emotional series, including relationship-focused stories."
-              items={collections.dramaRomance}
-              viewMoreHref={buildSearchHref({ scope: "tv", genres: ["Drama"], minRating: "6" })}
-            />
-          )}
-
-          {collections.mysteryScienceFiction.length > 0 && (
+          {mysteryScienceFiction.length > 0 && (
             <MediaRow
               title="Mystery & Science Fiction"
               description="Unexplained events, speculative worlds, fantasy, and science-fiction stories."
-              items={collections.mysteryScienceFiction}
-              viewMoreHref={buildSearchHref({ scope: "tv", genres: ["Mystery", "Sci-Fi & Fantasy"], genreMode: "any", minRating: "6" })}
+              items={mysteryScienceFiction}
+              viewMoreHref={buildSearchHref({
+                scope: "tv",
+                genres: ["Mystery", "Sci-Fi & Fantasy"],
+                genreMode: "any",
+                minRating: "6",
+              })}
             />
           )}
         </>

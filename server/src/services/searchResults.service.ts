@@ -1,5 +1,7 @@
+import { isLowConfidenceAnimationOnly } from "../utils/categoryMedia.js";
 import type { MediaItem, MediaType, SearchScope } from "../types/media.js";
 import {
+  getTmdbAnimeSportsCatalog,
   getTmdbBrowseList,
   getTmdbCatalog,
   searchTmdbMedia,
@@ -8,7 +10,15 @@ import {
 } from "./tmdb.service.js";
 
 export type GenreMatchMode = "all" | "any";
-export type SearchPreset = "default" | "trending" | "essentials";
+export type SearchPreset =
+  | "default"
+  | "trending"
+  | "essentials"
+  | "sports"
+  | "movie-drama"
+  | "movie-drama-romance"
+  | "tv-comedy-drama"
+  | "anime-romance-drama-comedy";
 export type SearchFormat = "all" | "movie" | "tv";
 export type SearchSort =
   | "best-match"
@@ -54,7 +64,7 @@ interface SearchCriteria {
   filters: SearchResultsFilters;
 }
 
-const RESULT_PAGE_SIZE = 24;
+const RESULT_PAGE_SIZE = 30;
 const SOURCE_BATCH_SIZE = 4;
 const MAX_SOURCE_PAGES_PER_EXPANSION = 24;
 const MAX_SOURCE_PAGES_PER_POOL = 80;
@@ -130,6 +140,18 @@ const BLOCKED_K_DRAMA_GENRES = new Set([
   "TV Movie",
 ]);
 
+const BLOCKED_GENERAL_DISCOVERY_TERMS = [
+  "adult film",
+  "adult series",
+  "erotic film",
+  "erotic series",
+  "pornographic",
+  "softcore",
+  "sexploitation",
+];
+
+const BLOCKED_GENERAL_TV_GENRES = new Set(["News", "Reality", "Talk"]);
+
 function normalizeText(value: string) {
   return value.trim().toLowerCase();
 }
@@ -138,12 +160,16 @@ function hasPoster(item: MediaItem) {
   return !item.posterUrl.includes("placehold.co");
 }
 
-function isPublicAnime(item: MediaItem) {
+function isAnimeIdentity(item: MediaItem) {
+  return item.language === "JA" && item.genres.includes("Animation");
+}
+
+function isPublicAnimeDiscovery(item: MediaItem) {
   const searchableText = `${item.title} ${item.overview}`.toLowerCase();
 
   return (
-    item.language === "JA" &&
-    item.genres.includes("Animation") &&
+    isAnimeIdentity(item) &&
+    !isLowConfidenceAnimationOnly(item) &&
     hasPoster(item) &&
     !BLOCKED_ANIME_TERMS.some((term) => searchableText.includes(term))
   );
@@ -209,18 +235,228 @@ function getEstablishedVoteThreshold(
   return item.mediaType === "movie" ? 200 : 100;
 }
 
+interface DiscoveryQualityFloor {
+  minRating: number;
+  minVoteCount: number;
+}
+
+function getCategoryDiscoveryQualityFloor(
+  mediaType: MediaType,
+  scope: SearchScope,
+  preset: SearchPreset,
+  filters: SearchResultsFilters,
+): DiscoveryQualityFloor {
+  if (preset === "essentials") {
+    if (scope === "anime") {
+      return {
+        minRating: 6.8,
+        minVoteCount: mediaType === "movie" ? 60 : 55,
+      };
+    }
+
+    if (scope === "k-drama") {
+      return {
+        minRating: mediaType === "movie" ? 6.4 : 6.8,
+        minVoteCount: mediaType === "movie" ? 70 : 55,
+      };
+    }
+
+    return {
+      minRating: mediaType === "movie" ? 6.4 : 6.7,
+      minVoteCount: mediaType === "movie" ? 400 : 200,
+    };
+  }
+
+  if (filters.establishedOnly) {
+    if (scope === "anime") {
+      return {
+        minRating: 6.2,
+        minVoteCount: mediaType === "movie" ? 50 : 40,
+      };
+    }
+
+    if (scope === "k-drama") {
+      return {
+        minRating: mediaType === "movie" ? 6.2 : 6.4,
+        minVoteCount: mediaType === "movie" ? 50 : 30,
+      };
+    }
+
+    return {
+      minRating: mediaType === "movie" ? 5.8 : 6,
+      minVoteCount: mediaType === "movie" ? 200 : 100,
+    };
+  }
+
+  const ratingSortMultiplier = filters.sortBy === "rating-desc" ? 1.8 : 1;
+  const trendingMultiplier = preset === "trending" ? 0.55 : 1;
+
+  if (scope === "anime") {
+    return {
+      minRating: 6,
+      minVoteCount: Math.ceil(
+        (mediaType === "movie" ? 18 : 15) *
+          ratingSortMultiplier *
+          trendingMultiplier,
+      ),
+    };
+  }
+
+  if (scope === "k-drama") {
+    return {
+      minRating: mediaType === "movie" ? 6 : 6.2,
+      minVoteCount: Math.ceil(
+        (mediaType === "movie" ? 20 : 15) *
+          ratingSortMultiplier *
+          trendingMultiplier,
+      ),
+    };
+  }
+
+  return {
+    minRating: mediaType === "movie" ? 5.5 : 5.8,
+    minVoteCount: Math.ceil(
+      (mediaType === "movie" ? 60 : 35) *
+        ratingSortMultiplier *
+        trendingMultiplier,
+    ),
+  };
+}
+
+function getDiscoveryQualityFloor(
+  mediaType: MediaType,
+  scope: SearchScope,
+  preset: SearchPreset,
+  filters: SearchResultsFilters,
+): DiscoveryQualityFloor {
+  const categoryFloor = getCategoryDiscoveryQualityFloor(
+    mediaType,
+    scope,
+    preset,
+    filters,
+  );
+
+  return {
+    minRating: Math.max(5, categoryFloor.minRating),
+    minVoteCount: Math.max(50, categoryFloor.minVoteCount),
+  };
+}
+
+function isSuitableForGeneralDiscovery(item: MediaItem) {
+  const searchableText = `${item.title} ${item.overview}`.toLowerCase();
+
+  return (
+    hasPoster(item) &&
+    !BLOCKED_GENERAL_DISCOVERY_TERMS.some((term) =>
+      searchableText.includes(term),
+    ) &&
+    !(
+      item.mediaType === "tv" &&
+      item.genres.some((genre) => BLOCKED_GENERAL_TV_GENRES.has(genre))
+    )
+  );
+}
+
+function countMatchingItemGenres(
+  item: MediaItem,
+  genres: readonly string[],
+) {
+  return genres.filter((genre) => item.genres.includes(genre)).length;
+}
+
+function matchesCuratedPreset(item: MediaItem, preset: SearchPreset) {
+  if (preset === "movie-drama" || preset === "movie-drama-romance") {
+    if (item.mediaType !== "movie") {
+      return false;
+    }
+
+    const hasDrama = item.genres.includes("Drama");
+    const heavyGenres = countMatchingItemGenres(item, [
+      "Action",
+      "Adventure",
+      "Crime",
+      "Thriller",
+      "Science Fiction",
+      "Horror",
+      "War",
+    ]);
+
+    return hasDrama && heavyGenres <= 1;
+  }
+
+  if (preset === "tv-comedy-drama") {
+    if (item.mediaType !== "tv") {
+      return false;
+    }
+
+    const hasComedy = item.genres.includes("Comedy");
+    const hasDrama = item.genres.includes("Drama");
+    const heavyGenres = countMatchingItemGenres(item, [
+      "Action & Adventure",
+      "Crime",
+      "Mystery",
+      "Sci-Fi & Fantasy",
+      "War & Politics",
+    ]);
+
+    return hasComedy || (hasDrama && heavyGenres <= 1);
+  }
+
+  if (preset === "anime-romance-drama-comedy") {
+    const hasRomance = item.genres.includes("Romance");
+    const hasComedy = item.genres.includes("Comedy");
+    const hasDrama = item.genres.includes("Drama");
+    const heavyGenres = countMatchingItemGenres(item, [
+      "Action",
+      "Adventure",
+      "Thriller",
+      "Action & Adventure",
+      "Mystery",
+      "Science Fiction",
+      "Sci-Fi & Fantasy",
+    ]);
+
+    return hasRomance || hasComedy || (hasDrama && heavyGenres <= 1);
+  }
+
+  return true;
+}
+
 function applyApplicationFilters(
   items: MediaItem[],
   scope: SearchScope,
+  preset: SearchPreset,
   filters: SearchResultsFilters,
+  isTitleSearch: boolean,
 ) {
   const effectiveReleaseYearTo = getEffectiveReleaseYearTo(filters);
 
   return items.filter((item) => {
+    if (!isTitleSearch) {
+      const floor = getDiscoveryQualityFloor(
+        item.mediaType,
+        scope,
+        preset,
+        filters,
+      );
+
+      if (
+        !isSuitableForGeneralDiscovery(item) ||
+        item.rating < Math.max(filters.minRating ?? 0, floor.minRating) ||
+        (item.voteCount ?? 0) < floor.minVoteCount
+      ) {
+        return false;
+      }
+    }
+
+    if (!isTitleSearch && !matchesCuratedPreset(item, preset)) {
+      return false;
+    }
+
     if (scope === "movie") {
       if (
         item.mediaType !== "movie" ||
-        isPublicAnime(item) ||
+        isAnimeIdentity(item) ||
         isPublicKDrama(item)
       ) {
         return false;
@@ -230,14 +466,17 @@ function applyApplicationFilters(
     if (scope === "tv") {
       if (
         item.mediaType !== "tv" ||
-        isPublicAnime(item) ||
+        isAnimeIdentity(item) ||
         isPublicKDrama(item)
       ) {
         return false;
       }
     }
 
-    if (scope === "anime" && !isPublicAnime(item)) {
+    if (
+      scope === "anime" &&
+      !(isTitleSearch ? isAnimeIdentity(item) : isPublicAnimeDiscovery(item))
+    ) {
       return false;
     }
 
@@ -280,10 +519,6 @@ function applyApplicationFilters(
       effectiveReleaseYearTo !== undefined &&
       (itemYear === null || itemYear > effectiveReleaseYearTo)
     ) {
-      return false;
-    }
-
-    if (filters.sortBy === "release-desc" && !hasPoster(item)) {
       return false;
     }
 
@@ -424,30 +659,6 @@ function getDiscoverSort(
   return "popularity.desc";
 }
 
-function getDiscoveryVoteThreshold(
-  mediaType: MediaType,
-  scope: SearchScope,
-  filters: SearchResultsFilters,
-) {
-  if (filters.establishedOnly) {
-    if (scope === "anime") {
-      return mediaType === "movie" ? 50 : 40;
-    }
-
-    if (scope === "k-drama") {
-      return mediaType === "movie" ? 50 : 30;
-    }
-
-    return mediaType === "movie" ? 200 : 100;
-  }
-
-  if (filters.sortBy === "rating-desc") {
-    return mediaType === "movie" ? 25 : 15;
-  }
-
-  return undefined;
-}
-
 async function loadDiscoveryPageForMediaType(
   mediaType: MediaType,
   sourcePage: number,
@@ -455,6 +666,12 @@ async function loadDiscoveryPageForMediaType(
   preset: SearchPreset,
   filters: SearchResultsFilters,
 ) {
+  if (preset === "sports") {
+    return scope === "anime"
+      ? getTmdbAnimeSportsCatalog(mediaType, sourcePage)
+      : createEmptySourcePage(sourcePage);
+  }
+
   const fixedLanguage =
     scope === "anime"
       ? "ja"
@@ -471,39 +688,29 @@ async function loadDiscoveryPageForMediaType(
     return createEmptySourcePage(sourcePage);
   }
 
-  const essentialsMinimumRating =
-    scope === "anime"
-      ? 7
-      : scope === "k-drama"
-        ? 6.8
-        : mediaType === "movie"
-          ? 6.5
-          : 6.8;
+  const qualityFloor = getDiscoveryQualityFloor(
+    mediaType,
+    scope,
+    preset,
+    filters,
+  );
 
-  const essentialsMinimumVotes =
-    scope === "anime"
+  const excludedGenres =
+    scope === "k-drama"
       ? mediaType === "movie"
-        ? 80
-        : 100
-      : scope === "k-drama"
-        ? mediaType === "movie"
-          ? 120
-          : 80
-        : mediaType === "movie"
-          ? 500
-          : 250;
+        ? ["Animation", "Documentary", "TV Movie"]
+        : ["Animation", "Documentary", "News", "Reality", "Talk"]
+      : undefined;
 
   return getTmdbCatalog(mediaType, {
     genres: requestedGenres,
     genreMode: scope === "anime" ? "all" : filters.genreMode,
     language: fixedLanguage,
-    minRating:
-      filters.minRating ??
-      (preset === "essentials" ? essentialsMinimumRating : undefined),
-    minVoteCount:
-      preset === "essentials"
-        ? essentialsMinimumVotes
-        : getDiscoveryVoteThreshold(mediaType, scope, filters),
+    originCountry:
+      scope === "anime" ? "JP" : scope === "k-drama" ? "KR" : undefined,
+    excludedGenres,
+    minRating: Math.max(filters.minRating ?? 0, qualityFloor.minRating),
+    minVoteCount: qualityFloor.minVoteCount,
     sortBy:
       preset === "essentials"
         ? "vote_count.desc"
@@ -550,7 +757,13 @@ async function loadLogicalSourcePage(
     return {
       ...response,
       results: sortItems(
-        applyApplicationFilters(response.results, scope, filters),
+        applyApplicationFilters(
+          response.results,
+          scope,
+          preset,
+          filters,
+          true,
+        ),
         filters.sortBy,
       ),
     };
@@ -575,7 +788,13 @@ async function loadLogicalSourcePage(
 
     return {
       ...response,
-      results: applyApplicationFilters(response.results, scope, filters),
+      results: applyApplicationFilters(
+        response.results,
+        scope,
+        preset,
+        filters,
+        false,
+      ),
     };
   }
 
@@ -593,7 +812,13 @@ async function loadLogicalSourcePage(
     page: sourcePage,
     totalPages: Math.max(moviePage.totalPages, tvPage.totalPages),
     totalResults: moviePage.totalResults + tvPage.totalResults,
-    results: applyApplicationFilters(mixedResults, scope, filters),
+    results: applyApplicationFilters(
+      mixedResults,
+      scope,
+      preset,
+      filters,
+      false,
+    ),
     hasMore: Boolean(moviePage.hasMore || tvPage.hasMore),
   };
 }
