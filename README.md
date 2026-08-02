@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform, manual authentication/account management, persistent Watchlist, and secure profile-picture upload experience are implemented.
+The discovery platform, manual authentication/account management, persistent Watchlist, secure profile-picture upload, and account entertainment-preference foundation are implemented.
 
 ## Technology stack
 
@@ -96,6 +96,17 @@ The discovery platform, manual authentication/account management, persistent Wat
 - Responsive Account-page preview, upload progress, replacement, removal, and initials fallback
 - Live profile-picture updates in the Navbar, profile menu, mobile navigation, and account summary
 
+
+### Entertainment preferences
+
+- Private per-account preference document owned by the FilmGeezer user ID
+- Personalisation on/off control without deleting saved choices
+- Preferred Movies, TV Series, Anime, and K-Drama categories
+- Preferred genres, lower-priority genres, and preferred content languages
+- Strict backend allowlists, size limits, duplicate prevention, and CSRF protection
+- Optimistic revision checks to prevent one device from silently overwriting another
+- Responsive Account-page editor with reset, defaults, retry, and accessible selection states
+
 ### User experience
 
 - Route-backed authentication modals with direct-route fallbacks
@@ -124,7 +135,7 @@ Authentication uses opaque session tokens stored in HttpOnly cookies. The server
 
 The next planned phases are:
 
-1. Entertainment preferences and personalised recommendations
+1. Personalised recommendation rows powered by saved entertainment preferences and Watchlist signals
 2. Notifications and contact/support completion
 3. Protected administration features
 4. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening

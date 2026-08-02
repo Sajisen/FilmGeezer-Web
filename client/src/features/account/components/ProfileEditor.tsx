@@ -19,6 +19,7 @@ import {
   AuthSubmitButton,
 } from "../../auth/components/AuthFields";
 
+import EntertainmentPreferencesPanel from "./EntertainmentPreferencesPanel";
 import ProfileImageEditor from "./ProfileImageEditor";
 
 interface ProfileEditorProps {
@@ -112,7 +113,8 @@ function ProfileEditor({
     nextDisplayName.trim() !== displayName.trim();
 
   return (
-    <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 shadow-xl shadow-black/15">
+    <div className="w-full space-y-4">
+      <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 shadow-xl shadow-black/15">
       <div className="border-b border-white/8 px-5 py-4 sm:px-6">
         <h2 className="text-lg font-bold tracking-tight text-white">
           Profile details
@@ -186,7 +188,10 @@ function ProfileEditor({
           </div>
         </div>
       </form>
-    </section>
+      </section>
+
+      <EntertainmentPreferencesPanel csrfToken={csrfToken} />
+    </div>
   );
 }
 
