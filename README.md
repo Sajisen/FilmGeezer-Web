@@ -4,7 +4,7 @@ FilmGeezer Web is a full-stack movie, TV-series, Anime, and K-Drama discovery ap
 
 ## Current project status
 
-The discovery platform, manual authentication/account management, persistent Watchlist, secure profile-picture upload, account entertainment preferences, and personalised recommendation foundation are implemented.
+The discovery platform, manual authentication/account management, persistent Watchlist, secure profile-picture upload, account entertainment preferences, personalised recommendations, discovery-quality caching, and the Contact/support workflow are implemented.
 
 ## Technology stack
 
@@ -133,6 +133,17 @@ The discovery platform, manual authentication/account management, persistent Wat
 - Media Details personal results exclude the current title and More Like This items
 - Server-side quality scoring, explicit-preference weighting, Watchlist affinity, TMDB seed boosts, diversity controls, revision-aware caching, and authenticated rate limiting
 
+### Contact and support
+
+- Real Contact form backed by the FilmGeezer Web MongoDB database
+- General question, problem report, content/link issue, account-help, and feedback categories
+- Strict Zod validation, Unicode normalization, body-size limits, trusted-origin enforcement, and rate limiting
+- Hidden honeypot handling that does not reveal bot detection
+- Safe public reference numbers for follow-up
+- No passwords, codes, session material, or other authentication secrets stored with messages
+- Admin-ready status and category indexes for the future support dashboard
+- Responsive dark cinematic form, signed-in name/email prefill, field errors, retry handling, and confirmation state
+
 ### User experience
 
 - Route-backed authentication modals with direct-route fallbacks
@@ -167,8 +178,8 @@ Redis is intentionally deferred while FilmGeezer runs one API instance. A shared
 
 The next planned phases are:
 
-1. Notifications and contact/support completion
-2. Protected administration features
+1. In-app notification foundation and delivery preferences
+2. Protected administration features, including Contact-message review
 3. Production email delivery, shared rate limiting, automated tests, and Railway deployment hardening
 
 ## Local development
@@ -244,3 +255,20 @@ npm run build
 ## Data and attribution
 
 FilmGeezer Web uses TMDB data but is not endorsed or certified by TMDB. FilmGeezer content links are served through the backend and are identified by the canonical combination of TMDB media type and TMDB ID.
+
+## Contact support conversations
+
+Signed-in users can access their five most recently active support requests from
+`/contact`, open a request by its public reference, review the chronological
+conversation, and add follow-up replies. Guest submissions remain supported but
+are not exposed through account history; the guest must retain the reference
+number shown after submission.
+
+Support requests remain in `contact_messages`. Chronological user/admin replies
+are stored separately in `contact_thread_messages`, preventing an unbounded
+message array from growing inside the request document. Existing schema-version
+1 requests remain readable: their original `message` field is treated as the
+first conversation message while new replies use the thread collection.
+
+The former `/help` page has been removed. FilmGeezer's public informational and
+support destinations are now About and Contact.

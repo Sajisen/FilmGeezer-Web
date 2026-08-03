@@ -26,6 +26,7 @@ import watchlistRoutes from "./routes/watchlist.routes.js";
 import profileImageRoutes from "./routes/profileImage.routes.js";
 import accountPreferencesRoutes from "./routes/accountPreferences.routes.js";
 import recommendationsRoutes from "./routes/recommendations.routes.js";
+import contactRoutes from "./routes/contact.routes.js";
 
 import {
   handleHttpError,
@@ -81,6 +82,15 @@ app.use(
 app.use(
   "/api/recommendations",
   recommendationsRoutes,
+);
+
+/*
+ * Contact owns a smaller JSON body limit and rate limiting, so it mounts
+ * before the application-wide JSON parser.
+ */
+app.use(
+  "/api/contact",
+  contactRoutes,
 );
 
 app.use(
