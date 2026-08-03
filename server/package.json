@@ -7,7 +7,11 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "preadmin:grant": "npm run build",
+    "admin:grant": "node dist/scripts/grantAdmin.js",
+    "preadmin:revoke": "npm run build",
+    "admin:revoke": "node dist/scripts/revokeAdmin.js"
   },
   "keywords": [],
   "author": "",

@@ -8,14 +8,11 @@ import type {
   CONTACT_THREAD_MESSAGE_SCHEMA_VERSION,
 } from "./contact.constants.js";
 
-export type ContactCategory =
-  (typeof CONTACT_CATEGORY_VALUES)[number];
+export type ContactCategory = (typeof CONTACT_CATEGORY_VALUES)[number];
 
-export type ContactMessageStatus =
-  (typeof CONTACT_STATUS_VALUES)[number];
+export type ContactMessageStatus = (typeof CONTACT_STATUS_VALUES)[number];
 
-export type ContactSenderRole =
-  (typeof CONTACT_SENDER_ROLE_VALUES)[number];
+export type ContactSenderRole = (typeof CONTACT_SENDER_ROLE_VALUES)[number];
 
 export interface ContactMessageDocument {
   _id: ObjectId;

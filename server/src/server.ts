@@ -6,6 +6,7 @@ import { initializeAuthStorage } from "./features/auth/auth.indexes.js";
 import { initializeWatchlistStorage } from "./features/watchlist/watchlist.indexes.js";
 import { initializePreferencesStorage } from "./features/preferences/preferences.indexes.js";
 import { initializeContactStorage } from "./features/contact/contact.indexes.js";
+import { initializeAdminStorage } from "./features/admin/admin.indexes.js";
 
 const { PORT, HOST } = env;
 
@@ -20,6 +21,7 @@ void Promise.all([
   initializeWatchlistStorage(),
   initializePreferencesStorage(),
   initializeContactStorage(),
+  initializeAdminStorage(),
 ])
   .then(() => {
     console.log("FilmGeezer application storage is ready.");

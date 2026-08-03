@@ -1,11 +1,18 @@
-import { useCallback, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useState,
+  type FormEvent,
+} from "react";
 
 import {
   ContactApiError,
   submitContactMessage,
 } from "../../../services/contactService";
 
-import type { AuthStateStatus, AuthUser } from "../../../types/auth";
+import type {
+  AuthStateStatus,
+  AuthUser,
+} from "../../../types/auth";
 
 import type {
   ContactCategory,
@@ -91,25 +98,31 @@ function ContactComposer({
   onSubmitted,
 }: ContactComposerProps) {
   const [companyWebsite, setCompanyWebsite] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<ContactFieldErrors>({});
+  const [fieldErrors, setFieldErrors] =
+    useState<ContactFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGuestChoice, setShowGuestChoice] = useState(false);
+
+  const name = draft.nameTouched
+    ? draft.name
+    : user?.displayName ?? draft.name;
+
+  const email = draft.emailTouched
+    ? draft.email
+    : user?.email ?? draft.email;
+
+  const selectedCategory =
+    draft.category === "feedback" ? "general" : draft.category;
+
 
   const closeGuestChoice = useCallback(() => {
     setShowGuestChoice(false);
   }, []);
 
-  const name = draft.nameTouched
-    ? draft.name
-    : (user?.displayName ?? draft.name);
-
-  const email = draft.emailTouched ? draft.email : (user?.email ?? draft.email);
-
-  const selectedCategory =
-    draft.category === "feedback" ? "general" : draft.category;
-
-  function updateDraft(changes: Partial<ContactComposerDraft>) {
+  function updateDraft(
+    changes: Partial<ContactComposerDraft>,
+  ) {
     onDraftChange({
       ...draft,
       ...changes,
@@ -329,7 +342,9 @@ function ContactComposer({
                 autoComplete="name"
                 maxLength={80}
                 value={name}
-                aria-invalid={Boolean(getFirstFieldError(fieldErrors, "name"))}
+                aria-invalid={Boolean(
+                  getFirstFieldError(fieldErrors, "name"),
+                )}
                 aria-describedby={
                   getFirstFieldError(fieldErrors, "name")
                     ? "contact-name-error"
@@ -365,7 +380,9 @@ function ContactComposer({
                 autoComplete="email"
                 maxLength={254}
                 value={email}
-                aria-invalid={Boolean(getFirstFieldError(fieldErrors, "email"))}
+                aria-invalid={Boolean(
+                  getFirstFieldError(fieldErrors, "email"),
+                )}
                 aria-describedby={
                   getFirstFieldError(fieldErrors, "email")
                     ? "contact-email-error"
@@ -400,7 +417,9 @@ function ContactComposer({
               type="text"
               maxLength={120}
               value={draft.subject}
-              aria-invalid={Boolean(getFirstFieldError(fieldErrors, "subject"))}
+              aria-invalid={Boolean(
+                getFirstFieldError(fieldErrors, "subject"),
+              )}
               aria-describedby={
                 getFirstFieldError(fieldErrors, "subject")
                   ? "contact-subject-error"
@@ -443,7 +462,9 @@ function ContactComposer({
               rows={5}
               maxLength={3_000}
               value={draft.message}
-              aria-invalid={Boolean(getFirstFieldError(fieldErrors, "message"))}
+              aria-invalid={Boolean(
+                getFirstFieldError(fieldErrors, "message"),
+              )}
               aria-describedby={
                 getFirstFieldError(fieldErrors, "message")
                   ? "contact-message-error"
@@ -466,14 +487,18 @@ function ContactComposer({
             aria-hidden="true"
             className="pointer-events-none absolute -left-[10000px] top-auto h-px w-px overflow-hidden"
           >
-            <label htmlFor="contact-company-website">Company website</label>
+            <label htmlFor="contact-company-website">
+              Company website
+            </label>
             <input
               id="contact-company-website"
               type="text"
               tabIndex={-1}
               autoComplete="off"
               value={companyWebsite}
-              onChange={(event) => setCompanyWebsite(event.target.value)}
+              onChange={(event) =>
+                setCompanyWebsite(event.target.value)
+              }
             />
           </div>
 

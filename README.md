@@ -272,3 +272,55 @@ first conversation message while new replies use the thread collection.
 
 The former `/help` page has been removed. FilmGeezer's public informational and
 support destinations are now About and Contact.
+
+## Administrator application foundation
+
+FilmGeezer now contains a hostname-aware administrator application inside the
+existing React build. In development, open `http://localhost:5173/admin`. In
+production, configure `ADMIN_APP_ORIGIN` and point the chosen administrator
+subdomain to the same frontend service. The admin bundle is loaded lazily, so
+normal public visitors do not download it.
+
+Administrator authentication is separate from public authentication:
+
+- separate HttpOnly admin cookie;
+- separate MongoDB `admin_sessions` collection;
+- exact administrator Origin and CSRF checks;
+- eight-hour absolute session lifetime;
+- thirty-minute idle timeout;
+- maximum two active admin sessions per account;
+- role validation against the current user document on every request;
+- administrator audit events in `admin_audit_events`.
+
+A normal public FilmGeezer session never unlocks the admin application.
+
+### Local administrator setup
+
+1. Register and verify the intended administrator account through FilmGeezer.
+2. From `server`, run:
+
+```powershell
+npm run admin:grant -- --email=administrator@example.com
+```
+
+3. Open `http://localhost:5173/admin` and sign in again through the dedicated
+   administrator login.
+
+To revoke an administrator safely:
+
+```powershell
+npm run admin:revoke -- --email=administrator@example.com
+```
+
+The final active administrator cannot be revoked by the script, and revoking a
+role closes that account's active admin sessions.
+
+The first dashboard module provides live account, support-request, and admin
+session counts. Support, Users, Content, Audit, and Settings routes are present
+as protected module boundaries. The Contact support inbox is the next module to
+implement.
+
+Administrator MFA is intentionally identified as a production launch gate. The
+current foundation provides role checks, isolated sessions, short lifetimes,
+CSRF protection, rate limits, and audit logging, but production access should
+not be enabled until MFA is added and tested.

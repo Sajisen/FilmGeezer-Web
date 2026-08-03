@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 import { z } from "zod";
 
@@ -99,6 +100,21 @@ const environmentSchema = z
         );
       }, "CLIENT_APP_ORIGIN must be an http(s) origin without a path, query, or fragment."),
 
+    ADMIN_APP_ORIGIN: optionalUrlSchema.refine((value) => {
+      if (!value) {
+        return true;
+      }
+
+      const url = new URL(value);
+
+      return (
+        (url.protocol === "http:" || url.protocol === "https:") &&
+        url.pathname === "/" &&
+        url.search === "" &&
+        url.hash === ""
+      );
+    }, "ADMIN_APP_ORIGIN must be an http(s) origin without a path, query, or fragment."),
+
     TMDB_READ_ACCESS_TOKEN: z
       .string()
       .trim()
@@ -144,6 +160,18 @@ const environmentSchema = z
       booleanEnvironmentSchema.default(false),
   })
   .superRefine((value, context) => {
+    if (
+      value.NODE_ENV === "production" &&
+      !value.ADMIN_APP_ORIGIN
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_APP_ORIGIN"],
+        message:
+          "Production must configure the exact administrator application origin.",
+      });
+    }
+
     if (
       value.NODE_ENV === "production" &&
       value.PROFILE_IMAGE_STORAGE_DRIVER === "local"
