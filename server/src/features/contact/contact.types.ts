@@ -64,7 +64,6 @@ export interface ContactConversationSummary {
   preview: string;
   messageCount: number;
   lastSenderRole: ContactSenderRole;
-  lastMessagePreview: string;
   lastMessageAt: Date;
   createdAt: Date;
 }
