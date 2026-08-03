@@ -1,8 +1,8 @@
 import {
+  useCallback,
   useEffect,
   useState,
   type FormEvent,
-  type ReactNode,
 } from "react";
 
 import {
@@ -35,105 +35,31 @@ interface ContactComposerProps {
 }
 
 interface CategoryOption {
-  value: ContactCategory;
+  value: Exclude<ContactCategory, "feedback">;
   label: string;
   description: string;
-  icon: ReactNode;
 }
 
 const CONTACT_CATEGORIES: CategoryOption[] = [
   {
     value: "general",
-    label: "General question",
-    description: "Ask about FilmGeezer or how something works.",
-    icon: (
-      <path
-        d="M12 18h.01M9.1 9a3 3 0 115.1 2.15c-.98.72-1.7 1.25-1.7 2.35"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    ),
+    label: "Question or feedback",
+    description: "Ask a question, share an idea, or suggest an improvement.",
   },
   {
     value: "bug",
     label: "Report a problem",
     description: "Tell us about a feature that is not working correctly.",
-    icon: (
-      <>
-        <path
-          d="M8.5 9.5h7v5a3.5 3.5 0 01-7 0v-5z"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M10 9.5V8a2 2 0 014 0v1.5M6 11h2.5M15.5 11H18M6.5 16l2.2-1M17.5 16l-2.2-1"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-        />
-      </>
-    ),
   },
   {
     value: "content",
     label: "Content or link issue",
     description: "Report incorrect details or a FilmGeezer link problem.",
-    icon: (
-      <>
-        <rect
-          x="5"
-          y="5"
-          width="14"
-          height="14"
-          rx="3"
-          stroke="currentColor"
-          strokeWidth="1.7"
-        />
-        <path
-          d="M9 9h6M9 12h6M9 15h3"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-        />
-      </>
-    ),
   },
   {
     value: "account",
     label: "Account help",
     description: "Get help with sign-in, verification, or account access.",
-    icon: (
-      <>
-        <circle
-          cx="12"
-          cy="9"
-          r="3"
-          stroke="currentColor"
-          strokeWidth="1.7"
-        />
-        <path
-          d="M6.5 19a5.5 5.5 0 0111 0"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-        />
-      </>
-    ),
-  },
-  {
-    value: "feedback",
-    label: "Share feedback",
-    description: "Send an idea or tell us how FilmGeezer can improve.",
-    icon: (
-      <path
-        d="M5 6.5A2.5 2.5 0 017.5 4h9A2.5 2.5 0 0119 6.5v6a2.5 2.5 0 01-2.5 2.5H11l-4.5 4v-4A2.5 2.5 0 015 12.5v-6z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    ),
   },
 ];
 
@@ -187,11 +113,18 @@ function ContactComposer({
     ? draft.email
     : user?.email ?? draft.email;
 
+  const selectedCategory =
+    draft.category === "feedback" ? "general" : draft.category;
+
   useEffect(() => {
     if (authStatus === "authenticated") {
       setShowGuestChoice(false);
     }
   }, [authStatus]);
+
+  const closeGuestChoice = useCallback(() => {
+    setShowGuestChoice(false);
+  }, []);
 
   function updateDraft(
     changes: Partial<ContactComposerDraft>,
@@ -260,7 +193,7 @@ function ContactComposer({
 
     try {
       const response = await submitContactMessage({
-        category: draft.category,
+        category: selectedCategory,
         name: name.trim(),
         email: email.trim(),
         subject: draft.subject.trim(),
@@ -350,83 +283,54 @@ function ContactComposer({
               What can we help with?
             </legend>
 
-            <div className="mt-3 sm:hidden">
-              <label htmlFor="contact-category" className="sr-only">
-                Support category
-              </label>
-              <select
-                id="contact-category"
-                value={draft.category}
-                onChange={(event) => {
-                  updateDraft({
-                    category: event.target.value as ContactCategory,
-                  });
-                  clearFieldError("category");
-                }}
-                className="min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 text-sm font-bold text-white outline-none focus:border-sky-300/50 focus:ring-2 focus:ring-sky-300/20"
-              >
-                {CONTACT_CATEGORIES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                {
-                  CONTACT_CATEGORIES.find(
-                    (option) => option.value === draft.category,
-                  )?.description
-                }
-              </p>
-            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(12rem,0.42fr)_minmax(0,0.58fr)] sm:items-stretch">
+              <div className="relative">
+                <label htmlFor="contact-category" className="sr-only">
+                  Support category
+                </label>
+                <select
+                  id="contact-category"
+                  value={selectedCategory}
+                  onChange={(event) => {
+                    updateDraft({
+                      category: event.target.value as ContactCategory,
+                    });
+                    clearFieldError("category");
+                  }}
+                  className="min-h-12 w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/60 px-4 pr-11 text-sm font-bold text-white outline-none transition focus:border-sky-300/50 focus:ring-2 focus:ring-sky-300/20"
+                >
+                  {CONTACT_CATEGORIES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
 
-            <div className="mt-3 hidden gap-2.5 sm:grid sm:grid-cols-2 lg:grid-cols-3">
-              {CONTACT_CATEGORIES.map((option) => {
-                const selected = draft.category === option.value;
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                >
+                  <path
+                    d="M5 7.5l5 5 5-5"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
 
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => {
-                      updateDraft({ category: option.value });
-                      clearFieldError("category");
-                    }}
-                    className={`flex min-h-[5.6rem] items-start gap-3 rounded-2xl border p-3.5 text-left transition focus:outline-none focus:ring-2 focus:ring-sky-300 ${
-                      selected
-                        ? "border-sky-300/35 bg-sky-400/10 shadow-sm shadow-sky-950/30"
-                        : "border-white/10 bg-slate-950/30 hover:border-white/20 hover:bg-white/[0.035]"
-                    } ${option.value === "feedback" ? "lg:col-span-2" : ""}`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border ${
-                        selected
-                          ? "border-sky-300/25 bg-sky-400/12 text-sky-200"
-                          : "border-white/10 bg-white/[0.03] text-slate-400"
-                      }`}
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        className="h-5 w-5"
-                      >
-                        {option.icon}
-                      </svg>
-                    </span>
-
-                    <span className="min-w-0">
-                      <span className="block text-sm font-bold text-white">
-                        {option.label}
-                      </span>
-                      <span className="mt-1 block text-xs leading-5 text-slate-400">
-                        {option.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
+              <div className="flex min-h-12 items-center rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-2.5">
+                <p className="text-xs leading-5 text-slate-400 sm:text-sm">
+                  {
+                    CONTACT_CATEGORIES.find(
+                      (option) => option.value === selectedCategory,
+                    )?.description
+                  }
+                </p>
+              </div>
             </div>
           </fieldset>
 
@@ -576,7 +480,7 @@ function ContactComposer({
                 updateDraft({ message: event.target.value });
                 clearFieldError("message");
               }}
-              className="mt-2 min-h-32 w-full resize-y rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/50 focus:ring-2 focus:ring-sky-300/20"
+              className="contact-scrollbar mt-2 min-h-32 w-full resize-y rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/50 focus:ring-2 focus:ring-sky-300/20"
               placeholder="Explain what happened, what you expected, and any steps that may help us understand the issue."
             />
             <ContactFieldMessage
@@ -635,7 +539,7 @@ function ContactComposer({
         <GuestContactChoiceDialog
           email={email.trim()}
           isSending={isSubmitting}
-          onClose={() => setShowGuestChoice(false)}
+          onClose={closeGuestChoice}
           onSignIn={() => {
             setShowGuestChoice(false);
             onRequestAuthentication();

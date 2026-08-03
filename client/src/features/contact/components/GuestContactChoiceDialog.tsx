@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
 } from "react";
+import { createPortal } from "react-dom";
 
 interface GuestContactChoiceDialogProps {
   email: string;
@@ -11,6 +12,15 @@ interface GuestContactChoiceDialogProps {
   onSendAsGuest: () => void;
 }
 
+const FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "a[href]",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
 function GuestContactChoiceDialog({
   email,
   isSending,
@@ -18,14 +28,58 @@ function GuestContactChoiceDialog({
   onSignIn,
   onSendAsGuest,
 }: GuestContactChoiceDialogProps) {
+  const dialogRef = useRef<HTMLElement | null>(null);
   const signInButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
     signInButtonRef.current?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !isSending) {
+        event.preventDefault();
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+
+      if (!dialog) {
+        return;
+      }
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
+
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
@@ -33,12 +87,18 @@ function GuestContactChoiceDialog({
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
     };
   }, [isSending, onClose]);
 
-  return (
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/78 px-4 py-8 backdrop-blur-sm"
+      className="fixed inset-0 z-[140] grid place-items-center overflow-y-auto bg-slate-950/82 px-4 py-8 backdrop-blur-md"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSending) {
@@ -47,11 +107,12 @@ function GuestContactChoiceDialog({
       }}
     >
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="guest-contact-dialog-title"
         aria-describedby="guest-contact-dialog-description"
-        className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/12 bg-slate-900 shadow-2xl shadow-black/50"
+        className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/12 bg-slate-900 shadow-2xl shadow-black/55"
       >
         <div className="border-b border-white/8 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.15),transparent_38%)] px-5 py-5 sm:px-6">
           <div className="flex items-start justify-between gap-4">
@@ -104,9 +165,8 @@ function GuestContactChoiceDialog({
             id="guest-contact-dialog-description"
             className="mt-2 text-sm leading-6 text-slate-400"
           >
-            You can send this request as a guest, but it will not appear in
-            FilmGeezer and you will not be able to continue the conversation
-            here.
+            Guest sending remains available, including when someone needs help
+            signing in. The request will not appear in FilmGeezer history.
           </p>
         </div>
 
@@ -119,17 +179,17 @@ function GuestContactChoiceDialog({
               {email}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Support will use this address for any later follow-up.
+              FilmGeezer support will use this address for later follow-up.
             </p>
           </div>
 
           <div className="rounded-2xl border border-sky-300/15 bg-sky-400/[0.06] px-4 py-3">
             <p className="text-sm font-bold text-sky-100">
-              Signing in keeps the full experience
+              Signing in keeps the full conversation
             </p>
             <p className="mt-1 text-xs leading-5 text-sky-100/70">
-              Your draft stays here while you sign in. The request will then
-              appear in Recent requests and you can reply inside FilmGeezer.
+              Your draft stays available while you sign in. The request can
+              then appear in Recent requests and continue inside FilmGeezer.
             </p>
           </div>
 
@@ -155,7 +215,8 @@ function GuestContactChoiceDialog({
           </div>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

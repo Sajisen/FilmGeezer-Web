@@ -11,6 +11,10 @@ import {
 } from "../../../services/contactService";
 
 import {
+  copyTextToClipboard,
+} from "../../../utils/copyTextToClipboard";
+
+import {
   CONTACT_CATEGORY_LABELS,
   CONTACT_STATUS_PRESENTATION,
   formatContactDate,
@@ -49,7 +53,9 @@ function ContactConversationView({
   const [reply, setReply] = useState("");
   const [replyError, setReplyError] = useState<string | null>(null);
   const [isReplying, setIsReplying] = useState(false);
-  const [referenceCopied, setReferenceCopied] = useState(false);
+  const [copyState, setCopyState] = useState<
+    "idle" | "copied" | "failed"
+  >("idle");
   const threadScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -71,19 +77,28 @@ function ContactConversationView({
     return () => window.cancelAnimationFrame(frame);
   }, [conversation, isLoading]);
 
+  useEffect(() => {
+    if (copyState === "idle") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCopyState("idle");
+    }, 2_200);
+
+    return () => window.clearTimeout(timer);
+  }, [copyState]);
+
   async function copyReference() {
     if (!conversation) {
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(
-        conversation.conversation.referenceId,
-      );
-      setReferenceCopied(true);
-    } catch {
-      setReferenceCopied(false);
-    }
+    const copied = await copyTextToClipboard(
+      conversation.conversation.referenceId,
+    );
+
+    setCopyState(copied ? "copied" : "failed");
   }
 
   async function handleReply(event: FormEvent<HTMLFormElement>) {
@@ -216,7 +231,10 @@ function ContactConversationView({
               </span>
             </div>
 
-            <h2 className="mt-2.5 break-words text-xl font-black tracking-tight text-white sm:text-[1.35rem]">
+            <h2
+              title={details.subject}
+              className="mt-2.5 line-clamp-3 [overflow-wrap:anywhere] text-xl font-black tracking-tight text-white sm:line-clamp-2 sm:text-[1.35rem]"
+            >
               {details.subject}
             </h2>
 
@@ -236,8 +254,34 @@ function ContactConversationView({
           <div className="flex shrink-0 flex-wrap gap-2">
             <button
               type="button"
+              onClick={onStartNew}
+              className="hidden min-h-9 items-center gap-2 rounded-full bg-sky-500 px-4 text-xs font-bold text-white transition hover:bg-sky-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:inline-flex"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                className="h-4 w-4"
+              >
+                <path
+                  d="M12 5v14M5 12h14"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+              New request
+            </button>
+
+            <button
+              type="button"
               onClick={() => void copyReference()}
-              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 px-3.5 text-xs font-bold text-slate-300 transition hover:bg-white/7 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-300"
+              title={
+                copyState === "failed"
+                  ? "Copy failed. Select the reference ID manually."
+                  : "Copy support request reference"
+              }
+              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 px-3.5 text-xs font-bold text-slate-300 transition hover:bg-white/7 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -261,12 +305,16 @@ function ContactConversationView({
                   strokeLinecap="round"
                 />
               </svg>
-              {referenceCopied ? "Copied" : "Copy ID"}
+              {copyState === "copied"
+                ? "Copied"
+                : copyState === "failed"
+                  ? "Copy failed"
+                  : "Copy ID"}
             </button>
             <button
               type="button"
               onClick={onRefresh}
-              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 px-3.5 text-xs font-bold text-slate-300 transition hover:bg-white/7 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-300"
+              className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 px-3.5 text-xs font-bold text-slate-300 transition hover:bg-white/7 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -306,7 +354,7 @@ function ContactConversationView({
       <div className="flex-1 bg-slate-950/25 px-4 py-4 sm:px-6 sm:py-5">
         <div
           ref={threadScrollRef}
-          className="max-h-[29rem] min-h-[15rem] space-y-3 overflow-y-auto pr-1"
+          className="contact-scrollbar max-h-[29rem] min-h-[15rem] space-y-3 overflow-y-auto pr-1"
         >
           {messages.map((message) => {
             const isUser = message.senderRole === "user";
@@ -389,7 +437,7 @@ function ContactConversationView({
             setReply(event.target.value);
             setReplyError(null);
           }}
-          className="mt-2 min-h-[5.5rem] max-h-40 w-full resize-y rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/50 focus:ring-2 focus:ring-sky-300/20"
+          className="contact-scrollbar mt-2 min-h-[4.75rem] max-h-36 w-full resize-y rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/50 focus:ring-2 focus:ring-sky-300/20"
           placeholder="Add information or reply to FilmGeezer support."
         />
 
@@ -407,7 +455,7 @@ function ContactConversationView({
           <button
             type="submit"
             disabled={isReplying || reply.trim().length < 2}
-            className="min-h-11 shrink-0 rounded-full bg-sky-500 px-6 text-sm font-bold text-white transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 shrink-0 rounded-full bg-sky-500 px-6 text-sm font-bold text-white transition hover:bg-sky-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isReplying ? "Sending…" : "Send reply"}
           </button>

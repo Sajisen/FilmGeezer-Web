@@ -81,7 +81,12 @@ export function readContactDraft(): ContactComposerDraft | null {
       return null;
     }
 
-    return parsed.draft;
+    return parsed.draft.category === "feedback"
+      ? {
+          ...parsed.draft,
+          category: "general",
+        }
+      : parsed.draft;
   } catch {
     clearContactDraft();
     return null;

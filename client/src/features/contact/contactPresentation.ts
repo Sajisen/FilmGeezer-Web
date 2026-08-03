@@ -4,7 +4,7 @@ import type {
 } from "../../types/contact";
 
 export const CONTACT_CATEGORY_LABELS: Record<ContactCategory, string> = {
-  general: "General question",
+  general: "Question or feedback",
   bug: "Problem report",
   content: "Content or link issue",
   account: "Account help",

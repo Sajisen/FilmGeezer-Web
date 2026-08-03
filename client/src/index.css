@@ -378,3 +378,34 @@ body {
     animation: none;
   }
 }
+
+/* Contact page and support conversation scrollbars */
+html.contact-page-scrollbar,
+.contact-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(14 165 233 / 62%) rgb(15 23 42 / 52%);
+}
+
+html.contact-page-scrollbar::-webkit-scrollbar,
+.contact-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.contact-page-scrollbar::-webkit-scrollbar-track,
+.contact-scrollbar::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgb(15 23 42 / 52%);
+}
+
+html.contact-page-scrollbar::-webkit-scrollbar-thumb,
+.contact-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid rgb(15 23 42 / 52%);
+  border-radius: 999px;
+  background: rgb(14 165 233 / 62%);
+}
+
+html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
+.contact-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(56 189 248 / 82%);
+}
