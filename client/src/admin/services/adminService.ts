@@ -4,6 +4,16 @@ import type {
   AdminOverviewResponse,
   AdminSessionResponse,
   AdminSessionSummary,
+  AdminSupportCategory,
+  AdminSupportConversationSummary,
+  AdminSupportConversationThread,
+  AdminSupportListFilters,
+  AdminSupportListResponse,
+  AdminSupportMutationResponse,
+  AdminSupportRequester,
+  AdminSupportSenderRole,
+  AdminSupportStatus,
+  AdminSupportThreadResponse,
   AdminUser,
 } from "../types/admin";
 
@@ -120,6 +130,145 @@ function isOverviewResponse(value: unknown): value is AdminOverviewResponse {
   ].every((item) => typeof item === "number");
 }
 
+const SUPPORT_CATEGORIES: AdminSupportCategory[] = [
+  "general",
+  "bug",
+  "content",
+  "account",
+  "feedback",
+];
+
+const SUPPORT_STATUSES: AdminSupportStatus[] = [
+  "new",
+  "in-review",
+  "resolved",
+  "spam",
+];
+
+const SUPPORT_SENDER_ROLES: AdminSupportSenderRole[] = [
+  "user",
+  "admin",
+];
+
+function isSupportRequester(value: unknown): value is AdminSupportRequester {
+  return (
+    isRecord(value) &&
+    (value.userId === null || typeof value.userId === "string") &&
+    typeof value.name === "string" &&
+    typeof value.email === "string" &&
+    typeof value.linkedToAccount === "boolean"
+  );
+}
+
+function isSupportSummary(
+  value: unknown,
+): value is AdminSupportConversationSummary {
+  return (
+    isRecord(value) &&
+    typeof value.referenceId === "string" &&
+    typeof value.category === "string" &&
+    SUPPORT_CATEGORIES.includes(value.category as AdminSupportCategory) &&
+    typeof value.subject === "string" &&
+    typeof value.status === "string" &&
+    SUPPORT_STATUSES.includes(value.status as AdminSupportStatus) &&
+    typeof value.preview === "string" &&
+    typeof value.messageCount === "number" &&
+    typeof value.lastSenderRole === "string" &&
+    SUPPORT_SENDER_ROLES.includes(
+      value.lastSenderRole as AdminSupportSenderRole,
+    ) &&
+    typeof value.lastMessageAt === "string" &&
+    typeof value.createdAt === "string" &&
+    isSupportRequester(value.requester)
+  );
+}
+
+function isSupportThread(
+  value: unknown,
+): value is AdminSupportConversationThread {
+  if (!isRecord(value) || !isRecord(value.conversation)) {
+    return false;
+  }
+
+  const conversation = value.conversation;
+
+  if (
+    !isSupportSummary(conversation) ||
+    typeof conversation.updatedAt !== "string" ||
+    !(
+      conversation.resolvedAt === null ||
+      typeof conversation.resolvedAt === "string"
+    ) ||
+    !Array.isArray(value.messages) ||
+    !isRecord(value.delivery)
+  ) {
+    return false;
+  }
+
+  const messagesAreValid = value.messages.every(
+    (message) =>
+      isRecord(message) &&
+      typeof message.id === "string" &&
+      typeof message.senderRole === "string" &&
+      SUPPORT_SENDER_ROLES.includes(
+        message.senderRole as AdminSupportSenderRole,
+      ) &&
+      typeof message.body === "string" &&
+      typeof message.createdAt === "string",
+  );
+
+  return (
+    messagesAreValid &&
+    (value.delivery.channel === "in-app" ||
+      value.delivery.channel === "email") &&
+    typeof value.delivery.available === "boolean" &&
+    typeof value.delivery.message === "string"
+  );
+}
+
+function isSupportListResponse(
+  value: unknown,
+): value is AdminSupportListResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_SUPPORT_CONVERSATIONS_READY" &&
+    Array.isArray(value.items) &&
+    value.items.every(isSupportSummary) &&
+    isRecord(value.pagination) &&
+    [
+      value.pagination.page,
+      value.pagination.pageSize,
+      value.pagination.totalItems,
+      value.pagination.totalPages,
+    ].every((item) => typeof item === "number")
+  );
+}
+
+function isSupportThreadResponse(
+  value: unknown,
+): value is AdminSupportThreadResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_SUPPORT_CONVERSATION_READY" &&
+    isSupportThread(value.thread)
+  );
+}
+
+function isSupportMutationResponse(
+  value: unknown,
+): value is AdminSupportMutationResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    (value.code === "ADMIN_SUPPORT_REPLY_ADDED" ||
+      value.code === "ADMIN_SUPPORT_STATUS_UPDATED") &&
+    typeof value.message === "string" &&
+    isSupportThread(value.thread)
+  );
+}
+
 async function parseJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -131,7 +280,7 @@ async function parseJson(response: Response): Promise<unknown> {
 async function adminRequest<T>(
   path: string,
   input: {
-    method?: "GET" | "POST";
+    method?: "GET" | "POST" | "PATCH";
     body?: unknown;
     csrfToken?: string;
     signal?: AbortSignal;
@@ -221,4 +370,75 @@ export function getAdminOverview(
     guard: isOverviewResponse,
     fallbackMessage: "The administrator overview could not be loaded.",
   });
+}
+
+export function getAdminSupportConversations(
+  filters: AdminSupportListFilters,
+  signal?: AbortSignal,
+): Promise<AdminSupportListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(filters.page),
+    pageSize: "20",
+    status: filters.status,
+    category: filters.category,
+    requester: filters.requester,
+  });
+
+  if (filters.search.trim()) {
+    parameters.set("search", filters.search.trim());
+  }
+
+  return adminRequest(`/api/admin/support?${parameters.toString()}`, {
+    signal,
+    guard: isSupportListResponse,
+    fallbackMessage: "The support inbox could not be loaded.",
+  });
+}
+
+export function getAdminSupportConversation(
+  referenceId: string,
+  signal?: AbortSignal,
+): Promise<AdminSupportThreadResponse> {
+  return adminRequest(
+    `/api/admin/support/${encodeURIComponent(referenceId)}`,
+    {
+      signal,
+      guard: isSupportThreadResponse,
+      fallbackMessage: "The support conversation could not be loaded.",
+    },
+  );
+}
+
+export function replyToAdminSupportConversation(
+  referenceId: string,
+  message: string,
+  csrfToken: string,
+): Promise<AdminSupportMutationResponse> {
+  return adminRequest(
+    `/api/admin/support/${encodeURIComponent(referenceId)}/messages`,
+    {
+      method: "POST",
+      body: { message },
+      csrfToken,
+      guard: isSupportMutationResponse,
+      fallbackMessage: "The administrator reply could not be saved.",
+    },
+  );
+}
+
+export function updateAdminSupportStatus(
+  referenceId: string,
+  status: AdminSupportStatus,
+  csrfToken: string,
+): Promise<AdminSupportMutationResponse> {
+  return adminRequest(
+    `/api/admin/support/${encodeURIComponent(referenceId)}/status`,
+    {
+      method: "PATCH",
+      body: { status },
+      csrfToken,
+      guard: isSupportMutationResponse,
+      fallbackMessage: "The support-request status could not be updated.",
+    },
+  );
 }

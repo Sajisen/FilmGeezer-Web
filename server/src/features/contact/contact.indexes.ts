@@ -70,6 +70,25 @@ async function prepareContactStorage(): Promise<void> {
       key: { emailNormalized: 1, lastMessageAt: -1 },
       name: "contact_email_last_message_at",
     },
+    {
+      key: { userId: 1, status: 1, lastMessageAt: -1 },
+      name: "contact_requester_status_last_message_at",
+    },
+    {
+      key: {
+        subject: "text",
+        name: "text",
+        emailNormalized: "text",
+        referenceId: "text",
+      },
+      name: "contact_admin_search_text",
+      weights: {
+        referenceId: 10,
+        subject: 6,
+        emailNormalized: 4,
+        name: 2,
+      },
+    },
   ]);
 
   await threadMessages.updateMany(

@@ -29,6 +29,8 @@ export const ADMIN_AUDIT_EVENT_VALUES = [
   "admin-session-revoked",
   "admin-role-granted",
   "admin-role-revoked",
+  "admin-support-replied",
+  "admin-support-status-updated",
 ] as const;
 
 export type AdminAuditEvent =

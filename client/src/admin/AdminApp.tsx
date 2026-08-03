@@ -11,6 +11,7 @@ import { useAdminAuth } from "./auth/adminAuthContext";
 import AdminShell from "./components/AdminShell";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminOverviewPage from "./pages/AdminOverviewPage";
+import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminPlaceholderPage from "./pages/AdminPlaceholderPage";
 
 function AdminBootstrapScreen() {
@@ -41,17 +42,7 @@ function ProtectedAdminRoutes() {
     <Routes>
       <Route element={<AdminShell />}>
         <Route index element={<AdminOverviewPage />} />
-        <Route
-          path="support"
-          element={
-            <AdminPlaceholderPage
-              eyebrow="Support operations"
-              title="Contact support inbox"
-              description="This route is reserved for the next implementation phase. It will operate on the Contact conversations already stored in MongoDB."
-              nextStep="Build paginated request queues, status filters, thread review, administrator replies, resolve/reopen controls, guest-email delivery state, and audit records."
-            />
-          }
-        />
+        <Route path="support" element={<AdminSupportPage />} />
         <Route
           path="users"
           element={

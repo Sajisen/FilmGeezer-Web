@@ -141,21 +141,20 @@ export default function AdminOverviewPage() {
       <section className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
         <article className="rounded-2xl border border-white/9 bg-slate-900/62 p-6">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
-            Next operational module
+            Operational module
           </p>
           <h2 className="mt-3 text-xl font-black text-white">
             Contact support inbox
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-            The next phase will turn stored Contact conversations into an
-            administrator workflow with filtering, assignment states, replies,
-            resolution controls, and complete audit records.
+            Review Contact requests, continue signed-in conversations, classify
+            guest requests safely, and record every administrator action.
           </p>
           <Link
             to="/support"
             className="mt-5 inline-flex min-h-11 items-center rounded-full border border-sky-300/25 bg-sky-400/10 px-5 text-sm font-black text-sky-200 transition hover:bg-sky-400/15"
           >
-            View support module plan
+            Open support inbox
           </Link>
         </article>
 

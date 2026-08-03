@@ -324,3 +324,44 @@ Administrator MFA is intentionally identified as a production launch gate. The
 current foundation provides role checks, isolated sessions, short lifetimes,
 CSRF protection, rate limits, and audit logging, but production access should
 not be enabled until MFA is added and tested.
+
+## Administrator Contact support inbox
+
+The protected administrator application now includes a real Contact support
+workflow at `/admin/support` in development or `/support` on the dedicated
+admin subdomain.
+
+The module provides:
+
+- paginated support queues;
+- filters for status, category, and guest/account requesters;
+- reference, subject, requester-name, and email search;
+- complete chronological conversation review;
+- administrator replies for signed-in FilmGeezer requesters;
+- New, In review, Resolved, and Spam status controls;
+- explicit guest-email delivery safeguards until transactional email exists;
+- administrator audit records for replies and status changes.
+
+Administrator endpoints:
+
+```text
+GET   /api/admin/support
+GET   /api/admin/support/:referenceId
+POST  /api/admin/support/:referenceId/messages
+PATCH /api/admin/support/:referenceId/status
+```
+
+All routes require a current administrator session. Reply and status changes
+also require the administrator CSRF token and the exact trusted admin Origin.
+
+Signed-in Contact requests can receive in-app administrator replies immediately.
+Guest requests remain visible and classifiable, but the reply composer is
+intentionally disabled until transactional email delivery is configured. This
+prevents the dashboard from recording a response that the guest cannot receive.
+
+Administrator support actions are written to `admin_audit_events` as:
+
+```text
+admin-support-replied
+admin-support-status-updated
+```
