@@ -1,3 +1,10 @@
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from "@simplewebauthn/browser";
+
 export interface AdminUser {
   userId: string;
   email: string;
@@ -21,6 +28,8 @@ export interface AdminSessionSummary {
 export interface AdminSecuritySummary {
   mfaEnabled: boolean;
   mfaRequiredByPolicy: boolean;
+  passkeysConfigured: boolean;
+  passkeyCount: number;
   recoveryCodesRemaining: number;
   mfaEnabledAt: string | null;
 }
@@ -50,6 +59,8 @@ export interface AdminMfaChallengeResponse {
   message: string;
   challenge: {
     expiresAt: string;
+    passkeyAllowed: boolean;
+    totpAllowed: boolean;
     recoveryAllowed: boolean;
   };
 }
@@ -138,6 +149,8 @@ export type AdminAuthStatus =
 
 export interface AdminMfaChallengeState {
   expiresAt: string;
+  passkeyAllowed: boolean;
+  totpAllowed: boolean;
   recoveryAllowed: boolean;
 }
 
@@ -238,3 +251,63 @@ export interface AdminSupportListFilters {
   requester: AdminSupportRequesterFilter;
   search: string;
 }
+
+
+export type AdminPasskeyAttachment = "platform" | "cross-platform";
+
+export interface AdminPasskeySummary {
+  credentialId: string;
+  label: string;
+  attachment: AdminPasskeyAttachment;
+  deviceType: "singleDevice" | "multiDevice";
+  backedUp: boolean;
+  transports: string[];
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface AdminPasskeysResponse {
+  status: "success";
+  code: "ADMIN_PASSKEYS_READY";
+  configured: boolean;
+  passkeys: AdminPasskeySummary[];
+}
+
+export interface AdminPasskeyRegistrationOptionsResponse {
+  status: "success";
+  code: "ADMIN_PASSKEY_REGISTRATION_READY";
+  challengeId: string;
+  expiresAt: string;
+  options: PublicKeyCredentialCreationOptionsJSON;
+}
+
+export interface AdminPasskeyAuthenticationOptionsResponse {
+  status: "success";
+  code:
+    | "ADMIN_PASSKEY_LOGIN_READY"
+    | "ADMIN_PASSKEY_REAUTHENTICATION_READY";
+  challengeId: string;
+  expiresAt: string;
+  options: PublicKeyCredentialRequestOptionsJSON;
+}
+
+export interface AdminPasskeyRegistrationResponse {
+  status: "success";
+  code: "ADMIN_PASSKEY_REGISTERED";
+  message: string;
+  registeredAt: string;
+  passkey: AdminPasskeySummary;
+  recoveryCodes: string[] | null;
+}
+
+export interface AdminPasskeyRevokeResponse {
+  status: "success";
+  code: "ADMIN_PASSKEY_REVOKED";
+  message: string;
+  revokedAt: string;
+  remainingPasskeys: number;
+  revokedOtherSessions: number;
+}
+
+export type AdminRegistrationCredential = RegistrationResponseJSON;
+export type AdminAuthenticationCredential = AuthenticationResponseJSON;

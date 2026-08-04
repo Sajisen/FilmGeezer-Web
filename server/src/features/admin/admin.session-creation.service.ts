@@ -65,7 +65,11 @@ export async function issueAdminSession(input: {
   authenticatedAt: Date;
   ipHash: string | null;
   userAgentSummary: string | null;
-  authenticationMethod: "password" | "password-and-totp" | "password-and-recovery";
+  authenticationMethod:
+    | "password"
+    | "password-and-totp"
+    | "password-and-recovery"
+    | "password-and-passkey";
 }): Promise<IssuedAdminSessionResult> {
   const secrets = createAdminSessionSecrets();
   const sessionId = new ObjectId();

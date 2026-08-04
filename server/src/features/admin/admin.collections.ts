@@ -6,7 +6,11 @@ import type {
   AdminAuditEventDocument,
   AdminMfaChallengeDocument,
   AdminMfaFactorDocument,
+  AdminPasskeyChallengeDocument,
+  AdminPasskeyCredentialDocument,
+  AdminRecoveryFactorDocument,
   AdminSessionDocument,
+  AdminSecurityStateDocument,
 } from "./admin.types.js";
 
 export interface AdminCollections {
@@ -14,6 +18,10 @@ export interface AdminCollections {
   auditEvents: Collection<AdminAuditEventDocument>;
   mfaFactors: Collection<AdminMfaFactorDocument>;
   mfaChallenges: Collection<AdminMfaChallengeDocument>;
+  recoveryFactors: Collection<AdminRecoveryFactorDocument>;
+  passkeyCredentials: Collection<AdminPasskeyCredentialDocument>;
+  passkeyChallenges: Collection<AdminPasskeyChallengeDocument>;
+  securityStates: Collection<AdminSecurityStateDocument>;
 }
 
 export async function getAdminCollections(): Promise<AdminCollections> {
@@ -31,6 +39,18 @@ export async function getAdminCollections(): Promise<AdminCollections> {
     ),
     mfaChallenges: database.collection<AdminMfaChallengeDocument>(
       ADMIN_COLLECTION_NAMES.mfaChallenges,
+    ),
+    recoveryFactors: database.collection<AdminRecoveryFactorDocument>(
+      ADMIN_COLLECTION_NAMES.recoveryFactors,
+    ),
+    passkeyCredentials: database.collection<AdminPasskeyCredentialDocument>(
+      ADMIN_COLLECTION_NAMES.passkeyCredentials,
+    ),
+    passkeyChallenges: database.collection<AdminPasskeyChallengeDocument>(
+      ADMIN_COLLECTION_NAMES.passkeyChallenges,
+    ),
+    securityStates: database.collection<AdminSecurityStateDocument>(
+      ADMIN_COLLECTION_NAMES.securityStates,
     ),
   };
 }

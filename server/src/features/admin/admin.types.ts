@@ -13,6 +13,23 @@ export const ADMIN_MFA_CHALLENGE_PURPOSE_VALUES = [
   "setup",
 ] as const;
 
+export const ADMIN_PASSKEY_CHALLENGE_PURPOSE_VALUES = [
+  "registration",
+  "login",
+  "reauthentication",
+] as const;
+
+export type AdminPasskeyChallengePurpose =
+  (typeof ADMIN_PASSKEY_CHALLENGE_PURPOSE_VALUES)[number];
+
+export const ADMIN_PASSKEY_ATTACHMENT_VALUES = [
+  "platform",
+  "cross-platform",
+] as const;
+
+export type AdminPasskeyAttachment =
+  (typeof ADMIN_PASSKEY_ATTACHMENT_VALUES)[number];
+
 export type AdminMfaChallengePurpose =
   (typeof ADMIN_MFA_CHALLENGE_PURPOSE_VALUES)[number];
 
@@ -27,6 +44,7 @@ export const ADMIN_SESSION_REVOCATION_REASON_VALUES = [
   "administrator-revoked",
   "mfa-reset",
   "mfa-disabled",
+  "passkey-reset",
 ] as const;
 
 export type AdminSessionRevocationReason =
@@ -56,6 +74,13 @@ export const ADMIN_AUDIT_EVENT_VALUES = [
   "admin-reauthentication-succeeded",
   "admin-reauthentication-failed",
   "admin-mfa-reset",
+  "admin-passkey-registration-started",
+  "admin-passkey-registered",
+  "admin-passkey-authentication-succeeded",
+  "admin-passkey-authentication-failed",
+  "admin-passkey-revoked",
+  "admin-passkey-used-for-reauthentication",
+  "admin-passkey-emergency-reset",
 ] as const;
 
 export type AdminAuditEvent =
@@ -103,6 +128,62 @@ export interface AdminMfaFactorDocument {
   updatedAt: Date;
 }
 
+export interface AdminRecoveryFactorDocument {
+  _id: ObjectId;
+  schemaVersion: number;
+  userId: ObjectId;
+  recoveryCodeHashes: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AdminSecurityStateDocument {
+  _id: ObjectId;
+  schemaVersion: number;
+  userId: ObjectId;
+  factorRevision: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AdminPasskeyCredentialDocument {
+  _id: ObjectId;
+  schemaVersion: number;
+  userId: ObjectId;
+  credentialId: string;
+  publicKeyBase64: string;
+  counter: number;
+  transports: string[];
+  deviceType: "singleDevice" | "multiDevice";
+  backedUp: boolean;
+  label: string;
+  attachment: AdminPasskeyAttachment;
+  createdAt: Date;
+  updatedAt: Date;
+  lastUsedAt: Date | null;
+  revokedAt: Date | null;
+}
+
+export interface AdminPasskeyChallengeDocument {
+  _id: ObjectId;
+  schemaVersion: number;
+  publicId: string;
+  purpose: AdminPasskeyChallengePurpose;
+  userId: ObjectId;
+  sessionId: ObjectId | null;
+  parentMfaChallengeId: ObjectId | null;
+  challenge: string;
+  label: string | null;
+  attachment: AdminPasskeyAttachment | null;
+  attemptCount: number;
+  maximumAttempts: number;
+  ipHash: string | null;
+  userAgentSummary: string | null;
+  createdAt: Date;
+  expiresAt: Date;
+  consumedAt: Date | null;
+}
+
 export interface AdminMfaChallengeDocument {
   _id: ObjectId;
   schemaVersion: number;
@@ -146,6 +227,8 @@ export interface AdminSessionContext {
   accessLevel: AdminSessionAccessLevel;
   mfaEnabled: boolean;
   mfaRequiredByPolicy: boolean;
+  passkeysConfigured: boolean;
+  passkeyCount: number;
   recoveryCodesRemaining: number;
   mfaEnabledAt: Date | null;
   createdAt: Date;

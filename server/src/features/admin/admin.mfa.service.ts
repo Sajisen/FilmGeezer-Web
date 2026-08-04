@@ -14,9 +14,7 @@ import {
   findActiveUserById,
   findUserByNormalizedEmail,
 } from "../auth/repositories/authUser.repository.js";
-import {
-  ADMIN_MFA_POLICY,
-} from "./admin.constants.js";
+import { ADMIN_MFA_POLICY } from "./admin.constants.js";
 import {
   AdminInvalidCredentialsError,
   AdminMfaConfigurationError,
@@ -30,18 +28,15 @@ import {
   createAdminMfaQrDataUrl,
   decryptAdminMfaSecret,
   encryptAdminMfaSecret,
-  findAdminRecoveryCodeHash,
   generateAdminMfaSecret,
-  generateAdminRecoveryCodes,
-  hashAdminRecoveryCode,
   isAdminMfaConfigured,
   verifyAdminTotpCode,
 } from "./admin.mfa.crypto.js";
 import {
   acceptAdminTotpTimeStep,
   consumeAdminMfaChallenge,
-  consumeAdminRecoveryCode,
   createAdminMfaChallenge,
+  deleteAdminMfaChallengesForUser,
   createAdminMfaFactor,
   deleteAdminMfaFactor,
   findAdminMfaChallengeByTokenHash,
@@ -49,10 +44,22 @@ import {
   findAdminMfaSetupChallenge,
   invalidateOpenAdminMfaChallenges,
   recordAdminMfaChallengeFailure,
-  replaceAdminRecoveryCodes,
   updateAdminRecentAuthentication,
   updateAdminSessionMfaState,
 } from "./admin.mfa.repository.js";
+import {
+  countActiveAdminPasskeys,
+  deleteAdminPasskeyChallengesForUser,
+  deleteAllAdminPasskeysForUser,
+} from "./admin.passkey.repository.js";
+import { isAdminWebAuthnConfigured } from "./admin.passkey.config.js";
+import {
+  consumeAdminRecoveryProof,
+  generateAndStoreAdminRecoveryCodes,
+  getAdminRecoveryCodeCount,
+} from "./admin.recovery.service.js";
+import { deleteAdminRecoveryFactor } from "./admin.recovery.repository.js";
+import { bumpAdminSecurityRevision } from "./admin.security.repository.js";
 import {
   createAdminAuditEvent,
   revokeAllAdminSessionsForUser,
@@ -90,6 +97,15 @@ const ADMIN_MFA_TRANSACTION_OPTIONS: TransactionOptions = {
   maxCommitTimeMS: 5_000,
 };
 
+export interface AdminSecurityState {
+  mfaEnabled: boolean;
+  mfaRequiredByPolicy: boolean;
+  passkeysConfigured: boolean;
+  passkeyCount: number;
+  recoveryCodesRemaining: number;
+  mfaEnabledAt: Date | null;
+}
+
 async function recordMfaAudit(input: {
   actorUserId: ObjectId | null;
   targetUserId?: ObjectId | null;
@@ -103,7 +119,8 @@ async function recordMfaAudit(input: {
     | "admin-mfa-recovery-regenerated"
     | "admin-reauthentication-succeeded"
     | "admin-reauthentication-failed"
-    | "admin-mfa-reset";
+    | "admin-mfa-reset"
+    | "admin-passkey-emergency-reset";
   outcome: "success" | "failure";
   createdAt: Date;
   ipHash?: string | null;
@@ -132,10 +149,7 @@ async function verifyAdministratorPassword(
   password: string,
 ): Promise<boolean> {
   const credential = await findAuthCredentialByUserId(userId);
-
-  if (!credential) {
-    return false;
-  }
+  if (!credential) return false;
 
   try {
     return await verifyPassword(credential.passwordHash, password);
@@ -148,13 +162,16 @@ async function verifyAdministratorPassword(
 }
 
 async function consumeMfaProof(input: {
-  factor: AdminMfaFactorDocument;
+  userId: ObjectId;
+  factor: AdminMfaFactorDocument | null;
   method: "totp" | "recovery";
   code: string;
   checkedAt: Date;
   session?: ClientSession;
 }): Promise<"totp" | "recovery" | null> {
   if (input.method === "totp") {
+    if (!input.factor) return null;
+
     const secret = decryptAdminMfaSecret(input.factor.encryptedSecret);
     const timeStep = verifyAdminTotpCode({
       secret,
@@ -182,26 +199,39 @@ async function consumeMfaProof(input: {
     return accepted ? "totp" : null;
   }
 
-  const matchingHash = findAdminRecoveryCodeHash({
-    userId: input.factor.userId,
+  const consumed = await consumeAdminRecoveryProof({
+    userId: input.userId,
     candidateCode: input.code,
-    storedHashes: input.factor.recoveryCodeHashes,
+    legacyFactor: input.factor,
+    checkedAt: input.checkedAt,
+    session: input.session,
   });
 
-  if (!matchingHash) {
-    return null;
-  }
+  return consumed ? "recovery" : null;
+}
 
-  const consumed = await consumeAdminRecoveryCode(
-    {
-      factorId: input.factor._id,
-      recoveryCodeHash: matchingHash,
-      consumedAt: input.checkedAt,
-    },
-    input.session,
+async function readSecurityState(
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<AdminSecurityState> {
+  const [factor, passkeyCount] = await Promise.all([
+    findAdminMfaFactorByUserId(userId, session),
+    countActiveAdminPasskeys(userId, session),
+  ]);
+  const recoveryCodesRemaining = await getAdminRecoveryCodeCount(
+    userId,
+    factor,
+    session,
   );
 
-  return consumed ? "recovery" : null;
+  return {
+    mfaEnabled: factor !== null,
+    mfaRequiredByPolicy: env.ADMIN_MFA_REQUIRED,
+    passkeysConfigured: isAdminWebAuthnConfigured(),
+    passkeyCount,
+    recoveryCodesRemaining,
+    mfaEnabledAt: factor?.enabledAt ?? null,
+  };
 }
 
 export async function verifyAdminMfaLoginChallenge(input: {
@@ -210,45 +240,46 @@ export async function verifyAdminMfaLoginChallenge(input: {
   requestMetadata: AdminRequestMetadata;
 }): Promise<{
   result: IssuedAdminSessionResult;
-  security: {
-    mfaEnabled: true;
-    mfaRequiredByPolicy: boolean;
-    recoveryCodesRemaining: number;
-    mfaEnabledAt: Date;
-  };
+  security: AdminSecurityState;
 }> {
   const verification = adminMfaChallengeInputSchema.parse(input.body);
   await initializeAdminStorage();
 
   const checkedAt = new Date();
-  const tokenHash = hashAdminMfaChallengeToken(input.challengeToken);
-  const challenge = await findAdminMfaChallengeByTokenHash(tokenHash);
+  const challenge = await findAdminMfaChallengeByTokenHash(
+    hashAdminMfaChallengeToken(input.challengeToken),
+  );
   const ipHash = hashAdminIpAddress(input.requestMetadata.ipAddress);
   const userAgentSummary = summarizeAdminUserAgent(
     input.requestMetadata.userAgent,
   );
+  const usable = Boolean(
+    challenge &&
+      challenge.consumedAt === null &&
+      challenge.expiresAt.getTime() > checkedAt.getTime() &&
+      challenge.attemptCount < challenge.maximumAttempts &&
+      (challenge.userAgentSummary === null ||
+        challenge.userAgentSummary === userAgentSummary) &&
+      (challenge.ipHash === null || challenge.ipHash === ipHash),
+  );
 
-  const challengeIsUsable =
-    challenge !== null &&
-    challenge.consumedAt === null &&
-    challenge.expiresAt.getTime() > checkedAt.getTime() &&
-    challenge.attemptCount < challenge.maximumAttempts &&
-    (challenge.userAgentSummary === null ||
-      challenge.userAgentSummary === userAgentSummary) &&
-    (challenge.ipHash === null || challenge.ipHash === ipHash);
-
-  if (!challengeIsUsable || !challenge) {
+  if (!usable || !challenge) {
     throw new AdminMfaVerificationError(
       "The administrator verification request expired. Sign in again.",
     );
   }
 
-  const [user, factor] = await Promise.all([
+  const [user, factor, passkeyCount] = await Promise.all([
     findActiveUserById(challenge.userId),
     findAdminMfaFactorByUserId(challenge.userId),
+    countActiveAdminPasskeys(challenge.userId),
   ]);
 
-  if (!user || !user.roles.includes("admin") || !factor) {
+  if (
+    !user ||
+    !user.roles.includes("admin") ||
+    (factor === null && passkeyCount === 0)
+  ) {
     await recordAdminMfaChallengeFailure({
       challengeId: challenge._id,
       checkedAt,
@@ -257,6 +288,7 @@ export async function verifyAdminMfaLoginChallenge(input: {
   }
 
   const proof = await consumeMfaProof({
+    userId: user._id,
     factor,
     method: verification.method,
     code: verification.code,
@@ -276,10 +308,7 @@ export async function verifyAdminMfaLoginChallenge(input: {
       createdAt: checkedAt,
       ipHash,
       userAgentSummary,
-      details: {
-        method: verification.method,
-        attemptsRemaining,
-      },
+      details: { method: verification.method, attemptsRemaining },
     });
 
     throw new AdminMfaVerificationError(
@@ -293,7 +322,6 @@ export async function verifyAdminMfaLoginChallenge(input: {
     challenge._id,
     checkedAt,
   );
-
   if (!consumed) {
     throw new AdminMfaVerificationError(
       "The administrator verification request expired. Sign in again.",
@@ -312,6 +340,8 @@ export async function verifyAdminMfaLoginChallenge(input: {
         ? "password-and-totp"
         : "password-and-recovery",
   });
+
+  const security = await readSecurityState(user._id);
 
   await recordMfaAudit({
     actorUserId: user._id,
@@ -332,24 +362,12 @@ export async function verifyAdminMfaLoginChallenge(input: {
       ipHash,
       userAgentSummary,
       details: {
-        recoveryCodesRemaining:
-          Math.max(0, factor.recoveryCodeHashes.length - 1),
+        recoveryCodesRemaining: security.recoveryCodesRemaining,
       },
     });
   }
 
-  return {
-    result,
-    security: {
-      mfaEnabled: true,
-      mfaRequiredByPolicy: env.ADMIN_MFA_REQUIRED,
-      recoveryCodesRemaining:
-        proof === "recovery"
-          ? Math.max(0, factor.recoveryCodeHashes.length - 1)
-          : factor.recoveryCodeHashes.length,
-      mfaEnabledAt: factor.enabledAt,
-    },
-  };
+  return { result, security };
 }
 
 export async function getAdminMfaStatus(
@@ -358,17 +376,22 @@ export async function getAdminMfaStatus(
   configured: boolean;
   enabled: boolean;
   requiredByPolicy: boolean;
+  passkeysConfigured: boolean;
+  passkeyCount: number;
   recoveryCodesRemaining: number;
   enabledAt: Date | null;
 }> {
-  const factor = await findAdminMfaFactorByUserId(context.userId);
+  await initializeAdminStorage();
+  const security = await readSecurityState(context.userId);
 
   return {
     configured: isAdminMfaConfigured(),
-    enabled: factor !== null,
-    requiredByPolicy: env.ADMIN_MFA_REQUIRED,
-    recoveryCodesRemaining: factor?.recoveryCodeHashes.length ?? 0,
-    enabledAt: factor?.enabledAt ?? null,
+    enabled: security.mfaEnabled,
+    requiredByPolicy: security.mfaRequiredByPolicy,
+    passkeysConfigured: security.passkeysConfigured,
+    passkeyCount: security.passkeyCount,
+    recoveryCodesRemaining: security.recoveryCodesRemaining,
+    enabledAt: security.mfaEnabledAt,
   };
 }
 
@@ -388,23 +411,20 @@ export async function startAdminMfaSetup(
 
   const setupInput = adminMfaSetupStartInputSchema.parse(input);
   const existingFactor = await findAdminMfaFactorByUserId(context.userId);
-
   if (existingFactor) {
     throw new AdminMfaOperationError(
-      "Administrator MFA is already enabled.",
+      "Administrator authenticator-app MFA is already enabled.",
     );
   }
 
   if (context.accessLevel === "full") {
-    if (
-      !setupInput.password ||
-      !(await verifyAdministratorPassword(
+    const passwordIsValid =
+      typeof setupInput.password === "string" &&
+      (await verifyAdministratorPassword(
         context.userId,
         setupInput.password,
-      ))
-    ) {
-      throw new AdminInvalidCredentialsError();
-    }
+      ));
+    if (!passwordIsValid) throw new AdminInvalidCredentialsError();
   }
 
   const createdAt = new Date();
@@ -412,11 +432,12 @@ export async function startAdminMfaSetup(
     createdAt.getTime() + ADMIN_MFA_POLICY.setupLifetimeMilliseconds,
   );
   const secret = generateAdminMfaSecret();
-  const setupId = randomUUID();
+  const encryptedSecret = encryptAdminMfaSecret(secret);
   const otpAuthUri = createAdminMfaOtpAuthUri({
     email: context.email,
     secret,
   });
+  const setupId = randomUUID();
 
   await invalidateOpenAdminMfaChallenges({
     userId: context.userId,
@@ -424,7 +445,6 @@ export async function startAdminMfaSetup(
     sessionId: context.sessionId,
     invalidatedAt: createdAt,
   });
-
   await createAdminMfaChallenge({
     challengeId: new ObjectId(),
     publicId: setupId,
@@ -432,7 +452,7 @@ export async function startAdminMfaSetup(
     userId: context.userId,
     sessionId: context.sessionId,
     tokenHash: null,
-    encryptedSecret: encryptAdminMfaSecret(secret),
+    encryptedSecret,
     maximumAttempts: ADMIN_MFA_POLICY.maximumVerificationAttempts,
     ipHash: null,
     userAgentSummary: null,
@@ -460,10 +480,7 @@ export async function startAdminMfaSetup(
 export async function verifyAdminMfaSetup(
   context: AdminSessionContext,
   input: AdminMfaSetupVerifyInput,
-): Promise<{
-  recoveryCodes: string[];
-  enabledAt: Date;
-}> {
+): Promise<{ recoveryCodes: string[]; enabledAt: Date }> {
   const setupInput = adminMfaSetupVerifyInputSchema.parse(input);
   const verifiedAt = new Date();
   const challenge = await findAdminMfaSetupChallenge({
@@ -496,7 +513,6 @@ export async function verifyAdminMfaSetup(
       challengeId: challenge._id,
       checkedAt: verifiedAt,
     });
-
     throw new AdminMfaVerificationError(
       attemptsRemaining > 0
         ? "The authenticator code was not accepted."
@@ -504,12 +520,9 @@ export async function verifyAdminMfaSetup(
     );
   }
 
-  const recoveryCodes = generateAdminRecoveryCodes();
-  const recoveryCodeHashes = recoveryCodes.map((code) =>
-    hashAdminRecoveryCode(context.userId, code),
-  );
   const client = await getMongoClient();
   const mongoSession = client.startSession();
+  let recoveryCodes: string[] = [];
 
   try {
     const result = await mongoSession.withTransaction(async () => {
@@ -518,24 +531,35 @@ export async function verifyAdminMfaSetup(
         verifiedAt,
         mongoSession,
       );
-
       if (!consumed) {
         throw new AdminMfaVerificationError(
           "The MFA setup expired. Start again.",
         );
       }
 
+      await bumpAdminSecurityRevision({
+        userId: context.userId,
+        changedAt: verifiedAt,
+        session: mongoSession,
+      });
+
       await createAdminMfaFactor(
         {
           factorId: new ObjectId(),
           userId: context.userId,
           encryptedSecret: challenge.encryptedSecret!,
-          recoveryCodeHashes,
+          recoveryCodeHashes: [],
           acceptedTimeStep: timeStep,
           createdAt: verifiedAt,
         },
         mongoSession,
       );
+
+      recoveryCodes = await generateAndStoreAdminRecoveryCodes({
+        userId: context.userId,
+        generatedAt: verifiedAt,
+        session: mongoSession,
+      });
 
       const updated = await updateAdminSessionMfaState(
         {
@@ -546,23 +570,21 @@ export async function verifyAdminMfaSetup(
         },
         mongoSession,
       );
-
       if (!updated) {
         throw new AdminPersistenceError(
           "The administrator session could not be upgraded.",
         );
       }
 
-      const revokedOtherSessions =
-        await revokeOtherAdminSessionsForUser(
-          {
-            userId: context.userId,
-            exceptSessionId: context.sessionId,
-            revokedAt: verifiedAt,
-            reason: "security-event",
-          },
-          mongoSession,
-        );
+      const revokedOtherSessions = await revokeOtherAdminSessionsForUser(
+        {
+          userId: context.userId,
+          exceptSessionId: context.sessionId,
+          revokedAt: verifiedAt,
+          reason: "security-event",
+        },
+        mongoSession,
+      );
 
       await recordMfaAudit({
         actorUserId: context.userId,
@@ -595,33 +617,25 @@ async function verifyProtectedMfaAction(input: {
   context: AdminSessionContext;
   body: AdminMfaProtectedActionInput;
   checkedAt: Date;
-}): Promise<{
-  factor: AdminMfaFactorDocument;
-  proof: "totp" | "recovery";
-}> {
+}): Promise<{ proof: "totp" | "recovery" }> {
   const action = adminMfaProtectedActionInputSchema.parse(input.body);
-  const passwordIsValid = await verifyAdministratorPassword(
-    input.context.userId,
-    action.password,
-  );
-  const factor = await findAdminMfaFactorByUserId(input.context.userId);
+  const [passwordIsValid, factor] = await Promise.all([
+    verifyAdministratorPassword(input.context.userId, action.password),
+    findAdminMfaFactorByUserId(input.context.userId),
+  ]);
 
-  if (!passwordIsValid || !factor) {
-    throw new AdminInvalidCredentialsError();
-  }
+  if (!passwordIsValid) throw new AdminInvalidCredentialsError();
 
   const proof = await consumeMfaProof({
+    userId: input.context.userId,
     factor,
     method: action.method,
     code: action.code,
     checkedAt: input.checkedAt,
   });
+  if (!proof) throw new AdminMfaVerificationError();
 
-  if (!proof) {
-    throw new AdminMfaVerificationError();
-  }
-
-  return { factor, proof };
+  return { proof };
 }
 
 export async function regenerateAdminRecoveryCodes(
@@ -629,32 +643,26 @@ export async function regenerateAdminRecoveryCodes(
   input: AdminMfaProtectedActionInput,
 ): Promise<{ recoveryCodes: string[]; generatedAt: Date }> {
   const generatedAt = new Date();
-  const { factor, proof } = await verifyProtectedMfaAction({
+  const { proof } = await verifyProtectedMfaAction({
     context,
     body: input,
     checkedAt: generatedAt,
   });
-  const recoveryCodes = generateAdminRecoveryCodes();
-  const hashes = recoveryCodes.map((code) =>
-    hashAdminRecoveryCode(context.userId, code),
-  );
-
-  const replaced = await replaceAdminRecoveryCodes({
-    factorId: factor._id,
-    hashes,
-    updatedAt: generatedAt,
+  const recoveryCodes = await generateAndStoreAdminRecoveryCodes({
+    userId: context.userId,
+    generatedAt,
   });
 
-  if (!replaced) {
-    throw new AdminPersistenceError(
-      "Administrator recovery codes could not be replaced.",
-    );
-  }
-
-  await updateAdminRecentAuthentication({
+  const updated = await updateAdminRecentAuthentication({
     sessionId: context.sessionId,
     authenticatedAt: generatedAt,
   });
+  if (!updated) {
+    throw new AdminPersistenceError(
+      "Recent administrator authentication could not be recorded.",
+    );
+  }
+
   await recordMfaAudit({
     actorUserId: context.userId,
     eventType: "admin-mfa-recovery-regenerated",
@@ -666,13 +674,45 @@ export async function regenerateAdminRecoveryCodes(
   return { recoveryCodes, generatedAt };
 }
 
+export async function regenerateAdminRecoveryCodesAfterRecentAuthentication(
+  context: AdminSessionContext,
+): Promise<{ recoveryCodes: string[]; generatedAt: Date }> {
+  const generatedAt = new Date();
+  const [factor, passkeyCount] = await Promise.all([
+    findAdminMfaFactorByUserId(context.userId),
+    countActiveAdminPasskeys(context.userId),
+  ]);
+
+  if (!factor && passkeyCount === 0) {
+    throw new AdminMfaOperationError(
+      "Register a passkey or authenticator app before generating recovery codes.",
+    );
+  }
+
+  const recoveryCodes = await generateAndStoreAdminRecoveryCodes({
+    userId: context.userId,
+    generatedAt,
+  });
+
+  await recordMfaAudit({
+    actorUserId: context.userId,
+    eventType: "admin-mfa-recovery-regenerated",
+    outcome: "success",
+    createdAt: generatedAt,
+    details: { verificationMethod: "recent-authentication" },
+  });
+
+  return { recoveryCodes, generatedAt };
+}
+
 export async function disableAdminMfa(
   context: AdminSessionContext,
   input: AdminMfaProtectedActionInput,
 ): Promise<void> {
-  if (env.ADMIN_MFA_REQUIRED) {
+  const factor = await findAdminMfaFactorByUserId(context.userId);
+  if (!factor) {
     throw new AdminMfaOperationError(
-      "Administrator MFA is required by the current server policy.",
+      "Administrator authenticator-app MFA is not enabled.",
     );
   }
 
@@ -687,14 +727,36 @@ export async function disableAdminMfa(
 
   try {
     await mongoSession.withTransaction(async () => {
+      await bumpAdminSecurityRevision({
+        userId: context.userId,
+        changedAt: disabledAt,
+        session: mongoSession,
+      });
+
+      const [currentFactor, passkeyCount] = await Promise.all([
+        findAdminMfaFactorByUserId(context.userId, mongoSession),
+        countActiveAdminPasskeys(context.userId, mongoSession),
+      ]);
+
+      if (!currentFactor) {
+        throw new AdminMfaOperationError(
+          "Administrator authenticator-app MFA is not enabled.",
+        );
+      }
+
+      if (passkeyCount === 0) {
+        throw new AdminMfaOperationError(
+          "You cannot remove the final strong administrator verification method. Register a passkey first.",
+        );
+      }
+
       const deleted = await deleteAdminMfaFactor(
         context.userId,
         mongoSession,
       );
-
       if (!deleted) {
         throw new AdminMfaOperationError(
-          "Administrator MFA is not enabled.",
+          "Administrator authenticator-app MFA is not enabled.",
         );
       }
 
@@ -706,13 +768,12 @@ export async function disableAdminMfa(
         },
         mongoSession,
       );
-
       await recordMfaAudit({
         actorUserId: context.userId,
         eventType: "admin-mfa-disabled",
         outcome: "success",
         createdAt: disabledAt,
-        details: { verificationMethod: proof },
+        details: { verificationMethod: proof, remainingPasskeys: passkeyCount },
         session: mongoSession,
       });
     }, ADMIN_MFA_TRANSACTION_OPTIONS);
@@ -727,13 +788,11 @@ export async function reauthenticateAdministrator(
 ): Promise<{ authenticatedAt: Date }> {
   const authenticatedAt = new Date();
   const action = adminMfaProtectedActionInputSchema.parse(input);
-  const passwordIsValid = await verifyAdministratorPassword(
-    context.userId,
-    action.password,
-  );
-  const factor = await findAdminMfaFactorByUserId(context.userId);
-
-  let proof: "password" | "totp" | "recovery" = "password";
+  const [passwordIsValid, factor, passkeyCount] = await Promise.all([
+    verifyAdministratorPassword(context.userId, action.password),
+    findAdminMfaFactorByUserId(context.userId),
+    countActiveAdminPasskeys(context.userId),
+  ]);
 
   if (!passwordIsValid) {
     await recordMfaAudit({
@@ -746,37 +805,36 @@ export async function reauthenticateAdministrator(
     throw new AdminInvalidCredentialsError();
   }
 
-  if (factor) {
+  if (factor === null && passkeyCount === 0) {
+    if (env.ADMIN_MFA_REQUIRED) {
+      throw new AdminMfaOperationError(
+        "Administrator strong-factor enrollment is required.",
+      );
+    }
+  } else {
     const accepted = await consumeMfaProof({
+      userId: context.userId,
       factor,
       method: action.method,
       code: action.code,
       checkedAt: authenticatedAt,
     });
-
     if (!accepted) {
       await recordMfaAudit({
         actorUserId: context.userId,
         eventType: "admin-reauthentication-failed",
         outcome: "failure",
         createdAt: authenticatedAt,
-        details: { reason: "mfa" },
+        details: { reason: "strong-factor", method: action.method },
       });
       throw new AdminMfaVerificationError();
     }
-
-    proof = accepted;
-  } else if (env.ADMIN_MFA_REQUIRED) {
-    throw new AdminMfaOperationError(
-      "Administrator MFA enrollment is required.",
-    );
   }
 
   const updated = await updateAdminRecentAuthentication({
     sessionId: context.sessionId,
     authenticatedAt,
   });
-
   if (!updated) {
     throw new AdminPersistenceError(
       "Recent administrator authentication could not be recorded.",
@@ -788,7 +846,7 @@ export async function reauthenticateAdministrator(
     eventType: "admin-reauthentication-succeeded",
     outcome: "success",
     createdAt: authenticatedAt,
-    details: { verificationMethod: proof },
+    details: { verificationMethod: action.method },
   });
 
   return { authenticatedAt };
@@ -796,10 +854,12 @@ export async function reauthenticateAdministrator(
 
 export async function resetAdministratorMfaByEmail(
   email: string,
-): Promise<{ email: string; revokedSessions: number }> {
-  const emailNormalized = email.trim().toLowerCase();
-  const user = await findUserByNormalizedEmail(emailNormalized);
-
+): Promise<{
+  email: string;
+  revokedSessions: number;
+  deletedPasskeys: number;
+}> {
+  const user = await findUserByNormalizedEmail(email.trim().toLowerCase());
   if (!user || !user.roles.includes("admin")) {
     throw new AdminMfaOperationError(
       "An administrator account with that email was not found.",
@@ -810,10 +870,24 @@ export async function resetAdministratorMfaByEmail(
   const client = await getMongoClient();
   const mongoSession = client.startSession();
   let revokedSessions = 0;
+  let deletedPasskeys = 0;
 
   try {
     await mongoSession.withTransaction(async () => {
+      await bumpAdminSecurityRevision({
+        userId: user._id,
+        changedAt: resetAt,
+        session: mongoSession,
+      });
       await deleteAdminMfaFactor(user._id, mongoSession);
+      await deleteAdminRecoveryFactor(user._id, mongoSession);
+      deletedPasskeys = await deleteAllAdminPasskeysForUser(
+        user._id,
+        mongoSession,
+      );
+      await deleteAdminPasskeyChallengesForUser(user._id, mongoSession);
+      await deleteAdminMfaChallengesForUser(user._id, mongoSession);
+
       revokedSessions = await revokeAllAdminSessionsForUser(
         {
           userId: user._id,
@@ -822,19 +896,44 @@ export async function resetAdministratorMfaByEmail(
         },
         mongoSession,
       );
+
       await recordMfaAudit({
         actorUserId: null,
         targetUserId: user._id,
         eventType: "admin-mfa-reset",
         outcome: "success",
         createdAt: resetAt,
-        details: { revokedSessions, source: "server-cli" },
+        details: {
+          revokedSessions,
+          deletedPasskeys,
+          source: "server-cli",
+        },
         session: mongoSession,
       });
+
+      if (deletedPasskeys > 0) {
+        await recordMfaAudit({
+          actorUserId: null,
+          targetUserId: user._id,
+          eventType: "admin-passkey-emergency-reset",
+          outcome: "success",
+          createdAt: resetAt,
+          details: {
+            deletedPasskeys,
+            revokedSessions,
+            source: "server-cli",
+          },
+          session: mongoSession,
+        });
+      }
     }, ADMIN_MFA_TRANSACTION_OPTIONS);
   } finally {
     await mongoSession.endSession();
   }
 
-  return { email: user.emailDisplay, revokedSessions };
+  return {
+    email: user.emailDisplay,
+    revokedSessions,
+    deletedPasskeys,
+  };
 }

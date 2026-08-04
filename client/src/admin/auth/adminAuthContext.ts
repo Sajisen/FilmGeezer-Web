@@ -17,6 +17,7 @@ export interface AdminAuthContextValue {
   mfaChallenge: AdminMfaChallengeState | null;
   errorMessage: string | null;
   signIn: (input: { email: string; password: string }) => Promise<void>;
+  verifyPasskey: () => Promise<void>;
   verifyMfa: (input: {
     method: "totp" | "recovery";
     code: string;

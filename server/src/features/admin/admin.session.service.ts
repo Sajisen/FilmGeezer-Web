@@ -10,6 +10,9 @@ import {
 } from "./admin.errors.js";
 import { initializeAdminStorage } from "./admin.indexes.js";
 import { findAdminMfaFactorByUserId } from "./admin.mfa.repository.js";
+import { countActiveAdminPasskeys } from "./admin.passkey.repository.js";
+import { isAdminWebAuthnConfigured } from "./admin.passkey.config.js";
+import { getAdminRecoveryCodeCount } from "./admin.recovery.service.js";
 import {
   createAdminAuditEvent,
   findAdminSessionByTokenHash,
@@ -98,9 +101,10 @@ export async function resolveAdminSession(
       throw new AdminAuthenticationRequiredError();
     }
 
-    const [user, mfaFactor] = await Promise.all([
+    const [user, mfaFactor, passkeyCount] = await Promise.all([
       findActiveUserById(session.userId),
       findAdminMfaFactorByUserId(session.userId),
+      countActiveAdminPasskeys(session.userId),
     ]);
 
     if (!user) {
@@ -124,10 +128,15 @@ export async function resolveAdminSession(
     }
 
     const mfaEnabled = mfaFactor !== null;
+    const hasStrongFactor = mfaEnabled || passkeyCount > 0;
+    const recoveryCodesRemaining = await getAdminRecoveryCodeCount(
+      session.userId,
+      mfaFactor,
+    );
 
     if (
       session.accessLevel === "full" &&
-      mfaEnabled &&
+      hasStrongFactor &&
       session.mfaVerifiedAt === null
     ) {
       await revokeKnownSession({
@@ -141,7 +150,7 @@ export async function resolveAdminSession(
 
     if (
       env.ADMIN_MFA_REQUIRED &&
-      !mfaEnabled &&
+      !hasStrongFactor &&
       session.accessLevel !== "mfa-enrollment"
     ) {
       await revokeKnownSession({
@@ -153,7 +162,7 @@ export async function resolveAdminSession(
       throw new AdminAuthenticationRequiredError();
     }
 
-    if (session.accessLevel === "mfa-enrollment" && mfaEnabled) {
+    if (session.accessLevel === "mfa-enrollment" && hasStrongFactor) {
       await revokeKnownSession({
         sessionId: session._id,
         userId: session.userId,
@@ -190,8 +199,9 @@ export async function resolveAdminSession(
       accessLevel: session.accessLevel,
       mfaEnabled,
       mfaRequiredByPolicy: env.ADMIN_MFA_REQUIRED,
-      recoveryCodesRemaining:
-        mfaFactor?.recoveryCodeHashes.length ?? 0,
+      passkeysConfigured: isAdminWebAuthnConfigured(),
+      passkeyCount,
+      recoveryCodesRemaining,
       mfaEnabledAt: mfaFactor?.enabledAt ?? null,
       createdAt: session.createdAt,
       lastSeenAt: effectiveLastSeenAt,

@@ -1,27 +1,14 @@
-import {
-  useState,
-  type FormEvent,
-} from "react";
+import { useState, type FormEvent } from "react";
 
 import { getPublicAppOrigin } from "../adminRuntime";
 import { useAdminAuth } from "../auth/adminAuthContext";
+import { supportsAdminPasskeys } from "../security/adminPasskeyBrowser";
 
 function AdminShieldIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-6 w-6">
-      <path
-        d="M12 3.2l7 2.7v5.3c0 4.5-2.8 7.9-7 9.6-4.2-1.7-7-5.1-7-9.6V5.9l7-2.7z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9.5 11.8l1.7 1.7 3.7-4"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M12 3.2l7 2.7v5.3c0 4.5-2.8 7.9-7 9.6-4.2-1.7-7-5.1-7-9.6V5.9l7-2.7z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M9.5 11.8l1.7 1.7 3.7-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -31,6 +18,7 @@ export default function AdminLoginPage() {
     status,
     mfaChallenge,
     signIn,
+    verifyPasskey,
     verifyMfa,
     cancelMfa,
     errorMessage: bootstrapError,
@@ -43,17 +31,20 @@ export default function AdminLoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const needsMfa = status === "mfa-required";
+  const canUsePasskey = Boolean(
+    mfaChallenge?.passkeyAllowed && supportsAdminPasskeys(),
+  );
+  const effectiveMethod =
+    !mfaChallenge?.totpAllowed && mfaChallenge?.recoveryAllowed
+      ? "recovery"
+      : method;
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (isSubmitting) {
-      return;
-    }
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
-
     try {
       await signIn({ email, password });
       setPassword("");
@@ -68,23 +59,37 @@ export default function AdminLoginPage() {
     }
   }
 
-  async function handleMfaSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (isSubmitting) {
-      return;
-    }
+  async function handlePasskeyVerification() {
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
-
     try {
-      await verifyMfa({ method, code });
+      await verifyPasskey();
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Administrator MFA could not be verified.",
+          : "The administrator passkey could not be verified.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleMfaSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    try {
+      await verifyMfa({ method: effectiveMethod, code });
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Administrator verification could not be completed.",
       );
     } finally {
       setIsSubmitting(false);
@@ -94,7 +99,6 @@ export default function AdminLoginPage() {
   async function handleCancelMfa() {
     setIsSubmitting(true);
     setErrorMessage(null);
-
     try {
       await cancelMfa();
       setCode("");
@@ -109,10 +113,7 @@ export default function AdminLoginPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.14),transparent_34%),radial-gradient(circle_at_82%_86%,rgba(59,130,246,0.09),transparent_30%)]" />
 
       <div className="relative w-full max-w-md">
-        <a
-          href={getPublicAppOrigin()}
-          className="mb-7 inline-flex items-center gap-2 text-sm font-bold text-slate-400 transition hover:text-white"
-        >
+        <a href={getPublicAppOrigin()} className="mb-7 inline-flex items-center gap-2 text-sm font-bold text-slate-400 transition hover:text-white">
           <span aria-hidden="true">←</span>
           FilmGeezer public site
         </a>
@@ -120,150 +121,94 @@ export default function AdminLoginPage() {
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/75 shadow-2xl shadow-black/35 backdrop-blur-xl">
           <div className="border-b border-white/8 px-6 py-6 sm:px-8">
             <div className="flex items-center gap-3">
-              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300">
-                <AdminShieldIcon />
-              </span>
+              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300"><AdminShieldIcon /></span>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">
-                  FilmGeezer administration
-                </p>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">FilmGeezer administration</p>
                 <h1 className="mt-1 text-2xl font-black tracking-tight text-white">
-                  {needsMfa ? "Verify administrator MFA" : "Administrator sign-in"}
+                  {needsMfa ? "Verify administrator access" : "Administrator sign-in"}
                 </h1>
               </div>
             </div>
-
             <p className="mt-4 text-sm leading-6 text-slate-400">
               {needsMfa
-                ? "Complete the second security step before an administrator session is created."
+                ? "Use your preferred strong verification method before an administrator session is created."
                 : "Use a verified FilmGeezer account that has the administrator role. Public sessions do not unlock this area."}
             </p>
           </div>
 
           {needsMfa ? (
-            <form onSubmit={handleMfaSubmit} className="space-y-5 px-6 py-6 sm:px-8 sm:py-7">
+            <div className="space-y-5 px-6 py-6 sm:px-8 sm:py-7">
               {(errorMessage || bootstrapError) && (
-                <p role="alert" className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100">
-                  {errorMessage ?? bootstrapError}
-                </p>
+                <p role="alert" className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100">{errorMessage ?? bootstrapError}</p>
               )}
 
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-slate-950/45 p-1.5">
+              {canUsePasskey && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setMethod("totp");
-                    setCode("");
-                  }}
-                  className={`min-h-10 rounded-xl text-sm font-bold transition ${
-                    method === "totp"
-                      ? "bg-sky-500 text-white"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                  onClick={() => void handlePasskeyVerification()}
+                  disabled={isSubmitting}
+                  className="min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  Authenticator
+                  {isSubmitting ? "Waiting for your device…" : "Continue with passkey"}
                 </button>
-                <button
-                  type="button"
-                  disabled={!mfaChallenge?.recoveryAllowed}
-                  onClick={() => {
-                    setMethod("recovery");
-                    setCode("");
-                  }}
-                  className={`min-h-10 rounded-xl text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                    method === "recovery"
-                      ? "bg-sky-500 text-white"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Recovery code
-                </button>
-              </div>
+              )}
 
-              <label className="block">
-                <span className="text-sm font-bold text-slate-200">
-                  {method === "totp" ? "Six-digit code" : "Recovery code"}
-                </span>
-                <input
-                  type="text"
-                  inputMode={method === "totp" ? "numeric" : "text"}
-                  autoComplete="one-time-code"
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  required
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
-                  placeholder={method === "totp" ? "000000" : "FG-XXXX-XXXX-XXXX"}
-                />
-              </label>
+              {(mfaChallenge?.totpAllowed || mfaChallenge?.recoveryAllowed) && (
+                <form onSubmit={handleMfaSubmit} className="space-y-5">
+                  {canUsePasskey && (
+                    <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+                      <span className="h-px flex-1 bg-white/8" />Use another method<span className="h-px flex-1 bg-white/8" />
+                    </div>
+                  )}
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                {isSubmitting ? "Verifying…" : "Verify and continue"}
-              </button>
+                  {mfaChallenge?.totpAllowed && mfaChallenge.recoveryAllowed && (
+                    <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-slate-950/45 p-1.5">
+                      <button type="button" onClick={() => { setMethod("totp"); setCode(""); }} className={`min-h-10 rounded-xl text-sm font-bold transition ${effectiveMethod === "totp" ? "bg-sky-500 text-white" : "text-slate-400 hover:text-white"}`}>Authenticator</button>
+                      <button type="button" onClick={() => { setMethod("recovery"); setCode(""); }} className={`min-h-10 rounded-xl text-sm font-bold transition ${effectiveMethod === "recovery" ? "bg-sky-500 text-white" : "text-slate-400 hover:text-white"}`}>Recovery code</button>
+                    </div>
+                  )}
 
-              <button
-                type="button"
-                onClick={() => void handleCancelMfa()}
-                disabled={isSubmitting}
-                className="min-h-11 w-full rounded-2xl border border-white/10 text-sm font-bold text-slate-400 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
-              >
-                Return to sign-in
-              </button>
+                  <label className="block">
+                    <span className="text-sm font-bold text-slate-200">{effectiveMethod === "totp" ? "Six-digit code" : "Recovery code"}</span>
+                    <input
+                      type="text"
+                      inputMode={effectiveMethod === "totp" ? "numeric" : "text"}
+                      autoComplete="one-time-code"
+                      value={code}
+                      onChange={(event) => setCode(event.target.value)}
+                      required
+                      className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+                      placeholder={effectiveMethod === "totp" ? "000000" : "FG-XXXX-XXXX-XXXX"}
+                    />
+                  </label>
+
+                  <button type="submit" disabled={isSubmitting} className="min-h-12 w-full rounded-2xl border border-sky-300/20 bg-sky-400/10 px-5 text-sm font-black text-sky-100 transition hover:bg-sky-400/15 disabled:cursor-not-allowed disabled:opacity-55">
+                    {isSubmitting ? "Verifying…" : "Verify and continue"}
+                  </button>
+                </form>
+              )}
+
+              <button type="button" onClick={() => void handleCancelMfa()} disabled={isSubmitting} className="min-h-11 w-full rounded-2xl border border-white/10 text-sm font-bold text-slate-400 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50">Return to sign-in</button>
 
               {mfaChallenge && (
-                <p className="text-xs leading-5 text-slate-500">
-                  This verification request expires at {new Date(mfaChallenge.expiresAt).toLocaleTimeString()}.
-                </p>
+                <p className="text-xs leading-5 text-slate-500">This verification request expires at {new Date(mfaChallenge.expiresAt).toLocaleTimeString()}.</p>
               )}
-            </form>
+            </div>
           ) : (
             <form onSubmit={handlePasswordSubmit} className="space-y-5 px-6 py-6 sm:px-8 sm:py-7">
               {(errorMessage || bootstrapError) && (
-                <p role="alert" className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100">
-                  {errorMessage ?? bootstrapError}
-                </p>
+                <p role="alert" className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100">{errorMessage ?? bootstrapError}</p>
               )}
-
               <label className="block">
                 <span className="text-sm font-bold text-slate-200">Email</span>
-                <input
-                  type="email"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
-                  placeholder="administrator@example.com"
-                />
+                <input type="email" autoComplete="username webauthn" value={email} onChange={(event) => setEmail(event.target.value)} required className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15" placeholder="administrator@example.com" />
               </label>
-
               <label className="block">
                 <span className="text-sm font-bold text-slate-200">Password</span>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
-                  placeholder="Enter your FilmGeezer password"
-                />
+                <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15" placeholder="Enter your FilmGeezer password" />
               </label>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                {isSubmitting ? "Checking access…" : "Open administration"}
-              </button>
-
-              <p className="text-xs leading-5 text-slate-500">
-                Administrator sessions are separate from the public site, expire after eight hours, and close after thirty minutes of inactivity.
-              </p>
+              <button type="submit" disabled={isSubmitting} className="min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55">{isSubmitting ? "Checking access…" : "Open administration"}</button>
+              <p className="text-xs leading-5 text-slate-500">Administrator sessions are separate from the public site, expire after eight hours, and close after thirty minutes of inactivity.</p>
             </form>
           )}
         </section>

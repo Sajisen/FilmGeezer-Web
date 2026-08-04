@@ -3,9 +3,13 @@ export const ADMIN_COLLECTION_NAMES = {
   auditEvents: "admin_audit_events",
   mfaFactors: "admin_mfa_factors",
   mfaChallenges: "admin_mfa_challenges",
+  recoveryFactors: "admin_recovery_factors",
+  passkeyCredentials: "admin_passkey_credentials",
+  passkeyChallenges: "admin_passkey_challenges",
+  securityStates: "admin_security_states",
 } as const;
 
-export const ADMIN_SCHEMA_VERSION = 2;
+export const ADMIN_SCHEMA_VERSION = 4;
 
 export const ADMIN_SESSION_POLICY = {
   developmentCookieName: "filmgeezer_admin_session",
@@ -39,6 +43,14 @@ export const ADMIN_MFA_POLICY = {
   encryptionKeyVersion: 1,
 } as const;
 
+export const ADMIN_PASSKEY_POLICY = {
+  challengeLifetimeMilliseconds: 5 * 60 * 1_000,
+  maximumVerificationAttempts: 5,
+  labelMaximumLength: 64,
+  maximumCredentialsPerAdministrator: 10,
+  supportedAlgorithmIds: [-7, -257] as const,
+} as const;
+
 export const ADMIN_HTTP_POLICY = {
   login: {
     requestBodyLimit: "4kb",
@@ -51,9 +63,14 @@ export const ADMIN_HTTP_POLICY = {
     maximumRequestsPerWindow: 10,
   },
   mfaManagement: {
-    requestBodyLimit: "8kb",
+    requestBodyLimit: "16kb",
     rateLimitWindowMilliseconds: 15 * 60 * 1_000,
     maximumRequestsPerWindow: 20,
+  },
+  passkey: {
+    requestBodyLimit: "64kb",
+    rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+    maximumRequestsPerWindow: 30,
   },
   session: {
     rateLimitWindowMilliseconds: 15 * 60 * 1_000,

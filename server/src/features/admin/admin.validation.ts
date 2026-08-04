@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   ADMIN_EMAIL_MAXIMUM_LENGTH,
   ADMIN_PASSWORD_MAXIMUM_LENGTH,
+  ADMIN_PASSKEY_POLICY,
 } from "./admin.constants.js";
 
 const adminPasswordSchema = z
@@ -85,3 +86,52 @@ export function parseAdminLoginInput(
 ): NormalizedAdminLoginInput {
   return adminLoginInputSchema.parse(input);
 }
+
+
+const adminPasskeyLabelSchema = z
+  .string({ error: "Passkey label must be text." })
+  .normalize("NFKC")
+  .trim()
+  .min(1, "Enter a label for this passkey.")
+  .max(
+    ADMIN_PASSKEY_POLICY.labelMaximumLength,
+    "Passkey label is too long.",
+  );
+
+export const adminPasskeyRegistrationStartInputSchema = z
+  .object({
+    label: adminPasskeyLabelSchema,
+    attachment: z.enum(["platform", "cross-platform"]),
+  })
+  .strict();
+
+export const adminPasskeyRegistrationVerifyInputSchema = z
+  .object({
+    challengeId: z.string().uuid("Passkey setup reference is invalid."),
+    response: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+
+export const adminPasskeyAuthenticationVerifyInputSchema = z
+  .object({
+    challengeId: z.string().uuid("Passkey verification reference is invalid."),
+    response: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+
+export const adminPasskeyCredentialIdSchema = z
+  .string()
+  .trim()
+  .min(16, "Passkey credential reference is invalid.")
+  .max(2048, "Passkey credential reference is invalid.")
+  .regex(/^[A-Za-z0-9_-]+$/u, "Passkey credential reference is invalid.");
+
+export type AdminPasskeyRegistrationStartInput = z.input<
+  typeof adminPasskeyRegistrationStartInputSchema
+>;
+export type AdminPasskeyRegistrationVerifyInput = z.input<
+  typeof adminPasskeyRegistrationVerifyInputSchema
+>;
+export type AdminPasskeyAuthenticationVerifyInput = z.input<
+  typeof adminPasskeyAuthenticationVerifyInputSchema
+>;

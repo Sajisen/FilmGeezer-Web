@@ -143,6 +143,35 @@ export function requireRecentAdminAuthentication(
   next();
 }
 
+
+export function requireRecentAdminAuthenticationUnlessEnrollment(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): void {
+  const context = getAdminContext(request);
+
+  if (context.accessLevel === "mfa-enrollment") {
+    const age = Date.now() - context.recentAuthenticationAt.getTime();
+    if (
+      age < 0 ||
+      age > ADMIN_SESSION_POLICY.recentAuthenticationLifetimeMilliseconds
+    ) {
+      response.status(403).json({
+        status: "error",
+        code: "ADMIN_RECENT_AUTHENTICATION_REQUIRED",
+        message: "Sign in again before registering an administrator verification method.",
+      });
+      return;
+    }
+
+    next();
+    return;
+  }
+
+  requireRecentAdminAuthentication(request, response, next);
+}
+
 export function requireAdminCsrfProtection(
   request: Request,
   response: Response,

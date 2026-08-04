@@ -286,14 +286,29 @@ export async function updateAdminSessionMfaState(input: {
   return result.modifiedCount === 1;
 }
 
-export async function updateAdminRecentAuthentication(input: {
-  sessionId: ObjectId;
-  authenticatedAt: Date;
-}): Promise<boolean> {
+export async function updateAdminRecentAuthentication(
+  input: {
+    sessionId: ObjectId;
+    authenticatedAt: Date;
+  },
+  session?: ClientSession,
+): Promise<boolean> {
   const { sessions } = await getAdminCollections();
   const result = await sessions.updateOne(
     { _id: input.sessionId, revokedAt: null },
     { $set: { recentAuthenticationAt: input.authenticatedAt } },
+    session ? { session } : undefined,
   );
   return result.modifiedCount === 1;
 }
+export async function deleteAdminMfaChallengesForUser(
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<void> {
+  const { mfaChallenges } = await getAdminCollections();
+  await mfaChallenges.deleteMany(
+    { userId },
+    session ? { session } : undefined,
+  );
+}
+

@@ -10,15 +10,24 @@ import { rateLimit } from "express-rate-limit";
 import { isAllowedAdminOrigin } from "../config/cors.js";
 import {
   beginAdminMfaSetup,
+  beginAdminPasskeyLogin,
+  beginAdminPasskeyReauthentication,
+  beginAdminPasskeyRegistration,
   cancelAdminMfaChallenge,
   completeAdminMfaSetup,
+  completeAdminPasskeyLogin,
+  completeAdminPasskeyReauthentication,
+  completeAdminPasskeyRegistration,
   getAdminMfaSecurityStatus,
+  getAdminPasskeys,
   getCurrentAdminSession,
   loginAdminAccount,
   logoutAdminAccount,
   reauthenticateAdminAccount,
   regenerateAdminMfaRecoveryCodes,
+  regenerateAdminMfaRecoveryCodesWithRecentAuthentication,
   removeAdminMfa,
+  removeAdminPasskey,
   verifyAdminMfaChallenge,
 } from "../controllers/adminAuth.controller.js";
 import { ADMIN_HTTP_POLICY } from "../features/admin/admin.constants.js";
@@ -26,6 +35,8 @@ import {
   requireAdminCsrfProtection,
   requireAdminSession,
   requireFullAdminSession,
+  requireRecentAdminAuthentication,
+  requireRecentAdminAuthenticationUnlessEnrollment,
 } from "../middleware/admin.middleware.js";
 
 const router = Router();
@@ -43,7 +54,6 @@ function requireJson(
     });
     return;
   }
-
   next();
 }
 
@@ -55,11 +65,7 @@ function requireAdminOrigin(
   const origin = request.get("origin");
   const fetchSite = request.get("sec-fetch-site");
 
-  if (
-    !origin ||
-    !isAllowedAdminOrigin(origin) ||
-    fetchSite === "cross-site"
-  ) {
+  if (!origin || !isAllowedAdminOrigin(origin) || fetchSite === "cross-site") {
     response.status(403).json({
       status: "error",
       code: "ADMIN_ORIGIN_REJECTED",
@@ -67,7 +73,6 @@ function requireAdminOrigin(
     });
     return;
   }
-
   next();
 }
 
@@ -105,8 +110,7 @@ const loginRateLimit = createAdminRateLimit({
 });
 
 const mfaChallengeRateLimit = createAdminRateLimit({
-  windowMs:
-    ADMIN_HTTP_POLICY.mfaChallenge.rateLimitWindowMilliseconds,
+  windowMs: ADMIN_HTTP_POLICY.mfaChallenge.rateLimitWindowMilliseconds,
   limit: ADMIN_HTTP_POLICY.mfaChallenge.maximumRequestsPerWindow,
   identifier: "filmgeezer-admin-mfa-challenge",
   code: "ADMIN_MFA_RATE_LIMITED",
@@ -114,12 +118,19 @@ const mfaChallengeRateLimit = createAdminRateLimit({
 });
 
 const mfaManagementRateLimit = createAdminRateLimit({
-  windowMs:
-    ADMIN_HTTP_POLICY.mfaManagement.rateLimitWindowMilliseconds,
+  windowMs: ADMIN_HTTP_POLICY.mfaManagement.rateLimitWindowMilliseconds,
   limit: ADMIN_HTTP_POLICY.mfaManagement.maximumRequestsPerWindow,
   identifier: "filmgeezer-admin-mfa-management",
   code: "ADMIN_MFA_MANAGEMENT_RATE_LIMITED",
   message: "Too many administrator security changes. Please wait.",
+});
+
+const passkeyRateLimit = createAdminRateLimit({
+  windowMs: ADMIN_HTTP_POLICY.passkey.rateLimitWindowMilliseconds,
+  limit: ADMIN_HTTP_POLICY.passkey.maximumRequestsPerWindow,
+  identifier: "filmgeezer-admin-passkey",
+  code: "ADMIN_PASSKEY_RATE_LIMITED",
+  message: "Too many administrator passkey attempts. Please wait.",
 });
 
 const sessionRateLimit = createAdminRateLimit({
@@ -143,10 +154,7 @@ router.post(
   loginRateLimit,
   requireAdminOrigin,
   requireJson,
-  json({
-    limit: ADMIN_HTTP_POLICY.login.requestBodyLimit,
-    strict: true,
-  }),
+  json({ limit: ADMIN_HTTP_POLICY.login.requestBodyLimit, strict: true }),
   loginAdminAccount,
 );
 
@@ -169,6 +177,24 @@ router.post(
   cancelAdminMfaChallenge,
 );
 
+router.post(
+  "/passkeys/login/options",
+  passkeyRateLimit,
+  requireAdminOrigin,
+  requireJson,
+  json({ limit: ADMIN_HTTP_POLICY.passkey.requestBodyLimit, strict: true }),
+  beginAdminPasskeyLogin,
+);
+
+router.post(
+  "/passkeys/login/verify",
+  passkeyRateLimit,
+  requireAdminOrigin,
+  requireJson,
+  json({ limit: ADMIN_HTTP_POLICY.passkey.requestBodyLimit, strict: true }),
+  completeAdminPasskeyLogin,
+);
+
 router.get(
   "/session",
   sessionRateLimit,
@@ -181,6 +207,13 @@ router.get(
   sessionRateLimit,
   requireAdminSession,
   getAdminMfaSecurityStatus,
+);
+
+router.get(
+  "/passkeys",
+  sessionRateLimit,
+  requireAdminSession,
+  getAdminPasskeys,
 );
 
 router.post(
@@ -210,6 +243,60 @@ router.post(
 );
 
 router.post(
+  "/passkeys/registration/options",
+  passkeyRateLimit,
+  requireAdminSession,
+  requireAdminCsrfProtection,
+  requireRecentAdminAuthenticationUnlessEnrollment,
+  requireJson,
+  json({ limit: ADMIN_HTTP_POLICY.passkey.requestBodyLimit, strict: true }),
+  beginAdminPasskeyRegistration,
+);
+
+router.post(
+  "/passkeys/registration/verify",
+  passkeyRateLimit,
+  requireAdminSession,
+  requireAdminCsrfProtection,
+  requireRecentAdminAuthenticationUnlessEnrollment,
+  requireJson,
+  json({ limit: ADMIN_HTTP_POLICY.passkey.requestBodyLimit, strict: true }),
+  completeAdminPasskeyRegistration,
+);
+
+router.post(
+  "/passkeys/reauthentication/options",
+  passkeyRateLimit,
+  requireAdminSession,
+  requireFullAdminSession,
+  requireAdminCsrfProtection,
+  requireJson,
+  json({ limit: ADMIN_HTTP_POLICY.passkey.requestBodyLimit, strict: true }),
+  beginAdminPasskeyReauthentication,
+);
+
+router.post(
+  "/passkeys/reauthentication/verify",
+  passkeyRateLimit,
+  requireAdminSession,
+  requireFullAdminSession,
+  requireAdminCsrfProtection,
+  requireJson,
+  json({ limit: ADMIN_HTTP_POLICY.passkey.requestBodyLimit, strict: true }),
+  completeAdminPasskeyReauthentication,
+);
+
+router.delete(
+  "/passkeys/:credentialId",
+  passkeyRateLimit,
+  requireAdminSession,
+  requireFullAdminSession,
+  requireAdminCsrfProtection,
+  requireRecentAdminAuthentication,
+  removeAdminPasskey,
+);
+
+router.post(
   "/mfa/recovery-codes",
   mfaManagementRateLimit,
   requireAdminSession,
@@ -221,6 +308,16 @@ router.post(
     strict: true,
   }),
   regenerateAdminMfaRecoveryCodes,
+);
+
+router.post(
+  "/mfa/recovery-codes/recent-authentication",
+  mfaManagementRateLimit,
+  requireAdminSession,
+  requireFullAdminSession,
+  requireAdminCsrfProtection,
+  requireRecentAdminAuthentication,
+  regenerateAdminMfaRecoveryCodesWithRecentAuthentication,
 );
 
 router.post(

@@ -6,9 +6,7 @@ import { env } from "../../config/env.js";
 import { verifyPassword } from "../auth/auth.password.js";
 import { findAuthCredentialByUserId } from "../auth/repositories/authCredential.repository.js";
 import { findUserByNormalizedEmail } from "../auth/repositories/authUser.repository.js";
-import {
-  ADMIN_MFA_POLICY,
-} from "./admin.constants.js";
+import { ADMIN_MFA_POLICY } from "./admin.constants.js";
 import {
   AdminInvalidCredentialsError,
   AdminPersistenceError,
@@ -19,9 +17,9 @@ import {
   findAdminMfaFactorByUserId,
   invalidateOpenAdminMfaChallenges,
 } from "./admin.mfa.repository.js";
-import {
-  createAdminAuditEvent,
-} from "./admin.repository.js";
+import { countActiveAdminPasskeys } from "./admin.passkey.repository.js";
+import { getAdminRecoveryCodeCount } from "./admin.recovery.service.js";
+import { createAdminAuditEvent } from "./admin.repository.js";
 import {
   createAdminMfaChallengeToken,
   hashAdminIpAddress,
@@ -46,14 +44,13 @@ export interface AdminRequestMetadata {
 }
 
 export type AdminLoginResult =
-  | {
-      kind: "session";
-      result: IssuedAdminSessionResult;
-    }
+  | { kind: "session"; result: IssuedAdminSessionResult }
   | {
       kind: "mfa-challenge";
       challengeToken: string;
       expiresAt: Date;
+      passkeyAllowed: boolean;
+      totpAllowed: boolean;
       recoveryAllowed: boolean;
     };
 
@@ -95,14 +92,12 @@ export async function loginAdministrator(
   const userAgentSummary = summarizeAdminUserAgent(
     requestMetadata.userAgent,
   );
-
   const user = await findUserByNormalizedEmail(login.emailNormalized);
   const credential = user
     ? await findAuthCredentialByUserId(user._id)
     : null;
 
   let passwordIsValid: boolean;
-
   try {
     passwordIsValid = await verifyPassword(
       credential?.passwordHash ?? DUMMY_PASSWORD_HASH,
@@ -137,13 +132,20 @@ export async function loginAdministrator(
       userAgentSummary,
       createdAt: attemptedAt,
     });
-
     throw new AdminInvalidCredentialsError();
   }
 
-  const mfaFactor = await findAdminMfaFactorByUserId(user._id);
+  const [mfaFactor, passkeyCount] = await Promise.all([
+    findAdminMfaFactorByUserId(user._id),
+    countActiveAdminPasskeys(user._id),
+  ]);
+  const recoveryCodeCount = await getAdminRecoveryCodeCount(
+    user._id,
+    mfaFactor,
+  );
+  const hasStrongFactor = mfaFactor !== null || passkeyCount > 0;
 
-  if (mfaFactor) {
+  if (hasStrongFactor) {
     const challengeToken = createAdminMfaChallengeToken();
     const expiresAt = new Date(
       attemptedAt.getTime() +
@@ -155,7 +157,6 @@ export async function loginAdministrator(
       purpose: "login",
       invalidatedAt: attemptedAt,
     });
-
     await createAdminMfaChallenge({
       challengeId: new ObjectId(),
       publicId: randomUUID(),
@@ -180,7 +181,9 @@ export async function loginAdministrator(
       ipHash,
       userAgentSummary,
       details: {
-        recoveryAllowed: mfaFactor.recoveryCodeHashes.length > 0,
+        passkeyAllowed: passkeyCount > 0,
+        totpAllowed: mfaFactor !== null,
+        recoveryAllowed: recoveryCodeCount > 0,
       },
       createdAt: attemptedAt,
     });
@@ -189,7 +192,9 @@ export async function loginAdministrator(
       kind: "mfa-challenge",
       challengeToken,
       expiresAt,
-      recoveryAllowed: mfaFactor.recoveryCodeHashes.length > 0,
+      passkeyAllowed: passkeyCount > 0,
+      totpAllowed: mfaFactor !== null,
+      recoveryAllowed: recoveryCodeCount > 0,
     };
   }
 

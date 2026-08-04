@@ -10,10 +10,17 @@ import {
   AdminApiError,
   cancelAdminMfaLogin,
   getAdminSession,
+  completeAdminPasskeyLogin,
   loginAdmin,
   logoutAdmin,
+  startAdminPasskeyLogin,
   verifyAdminMfaLogin,
 } from "../services/adminService";
+import {
+  authenticateAdminPasskey,
+  isPasskeyPromptCancellation,
+  supportsAdminPasskeys,
+} from "../security/adminPasskeyBrowser";
 import type {
   AdminAuthStatus,
   AdminMfaChallengeState,
@@ -120,6 +127,33 @@ export function AdminAuthProvider({
     };
   }, [refreshSession]);
 
+  const verifyPasskey = useCallback(async () => {
+    const options = await startAdminPasskeyLogin();
+
+    try {
+      const credential = await authenticateAdminPasskey(options.options);
+      const response = await completeAdminPasskeyLogin({
+        challengeId: options.challengeId,
+        response: credential,
+      });
+
+      setState({
+        status: "authenticated",
+        user: response.user,
+        session: response.session,
+        security: response.security,
+        csrfToken: response.csrfToken,
+        mfaChallenge: null,
+        errorMessage: null,
+      });
+    } catch (error) {
+      if (isPasskeyPromptCancellation(error)) {
+        return;
+      }
+      throw error;
+    }
+  }, []);
+
   const signIn = useCallback(
     async (input: { email: string; password: string }) => {
       const response = await loginAdmin(input);
@@ -134,6 +168,10 @@ export function AdminAuthProvider({
           mfaChallenge: response.challenge,
           errorMessage: null,
         });
+
+        if (response.challenge.passkeyAllowed && supportsAdminPasskeys()) {
+          await verifyPasskey();
+        }
         return;
       }
 
@@ -147,7 +185,7 @@ export function AdminAuthProvider({
         errorMessage: null,
       });
     },
-    [],
+    [verifyPasskey],
   );
 
   const verifyMfa = useCallback(
@@ -213,12 +251,21 @@ export function AdminAuthProvider({
     () => ({
       ...state,
       signIn,
+      verifyPasskey,
       verifyMfa,
       cancelMfa,
       signOut,
       refreshSession: () => refreshSession(),
     }),
-    [cancelMfa, refreshSession, signIn, signOut, state, verifyMfa],
+    [
+      cancelMfa,
+      refreshSession,
+      signIn,
+      signOut,
+      state,
+      verifyMfa,
+      verifyPasskey,
+    ],
   );
 
   return (

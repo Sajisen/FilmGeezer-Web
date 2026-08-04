@@ -54,6 +54,28 @@ export class AdminMfaOperationError extends Error {
   }
 }
 
+
+export class AdminPasskeyConfigurationError extends Error {
+  constructor(message = "Administrator passkeys are not configured on the server.") {
+    super(message);
+    this.name = "AdminPasskeyConfigurationError";
+  }
+}
+
+export class AdminPasskeyVerificationError extends Error {
+  constructor(message = "The administrator passkey could not be verified.") {
+    super(message);
+    this.name = "AdminPasskeyVerificationError";
+  }
+}
+
+export class AdminPasskeyOperationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminPasskeyOperationError";
+  }
+}
+
 export class AdminPersistenceError extends Error {
   readonly code = "ADMIN_PERSISTENCE_ERROR";
 

@@ -7,6 +7,13 @@ import type {
   AdminMfaSetupResponse,
   AdminMfaStatusResponse,
   AdminOverviewResponse,
+  AdminPasskeyAuthenticationOptionsResponse,
+  AdminPasskeyRegistrationOptionsResponse,
+  AdminPasskeyRegistrationResponse,
+  AdminPasskeyRevokeResponse,
+  AdminPasskeysResponse,
+  AdminAuthenticationCredential,
+  AdminRegistrationCredential,
   AdminReauthenticationResponse,
   AdminSecuritySummary,
   AdminSessionResponse,
@@ -84,6 +91,8 @@ function isAdminSecuritySummary(
     isRecord(value) &&
     typeof value.mfaEnabled === "boolean" &&
     typeof value.mfaRequiredByPolicy === "boolean" &&
+    typeof value.passkeysConfigured === "boolean" &&
+    typeof value.passkeyCount === "number" &&
     typeof value.recoveryCodesRemaining === "number" &&
     (value.mfaEnabledAt === null ||
       typeof value.mfaEnabledAt === "string")
@@ -127,6 +136,8 @@ function isMfaChallengeResponse(
     typeof value.message === "string" &&
     isRecord(value.challenge) &&
     typeof value.challenge.expiresAt === "string" &&
+    typeof value.challenge.passkeyAllowed === "boolean" &&
+    typeof value.challenge.totpAllowed === "boolean" &&
     typeof value.challenge.recoveryAllowed === "boolean"
   );
 }
@@ -369,6 +380,89 @@ function isSupportMutationResponse(
   );
 }
 
+function isPasskeySummary(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.credentialId === "string" &&
+    typeof value.label === "string" &&
+    (value.attachment === "platform" || value.attachment === "cross-platform") &&
+    (value.deviceType === "singleDevice" || value.deviceType === "multiDevice") &&
+    typeof value.backedUp === "boolean" &&
+    Array.isArray(value.transports) &&
+    value.transports.every((transport) => typeof transport === "string") &&
+    typeof value.createdAt === "string" &&
+    (value.lastUsedAt === null || typeof value.lastUsedAt === "string")
+  );
+}
+
+function isPasskeysResponse(value: unknown): value is AdminPasskeysResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_PASSKEYS_READY" &&
+    typeof value.configured === "boolean" &&
+    Array.isArray(value.passkeys) &&
+    value.passkeys.every(isPasskeySummary)
+  );
+}
+
+function isPasskeyRegistrationOptionsResponse(
+  value: unknown,
+): value is AdminPasskeyRegistrationOptionsResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_PASSKEY_REGISTRATION_READY" &&
+    typeof value.challengeId === "string" &&
+    typeof value.expiresAt === "string" &&
+    isRecord(value.options)
+  );
+}
+
+function isPasskeyAuthenticationOptionsResponse(
+  value: unknown,
+): value is AdminPasskeyAuthenticationOptionsResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    (value.code === "ADMIN_PASSKEY_LOGIN_READY" ||
+      value.code === "ADMIN_PASSKEY_REAUTHENTICATION_READY") &&
+    typeof value.challengeId === "string" &&
+    typeof value.expiresAt === "string" &&
+    isRecord(value.options)
+  );
+}
+
+function isPasskeyRegistrationResponse(
+  value: unknown,
+): value is AdminPasskeyRegistrationResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_PASSKEY_REGISTERED" &&
+    typeof value.message === "string" &&
+    typeof value.registeredAt === "string" &&
+    isPasskeySummary(value.passkey) &&
+    (value.recoveryCodes === null ||
+      (Array.isArray(value.recoveryCodes) &&
+        value.recoveryCodes.every((code) => typeof code === "string")))
+  );
+}
+
+function isPasskeyRevokeResponse(
+  value: unknown,
+): value is AdminPasskeyRevokeResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_PASSKEY_REVOKED" &&
+    typeof value.message === "string" &&
+    typeof value.revokedAt === "string" &&
+    typeof value.remainingPasskeys === "number" &&
+    typeof value.revokedOtherSessions === "number"
+  );
+}
+
 async function parseJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -380,7 +474,7 @@ async function parseJson(response: Response): Promise<unknown> {
 async function adminRequest<T>(
   path: string,
   input: {
-    method?: "GET" | "POST" | "PATCH";
+    method?: "GET" | "POST" | "PATCH" | "DELETE";
     body?: unknown;
     csrfToken?: string;
     signal?: AbortSignal;
@@ -540,6 +634,20 @@ export function regenerateAdminMfaRecoveryCodes(
   });
 }
 
+export function regenerateAdminMfaRecoveryCodesWithRecentAuthentication(
+  csrfToken: string,
+): Promise<AdminMfaRecoveryCodesResponse> {
+  return adminRequest(
+    "/api/admin/auth/mfa/recovery-codes/recent-authentication",
+    {
+      method: "POST",
+      csrfToken,
+      guard: isMfaRecoveryCodesResponse,
+      fallbackMessage: "Recovery codes could not be regenerated.",
+    },
+  );
+}
+
 export async function disableAdminMfa(
   input: {
     password: string;
@@ -662,6 +770,115 @@ export function updateAdminSupportStatus(
       csrfToken,
       guard: isSupportMutationResponse,
       fallbackMessage: "The support-request status could not be updated.",
+    },
+  );
+}
+
+export function getAdminPasskeys(
+  signal?: AbortSignal,
+): Promise<AdminPasskeysResponse> {
+  return adminRequest("/api/admin/auth/passkeys", {
+    signal,
+    guard: isPasskeysResponse,
+    fallbackMessage: "Administrator passkeys could not be loaded.",
+  });
+}
+
+export function startAdminPasskeyRegistration(
+  input: { label: string; attachment: "platform" | "cross-platform" },
+  csrfToken: string,
+): Promise<AdminPasskeyRegistrationOptionsResponse> {
+  return adminRequest("/api/admin/auth/passkeys/registration/options", {
+    method: "POST",
+    body: input,
+    csrfToken,
+    guard: isPasskeyRegistrationOptionsResponse,
+    fallbackMessage: "Passkey registration could not be started.",
+  });
+}
+
+export function completeAdminPasskeyRegistration(
+  input: {
+    challengeId: string;
+    response: AdminRegistrationCredential;
+  },
+  csrfToken: string,
+): Promise<AdminPasskeyRegistrationResponse> {
+  return adminRequest("/api/admin/auth/passkeys/registration/verify", {
+    method: "POST",
+    body: input,
+    csrfToken,
+    guard: isPasskeyRegistrationResponse,
+    fallbackMessage: "The passkey could not be registered.",
+  });
+}
+
+export function startAdminPasskeyLogin(): Promise<AdminPasskeyAuthenticationOptionsResponse> {
+  return adminRequest("/api/admin/auth/passkeys/login/options", {
+    method: "POST",
+    body: {},
+    guard: isPasskeyAuthenticationOptionsResponse,
+    fallbackMessage: "Passkey verification could not be started.",
+  });
+}
+
+export function completeAdminPasskeyLogin(input: {
+  challengeId: string;
+  response: AdminAuthenticationCredential;
+}): Promise<AdminLoginResponse> {
+  return adminRequest("/api/admin/auth/passkeys/login/verify", {
+    method: "POST",
+    body: input,
+    guard: isLoginResponse,
+    fallbackMessage: "The administrator passkey could not be verified.",
+  });
+}
+
+export function startAdminPasskeyReauthentication(
+  csrfToken: string,
+): Promise<AdminPasskeyAuthenticationOptionsResponse> {
+  return adminRequest(
+    "/api/admin/auth/passkeys/reauthentication/options",
+    {
+      method: "POST",
+      body: {},
+      csrfToken,
+      guard: isPasskeyAuthenticationOptionsResponse,
+      fallbackMessage: "Passkey confirmation could not be started.",
+    },
+  );
+}
+
+export function completeAdminPasskeyReauthentication(
+  input: {
+    challengeId: string;
+    response: AdminAuthenticationCredential;
+  },
+  csrfToken: string,
+): Promise<AdminReauthenticationResponse> {
+  return adminRequest(
+    "/api/admin/auth/passkeys/reauthentication/verify",
+    {
+      method: "POST",
+      body: input,
+      csrfToken,
+      guard: isReauthenticationResponse,
+      fallbackMessage: "The administrator passkey could not be confirmed.",
+    },
+  );
+}
+
+export function revokeAdminPasskey(
+  credentialId: string,
+  csrfToken: string,
+): Promise<AdminPasskeyRevokeResponse> {
+  return adminRequest(
+    `/api/admin/auth/passkeys/${encodeURIComponent(credentialId)}`,
+    {
+      method: "DELETE",
+      csrfToken,
+      guard: isPasskeyRevokeResponse,
+      fallbackMessage: "The passkey could not be removed.",
     },
   );
 }

@@ -28,6 +28,8 @@ The discovery platform, manual authentication/account management, persistent Wat
 - Sharp image decoding and safe WebP re-encoding
 - Multer multipart upload limits
 - Railway Buckets-compatible S3 storage adapter
+- SimpleWebAuthn server verification for administrator passkeys
+- QR-code generation for administrator authenticator enrollment
 
 ### External data
 
@@ -300,7 +302,7 @@ A normal public FilmGeezer session never unlocks the admin application.
 2. From `server`, run:
 
 ```powershell
-npm run admin:grant -- --email=administrator@example.com
+npm run admin:grant -- -- --email=administrator@example.com
 ```
 
 3. Open `http://localhost:5173/admin` and sign in again through the dedicated
@@ -309,7 +311,7 @@ npm run admin:grant -- --email=administrator@example.com
 To revoke an administrator safely:
 
 ```powershell
-npm run admin:revoke -- --email=administrator@example.com
+npm run admin:revoke -- -- --email=administrator@example.com
 ```
 
 The final active administrator cannot be revoked by the script, and revoking a
@@ -366,77 +368,155 @@ admin-support-replied
 admin-support-status-updated
 ```
 
-## Administrator MFA and recent authentication
+## Administrator MFA, passkeys, and recent authentication
 
-FilmGeezer administration supports TOTP authenticator-app MFA, one-time recovery codes, restricted enrollment sessions, and a recent-authentication timestamp for future sensitive actions.
+FilmGeezer administration uses a password-first flow with three verification
+methods:
+
+1. passkeys as the preferred strong factor;
+2. authenticator-app TOTP as a fallback strong factor;
+3. one-time recovery codes as an emergency fallback.
+
+The passkey system extends the existing FilmGeezer administrator identity and
+session architecture. It does not create a second administrator account system.
+Administrators can register multiple labelled passkeys for Windows Hello,
+mobile devices, or hardware security keys. FilmGeezer stores only public
+credential material and WebAuthn metadata; biometric templates, device PINs,
+and private keys never reach the application.
 
 ### Server configuration
 
-Generate a dedicated encryption key and recovery-code pepper:
+Generate a dedicated TOTP encryption key and recovery-code pepper:
 
 ```powershell
 cd server
 npm run admin:mfa-secrets
 ```
 
-Copy both generated values into the server environment:
+Copy the generated values into the server environment and configure WebAuthn:
 
 ```env
 ADMIN_MFA_REQUIRED=false
 ADMIN_MFA_ENCRYPTION_KEY=<generated 32-byte base64 key>
 ADMIN_MFA_RECOVERY_PEPPER=<generated independent pepper>
+
+ADMIN_WEBAUTHN_RP_NAME=FilmGeezer Administration
+ADMIN_WEBAUTHN_RP_ID=localhost
+ADMIN_WEBAUTHN_ORIGIN=http://localhost:5173
 ```
 
-`ADMIN_MFA_ENCRYPTION_KEY` encrypts TOTP secrets with AES-256-GCM. `ADMIN_MFA_RECOVERY_PEPPER` is used only to create keyed hashes for recovery codes. Keep both values outside source control and preserve them during deployments.
+Production uses the dedicated administrator hostname:
 
-Install the QR-code dependency and update the lock file:
+```env
+ADMIN_APP_ORIGIN=https://admin.filmgeezer.site
+ADMIN_WEBAUTHN_RP_ID=admin.filmgeezer.site
+ADMIN_WEBAUTHN_ORIGIN=https://admin.filmgeezer.site
+```
+
+`ADMIN_WEBAUTHN_ORIGIN` must exactly match `ADMIN_APP_ORIGIN`, and its hostname
+must exactly match the configured relying-party ID. Production WebAuthn requires
+HTTPS. Localhost and production passkeys are separate credentials because they
+belong to different relying parties.
+
+`ADMIN_MFA_ENCRYPTION_KEY` protects TOTP secrets with AES-256-GCM.
+`ADMIN_MFA_RECOVERY_PEPPER` creates keyed hashes for recovery codes. Preserve
+these values across deployments and keep them outside source control.
+
+Install the exact dependencies recorded in both lock files:
 
 ```powershell
-cd server
+cd client
+npm install
+
+cd ../server
 npm install
 ```
 
 ### Safe rollout
 
-1. Configure both MFA secrets while `ADMIN_MFA_REQUIRED=false`.
+1. Configure TOTP and WebAuthn while `ADMIN_MFA_REQUIRED=false`.
 2. Restart the API and sign in to the administrator application.
-3. Open **Settings** and enroll an authenticator app.
-4. Save the displayed recovery codes outside the browser and authenticator device.
-5. Sign out and verify password + TOTP login.
-6. Set `ADMIN_MFA_REQUIRED=true` before exposing the production admin subdomain.
+3. Open **Security** and register a passkey.
+4. Save the displayed recovery codes outside the browser and primary device.
+5. Add an authenticator app as a fallback.
+6. Sign out and verify password + passkey login.
+7. Test **Use another method** with TOTP and one recovery code.
+8. Set `ADMIN_MFA_REQUIRED=true` before exposing the production admin subdomain.
 
-When policy is required, an administrator without a factor receives a restricted session that can access only session, logout, and MFA-enrollment routes. The dashboard, support inbox, and every `/api/admin/*` operational route remain blocked until setup completes.
+When policy is required, an administrator without a strong factor receives a
+restricted enrollment session. The enrollment screen recommends a passkey and
+no operational administrator route is unlocked until passkey or TOTP enrollment
+completes. Existing TOTP administrators keep their factor and recovery codes
+when passkeys are introduced.
+
+### Login and recent authentication
+
+After the password is accepted, passkey verification is preferred whenever the
+administrator has an active passkey. Cancelling the browser prompt preserves
+the short-lived challenge so the administrator can choose TOTP or a recovery
+code instead. A full administrator session is issued only after successful
+strong verification.
+
+Passkey registration, passkey revocation, recovery-code replacement, and future
+destructive administrator actions require a recent administrator-authentication
+window. The administrator can refresh this window with a passkey or with the
+password plus TOTP/recovery proof.
+
+### Final-factor protection
+
+The server prevents removal of the last strong factor:
+
+- TOTP cannot be removed when no active passkey remains.
+- The final passkey cannot be revoked when TOTP is disabled.
+- One method may be removed when another strong method remains.
+- Recovery codes never count as the primary strong factor.
+
+Every rule is enforced in the backend, independently of button state in React.
 
 ### Recovery and emergency reset
 
-Each recovery code works once. Generating a replacement set invalidates every previous code.
+Each recovery code works once. Generating a replacement set invalidates every
+previous code. Recovery codes are stored in a provider-neutral record so they
+continue to work for TOTP, passkey-plus-TOTP, and passkey-only administrators.
+Existing embedded TOTP recovery hashes are migrated transactionally without
+reissuing or exposing them.
 
-A server operator can remove an administrator's factor and revoke all of that account's administrator sessions:
+A server operator can remove every administrator strong factor, invalidate open
+verification challenges, and revoke all privileged sessions:
 
 ```powershell
 npm run admin:mfa-reset -- -- --email=administrator@example.com
 ```
 
-The next administrator sign-in must complete enrollment again when `ADMIN_MFA_REQUIRED=true`. The reset command does not remove the administrator role or affect ordinary public FilmGeezer sessions.
+The next administrator sign-in must enroll a new strong factor when
+`ADMIN_MFA_REQUIRED=true`. The command preserves the administrator role and does
+not affect ordinary public FilmGeezer sessions.
 
 ### Security behavior
 
-- TOTP uses SHA-1, six digits, 30-second periods, and a one-step clock-drift window.
-- A TOTP time step cannot be accepted twice for the same administrator.
-- Login MFA challenges expire after ten minutes and allow five failed attempts.
+- TOTP uses SHA-1, six digits, 30-second periods, a small clock-drift window, and accepted-step replay prevention.
+- WebAuthn uses server-generated, short-lived, single-use challenges and requires user verification.
+- The server validates the exact challenge, origin, relying-party ID, credential ownership, public-key signature, and credential state.
+- Registered credentials record label, transports, device type, backup state, counter, creation time, last use, and revocation state.
+- Login, registration, and reauthentication challenges are rate-limited and expire through TTL-indexed MongoDB records.
 - Recovery codes are high-entropy, HMAC-hashed, and never stored in plaintext.
-- The setup secret is encrypted before it reaches MongoDB.
-- Full administrator sessions are issued only after successful MFA when a factor exists.
-- `recentAuthenticationAt` is refreshed only after password + MFA proof.
-- Sensitive future routes can use `requireRecentAdminAuthentication` for a ten-minute confirmation window.
-- MFA setup, login, recovery use, regeneration, disabling, reset, and failed challenges produce administrator audit events.
-- Disabling or resetting MFA revokes all administrator sessions for that account.
+- TOTP setup secrets are encrypted before they reach MongoDB.
+- Passkey cancellation does not create a session or destroy the valid fallback challenge.
+- Strong-factor registration or removal revokes other privileged sessions where the security boundary requires it.
+- Passkey, TOTP, recovery, enrollment, reauthentication, revocation, reset, and failed verification events create administrator audit records without raw credential material.
 
 ### MongoDB collections
 
 ```text
 admin_mfa_factors
+admin_recovery_factors
 admin_mfa_challenges
+admin_passkey_credentials
+admin_passkey_challenges
 ```
 
-The challenge collection has a TTL cleanup index. TOTP secrets are stored only as AES-GCM ciphertext, IV, authentication tag, and key version. Recovery codes are stored only as keyed hashes.
+Challenge collections use TTL cleanup indexes. TOTP secrets are stored only as
+AES-GCM ciphertext, IV, authentication tag, and key version. Recovery codes are
+stored only as keyed hashes. Passkeys store only credential public keys,
+signature counters, and safe operational metadata.
+
