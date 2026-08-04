@@ -5,6 +5,8 @@ import {
 } from "react";
 
 import { useAdminAuth } from "../auth/adminAuthContext";
+import AdminIcon from "../components/AdminIcon";
+import AdminPageHeader from "../components/AdminPageHeader";
 import {
   getAdminSupportConversation,
   getAdminSupportConversations,
@@ -230,7 +232,34 @@ export default function AdminSupportPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <AdminPageHeader
+        eyebrow="Support operations"
+        title="Contact support inbox"
+        description="Review requests, continue signed-in conversations, classify guest messages safely, and keep every operational change auditable."
+        icon="support"
+        meta={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+            <span>{pagination.totalItems} matching request{pagination.totalItems === 1 ? "" : "s"}</span>
+            <span>Page {pagination.page} of {pagination.totalPages}</span>
+          </div>
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => setRefreshVersion((value) => value + 1)}
+            disabled={isListLoading}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.09] bg-slate-950/35 px-4 text-xs font-black text-slate-300 transition hover:border-white/[0.16] hover:text-white disabled:cursor-wait disabled:opacity-50"
+          >
+            <AdminIcon
+              name="refresh"
+              className={`h-4 w-4 ${isListLoading ? "animate-spin" : ""}`}
+            />
+            {isListLoading ? "Refreshing…" : "Refresh inbox"}
+          </button>
+        }
+      />
+
       <AdminSupportFilters
         filters={filters}
         searchDraft={searchDraft}
@@ -245,11 +274,9 @@ export default function AdminSupportPage() {
         onRequesterChange={(requester: AdminSupportRequesterFilter) =>
           updateFilters({ requester })
         }
-        onRefresh={() => setRefreshVersion((value) => value + 1)}
-        isLoading={isListLoading}
       />
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(20rem,0.78fr)_minmax(0,1.42fr)]">
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(21rem,0.76fr)_minmax(0,1.44fr)]">
         <AdminSupportConversationList
           items={items}
           selectedReferenceId={selectedReferenceId}
@@ -266,7 +293,7 @@ export default function AdminSupportPage() {
           onPageChange={(page) => updateFilters({ page })}
         />
 
-        <div className="xl:sticky xl:top-24">
+        <div className="xl:sticky xl:top-[6.25rem]">
           <AdminSupportConversationPanel
             key={selectedReferenceId ?? "no-selection"}
             thread={thread}

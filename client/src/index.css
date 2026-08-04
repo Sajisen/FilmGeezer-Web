@@ -409,3 +409,71 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
 .contact-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgb(56 189 248 / 82%);
 }
+
+/* FilmGeezer administrator workspace */
+.admin-app-background {
+  background-color: #020817;
+  background-image:
+    radial-gradient(circle at 84% -8%, rgb(14 165 233 / 10%), transparent 28rem),
+    radial-gradient(circle at 16% 112%, rgb(59 130 246 / 7%), transparent 34rem),
+    linear-gradient(rgb(255 255 255 / 1.4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 1.4%) 1px, transparent 1px);
+  background-size: auto, auto, 56px 56px, 56px 56px;
+  background-position: center, center, -1px -1px, -1px -1px;
+}
+
+.admin-sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(56 189 248 / 32%) transparent;
+}
+
+.admin-sidebar-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.admin-sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-sidebar-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(56 189 248 / 32%);
+}
+
+.admin-sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(56 189 248 / 48%);
+}
+
+.admin-horizontal-scrollbar,
+.admin-support-list-scrollbar,
+.admin-support-thread-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(56 189 248 / 32%) rgb(15 23 42 / 28%);
+}
+
+.admin-horizontal-scrollbar::-webkit-scrollbar,
+.admin-support-list-scrollbar::-webkit-scrollbar,
+.admin-support-thread-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.admin-horizontal-scrollbar::-webkit-scrollbar-track,
+.admin-support-list-scrollbar::-webkit-scrollbar-track,
+.admin-support-thread-scrollbar::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgb(15 23 42 / 28%);
+}
+
+.admin-horizontal-scrollbar::-webkit-scrollbar-thumb,
+.admin-support-list-scrollbar::-webkit-scrollbar-thumb,
+.admin-support-thread-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(56 189 248 / 32%);
+}
+
+.admin-horizontal-scrollbar::-webkit-scrollbar-thumb:hover,
+.admin-support-list-scrollbar::-webkit-scrollbar-thumb:hover,
+.admin-support-thread-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(56 189 248 / 48%);
+}

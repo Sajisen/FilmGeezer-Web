@@ -98,7 +98,7 @@ export default function AdminMfaSetupFlow({
 
   if (recoveryCodes) {
     return (
-      <section className="rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.06] p-5 sm:p-6">
+      <section className="rounded-[1.75rem] border border-emerald-300/15 bg-emerald-400/[0.05] p-5 shadow-xl shadow-black/[0.08] sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
           MFA enabled
         </p>
@@ -109,7 +109,7 @@ export default function AdminMfaSetupFlow({
           Each code works once. FilmGeezer will not show this set again. Store them outside this browser and outside the device that holds your authenticator app.
         </p>
 
-        <div className="mt-5 grid gap-2 rounded-2xl border border-white/10 bg-slate-950/60 p-4 font-mono text-sm text-slate-200 sm:grid-cols-2">
+        <div className="mt-5 grid gap-2 rounded-2xl border border-white/[0.08] bg-slate-950/45 p-4 font-mono text-sm text-slate-200 sm:grid-cols-2">
           {recoveryCodes.map((recoveryCode) => (
             <code key={recoveryCode} className="rounded-lg bg-white/[0.035] px-3 py-2">
               {recoveryCode}
@@ -153,7 +153,7 @@ export default function AdminMfaSetupFlow({
 
   if (setup) {
     return (
-      <section className="rounded-3xl border border-white/10 bg-slate-900/72 p-5 shadow-xl shadow-black/20 sm:p-6">
+      <section className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
           Authenticator setup
         </p>
@@ -186,7 +186,7 @@ export default function AdminMfaSetupFlow({
             <p className="mt-1 text-xs leading-5 text-slate-500">
               Enter this secret manually. Treat it like a password.
             </p>
-            <code className="mt-3 block break-all rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-sm font-bold tracking-[0.12em] text-sky-200">
+            <code className="mt-3 block break-all rounded-2xl border border-white/[0.08] bg-slate-950/45 px-4 py-3 text-sm font-bold tracking-[0.12em] text-sky-200">
               {setup.secret}
             </code>
 
@@ -203,7 +203,7 @@ export default function AdminMfaSetupFlow({
                   onChange={(event) => setCode(event.target.value)}
                   required
                   maxLength={6}
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/[0.08] bg-slate-950/45 px-4 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
                   placeholder="000000"
                 />
               </label>
@@ -222,7 +222,7 @@ export default function AdminMfaSetupFlow({
   }
 
   return (
-    <form onSubmit={handleStart} className="rounded-3xl border border-white/10 bg-slate-900/72 p-5 shadow-xl shadow-black/20 sm:p-6">
+    <form onSubmit={handleStart} className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
       <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
         Authenticator app
       </p>
@@ -250,7 +250,7 @@ export default function AdminMfaSetupFlow({
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
-            className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+            className="mt-2 min-h-12 w-full rounded-2xl border border-white/[0.08] bg-slate-950/45 px-4 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
           />
         </label>
       )}

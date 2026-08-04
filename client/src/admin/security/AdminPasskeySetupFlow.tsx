@@ -141,7 +141,7 @@ export default function AdminPasskeySetupFlow({
   }
 
   return (
-    <section className="rounded-3xl border border-sky-300/20 bg-slate-900/72 p-5 shadow-xl shadow-black/20 sm:p-6">
+    <section className="rounded-[1.75rem] border border-sky-300/15 bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
       <div className="flex items-start gap-4">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300">
           <PasskeyIcon />
@@ -197,7 +197,7 @@ export default function AdminPasskeySetupFlow({
               required
               minLength={2}
               maxLength={64}
-              className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+              className="mt-2 min-h-12 w-full rounded-2xl border border-white/[0.08] bg-slate-950/45 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
               placeholder="Personal Windows laptop"
             />
           </label>

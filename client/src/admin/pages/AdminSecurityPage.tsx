@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import { useAdminAuth } from "../auth/adminAuthContext";
+import AdminPageHeader from "../components/AdminPageHeader";
 import {
   AdminApiError,
   completeAdminPasskeyReauthentication,
@@ -95,7 +96,7 @@ function ProofForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-white/10 bg-slate-950/35 p-4"
+      className="rounded-2xl border border-white/[0.07] bg-slate-950/30 p-4"
     >
       <h3 className="text-sm font-black text-white">{title}</h3>
       <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -114,7 +115,7 @@ function ProofForm({
             }))
           }
           required
-          className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none focus:border-sky-300/45"
+          className="min-h-11 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 text-sm text-white outline-none focus:border-sky-300/45"
           placeholder="Current password"
         />
         <input
@@ -129,7 +130,7 @@ function ProofForm({
             }))
           }
           required
-          className="min-h-11 rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none focus:border-sky-300/45"
+          className="min-h-11 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 text-sm text-white outline-none focus:border-sky-300/45"
           placeholder={
             fields.method === "totp"
               ? "Six-digit code"
@@ -329,19 +330,19 @@ export default function AdminSecurityPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">
-          Administration security
-        </p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-white">
-          Strong verification methods
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-          Passkeys are preferred for administrator verification. The
-          authenticator app remains a fallback, and one-time recovery codes are
-          reserved for emergencies.
-        </p>
-      </header>
+      <AdminPageHeader
+        eyebrow="Administrator protection"
+        title="Security and verification"
+        description="Manage passkeys, authenticator-app verification, emergency recovery codes, and the recent-authentication window used by sensitive administrator actions."
+        icon="settings"
+        meta={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+            <span>{passkeys.length} registered passkey{passkeys.length === 1 ? "" : "s"}</span>
+            <span>{status?.recoveryCodesRemaining ?? 0} recovery code{status?.recoveryCodesRemaining === 1 ? "" : "s"} remaining</span>
+            <span>{session?.accessLevel === "full" ? "Full administrator session" : "Restricted session"}</span>
+          </div>
+        }
+      />
 
       {(errorMessage || successMessage) && (
         <p
@@ -364,7 +365,7 @@ export default function AdminSecurityPage() {
         </div>
       ) : (
         <section className="grid gap-4 sm:grid-cols-3">
-          <article className="rounded-3xl border border-white/10 bg-slate-900/65 p-5">
+          <article className="rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08]">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">
               Passkeys
             </p>
@@ -378,7 +379,7 @@ export default function AdminSecurityPage() {
             </p>
           </article>
 
-          <article className="rounded-3xl border border-white/10 bg-slate-900/65 p-5">
+          <article className="rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08]">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
               Authenticator app
             </p>
@@ -391,7 +392,7 @@ export default function AdminSecurityPage() {
           </article>
 
           <article
-            className={`rounded-3xl border p-5 ${
+            className={`rounded-[1.5rem] border p-5 shadow-xl shadow-black/[0.08] ${
               hasStrongFactor
                 ? "border-emerald-300/20 bg-emerald-400/[0.06]"
                 : "border-amber-300/20 bg-amber-400/[0.06]"
@@ -422,7 +423,7 @@ export default function AdminSecurityPage() {
         />
       )}
 
-      <section className="rounded-3xl border border-white/10 bg-slate-900/55 p-5 sm:p-6">
+      <section className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
@@ -465,7 +466,7 @@ export default function AdminSecurityPage() {
               return (
                 <article
                   key={passkey.credentialId}
-                  className="rounded-2xl border border-white/10 bg-slate-950/35 p-4"
+                  className="rounded-2xl border border-white/[0.07] bg-slate-950/30 p-4"
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex min-w-0 items-start gap-3">
@@ -560,7 +561,7 @@ export default function AdminSecurityPage() {
         />
       )}
 
-      <section className="rounded-3xl border border-white/10 bg-slate-900/55 p-5 sm:p-6">
+      <section className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">
           Fallback method
         </p>
@@ -615,7 +616,7 @@ export default function AdminSecurityPage() {
         )}
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-slate-900/55 p-5 sm:p-6">
+      <section className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
@@ -660,7 +661,7 @@ export default function AdminSecurityPage() {
       </section>
 
       <section
-        className={`rounded-3xl border p-5 sm:p-6 ${
+        className={`rounded-[1.75rem] border p-5 shadow-xl shadow-black/[0.08] sm:p-6 ${
           showRecentAuthentication
             ? "border-sky-300/25 bg-sky-400/[0.06]"
             : "border-white/10 bg-slate-900/45"
@@ -680,7 +681,7 @@ export default function AdminSecurityPage() {
 
         <div className="mt-5 grid gap-4 xl:grid-cols-2">
           {passkeys.length > 0 && supportsAdminPasskeys() && (
-            <div className="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
+            <div className="rounded-2xl border border-white/[0.07] bg-slate-950/30 p-4">
               <h3 className="text-sm font-black text-white">
                 Confirm with passkey
               </h3>
@@ -692,7 +693,7 @@ export default function AdminSecurityPage() {
                 type="button"
                 disabled={isWorking}
                 onClick={() => void confirmWithPasskey()}
-                className="mt-4 min-h-10 rounded-xl bg-sky-500 px-4 text-sm font-black text-white transition hover:bg-sky-400 disabled:opacity-50"
+                className="mt-4 min-h-10 rounded-xl bg-sky-500 px-4 shadow-lg shadow-sky-950/20 text-sm font-black text-white transition hover:bg-sky-400 disabled:opacity-50"
               >
                 {isWorking ? "Waiting for your device…" : "Verify with passkey"}
               </button>
@@ -722,7 +723,7 @@ export default function AdminSecurityPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-slate-900/45 p-5 sm:p-6">
+      <section className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/45 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
         <h2 className="text-sm font-black text-white">Current session</h2>
         <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-3">
           <div>

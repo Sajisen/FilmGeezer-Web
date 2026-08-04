@@ -18,12 +18,24 @@ import AdminPlaceholderPage from "./pages/AdminPlaceholderPage";
 
 function AdminBootstrapScreen() {
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-950 px-4 text-white">
-      <div className="text-center">
-        <div className="mx-auto h-12 w-12 animate-pulse rounded-2xl border border-sky-300/20 bg-sky-400/10" />
-        <p className="mt-4 text-sm font-bold text-slate-400">
+    <main className="admin-app-background grid min-h-screen place-items-center px-4 text-white">
+      <div className="rounded-[1.75rem] border border-white/[0.08] bg-slate-900/55 px-8 py-7 text-center shadow-2xl shadow-black/20 backdrop-blur-xl">
+        <span className="mx-auto grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-sky-300/20 bg-sky-400/10 shadow-lg shadow-sky-950/30">
+          <img
+            src="/filmgeezer-logo7.png"
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        </span>
+        <p className="mt-4 text-[0.64rem] font-black uppercase tracking-[0.2em] text-sky-300">
+          FilmGeezer administration
+        </p>
+        <p className="mt-2 text-sm font-bold text-slate-400">
           Checking administrator access…
         </p>
+        <span className="mx-auto mt-4 block h-1 w-28 overflow-hidden rounded-full bg-slate-950/70">
+          <span className="block h-full w-1/2 animate-pulse rounded-full bg-sky-400" />
+        </span>
       </div>
     </main>
   );
@@ -55,8 +67,8 @@ function ProtectedAdminRoutes() {
             <AdminPlaceholderPage
               eyebrow="Account administration"
               title="Users"
-              description="Account search and safe administrative controls belong here after administrator MFA is validated."
-              nextStep="Add paginated lookup, account state, session review, suspension safeguards, recent-authentication checks, and protected audit trails."
+              description="Search and review FilmGeezer accounts through protected, auditable administrator controls."
+              nextStep="Add paginated user lookup, identity and status summaries, public-session review and revocation, suspension/reactivation safeguards, self-action protection, final-administrator protection, recent-authentication checks, and complete audit events."
             />
           }
         />
@@ -66,8 +78,8 @@ function ProtectedAdminRoutes() {
             <AdminPlaceholderPage
               eyebrow="Catalog operations"
               title="Content"
-              description="This area will later manage FilmGeezer-owned provider links and content-quality reports without exposing the Telegram bot database directly to React."
-              nextStep="Add read/write APIs with validation, revision protection, recent-authentication gates, and complete administrator audit events."
+              description="Review and manage FilmGeezer-owned provider links without exposing internal content databases directly to React."
+              nextStep="Add TMDB title lookup, validated link editing and ordering, revision protection, recent-authentication gates, canonical media identity checks, safe external-link rules, and complete administrator audit events."
             />
           }
         />
@@ -77,8 +89,8 @@ function ProtectedAdminRoutes() {
             <AdminPlaceholderPage
               eyebrow="Security records"
               title="Audit"
-              description="Administrator sign-ins, MFA activity, support actions, role changes, and session revocations are already recorded in MongoDB."
-              nextStep="Add a read-only, paginated audit viewer with safe filtering and no sensitive token, secret, or recovery-code exposure."
+              description="Administrator sign-ins, passkey and MFA activity, support actions, role changes, and session revocations are already recorded securely."
+              nextStep="Add a read-only, paginated audit viewer with actor, event, target, and date filters while excluding tokens, challenges, credential material, secrets, recovery codes, and sensitive request content."
             />
           }
         />

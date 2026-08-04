@@ -1,3 +1,4 @@
+import AdminIcon from "../../components/AdminIcon";
 import type {
   AdminSupportListFilters,
   AdminSupportRequesterFilter,
@@ -14,8 +15,6 @@ interface AdminSupportFiltersProps {
     value: AdminSupportListFilters["category"],
   ) => void;
   onRequesterChange: (value: AdminSupportRequesterFilter) => void;
-  onRefresh: () => void;
-  isLoading: boolean;
 }
 
 const STATUS_OPTIONS: Array<{
@@ -27,7 +26,7 @@ const STATUS_OPTIONS: Array<{
   { value: "in-review", label: "In review" },
   { value: "resolved", label: "Resolved" },
   { value: "spam", label: "Spam" },
-  { value: "all", label: "All" },
+  { value: "all", label: "All requests" },
 ];
 
 export default function AdminSupportFilters({
@@ -38,36 +37,22 @@ export default function AdminSupportFilters({
   onStatusChange,
   onCategoryChange,
   onRequesterChange,
-  onRefresh,
-  isLoading,
 }: AdminSupportFiltersProps) {
   return (
-    <section className="rounded-2xl border border-white/9 bg-slate-900/62 p-4 shadow-lg shadow-black/10 sm:p-5">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <section className="rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 p-4 shadow-xl shadow-black/[0.08] sm:p-5">
+      <div className="flex items-center gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-slate-950/35 text-slate-400">
+          <AdminIcon name="filter" className="h-4 w-4" />
+        </span>
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
-            Support queue
-          </p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
-            Contact support inbox
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-            Review requests, continue signed-in conversations, and keep every
-            operational change auditable.
+          <h2 className="text-sm font-black text-white">Queue filters</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Narrow the inbox without changing conversation data.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={isLoading}
-          className="min-h-10 shrink-0 rounded-full border border-white/10 px-4 text-sm font-bold text-slate-300 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
-        >
-          {isLoading ? "Refreshing…" : "Refresh inbox"}
-        </button>
       </div>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(15rem,1fr)_auto_auto]">
+      <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(18rem,1.25fr)_minmax(12rem,0.55fr)_minmax(12rem,0.55fr)]">
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -78,23 +63,29 @@ export default function AdminSupportFilters({
           <label className="sr-only" htmlFor="admin-support-search">
             Search support requests
           </label>
-          <input
-            id="admin-support-search"
-            value={searchDraft}
-            onChange={(event) => onSearchDraftChange(event.target.value)}
-            placeholder="Reference, subject, name, or email"
-            maxLength={120}
-            className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/40 focus:ring-2 focus:ring-sky-400/10"
-          />
+          <div className="relative min-w-0 flex-1">
+            <AdminIcon
+              name="search"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600"
+            />
+            <input
+              id="admin-support-search"
+              value={searchDraft}
+              onChange={(event) => onSearchDraftChange(event.target.value)}
+              placeholder="Reference, subject, name, or email"
+              maxLength={120}
+              className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-slate-950/45 pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-slate-600 hover:border-white/[0.12] focus:border-sky-300/35 focus:ring-2 focus:ring-sky-400/10"
+            />
+          </div>
           <button
             type="submit"
-            className="min-h-11 whitespace-nowrap rounded-xl bg-sky-500 px-4 text-sm font-black text-white transition hover:bg-sky-400"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-sky-500 px-4 text-xs font-black text-white shadow-lg shadow-sky-950/20 transition hover:bg-sky-400"
           >
             Search
           </button>
         </form>
 
-        <label className="grid gap-1 text-xs font-bold text-slate-500">
+        <label className="grid gap-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
           Category
           <select
             value={filters.category}
@@ -103,7 +94,7 @@ export default function AdminSupportFilters({
                 event.target.value as AdminSupportListFilters["category"],
               )
             }
-            className="min-h-11 rounded-xl border border-white/10 bg-slate-950/55 px-3 text-sm font-bold text-slate-200 outline-none focus:border-sky-300/40"
+            className="min-h-11 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 text-sm font-bold normal-case tracking-normal text-slate-200 outline-none transition hover:border-white/[0.12] focus:border-sky-300/35"
           >
             <option value="all">All categories</option>
             <option value="general">Question or feedback</option>
@@ -114,7 +105,7 @@ export default function AdminSupportFilters({
           </select>
         </label>
 
-        <label className="grid gap-1 text-xs font-bold text-slate-500">
+        <label className="grid gap-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-600">
           Requester
           <select
             value={filters.requester}
@@ -123,7 +114,7 @@ export default function AdminSupportFilters({
                 event.target.value as AdminSupportRequesterFilter,
               )
             }
-            className="min-h-11 rounded-xl border border-white/10 bg-slate-950/55 px-3 text-sm font-bold text-slate-200 outline-none focus:border-sky-300/40"
+            className="min-h-11 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 text-sm font-bold normal-case tracking-normal text-slate-200 outline-none transition hover:border-white/[0.12] focus:border-sky-300/35"
           >
             <option value="all">All requesters</option>
             <option value="account">Signed-in accounts</option>
@@ -132,17 +123,20 @@ export default function AdminSupportFilters({
         </label>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2" aria-label="Support status filter">
+      <div
+        className="admin-horizontal-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1"
+        aria-label="Support status filter"
+      >
         {STATUS_OPTIONS.map((option) => (
           <button
             key={option.value}
             type="button"
             aria-pressed={filters.status === option.value}
             onClick={() => onStatusChange(option.value)}
-            className={`min-h-9 rounded-full border px-3.5 text-xs font-black transition ${
+            className={`min-h-9 shrink-0 rounded-xl border px-3.5 text-xs font-black transition ${
               filters.status === option.value
-                ? "border-sky-300/30 bg-sky-400/12 text-sky-100"
-                : "border-white/9 bg-slate-950/30 text-slate-400 hover:border-white/16 hover:text-white"
+                ? "border-sky-300/20 bg-sky-400/[0.1] text-sky-100 shadow-sm shadow-sky-950/20"
+                : "border-white/[0.065] bg-slate-950/25 text-slate-500 hover:border-white/[0.12] hover:text-slate-200"
             }`}
           >
             {option.label}

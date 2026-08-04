@@ -30,7 +30,7 @@ export default function AdminRecoveryCodesPanel({
   }
 
   return (
-    <section className="rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.06] p-5 sm:p-6">
+    <section className="rounded-[1.75rem] border border-emerald-300/15 bg-emerald-400/[0.05] p-5 shadow-xl shadow-black/[0.08] sm:p-6">
       <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
         Emergency access
       </p>
@@ -39,7 +39,7 @@ export default function AdminRecoveryCodesPanel({
         {description}
       </p>
 
-      <div className="mt-5 grid gap-2 rounded-2xl border border-white/10 bg-slate-950/60 p-4 font-mono text-sm text-slate-200 sm:grid-cols-2">
+      <div className="mt-5 grid gap-2 rounded-2xl border border-white/[0.08] bg-slate-950/45 p-4 font-mono text-sm text-slate-200 sm:grid-cols-2">
         {recoveryCodes.map((recoveryCode) => (
           <code
             key={recoveryCode}
