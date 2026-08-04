@@ -42,14 +42,21 @@ export async function bumpAdminSecurityRevision(input: {
 export async function initializeAdminSecurityStates(): Promise<void> {
   const { mfaFactors, passkeyCredentials, securityStates } =
     await getAdminCollections();
-  const [totpUserIds, passkeyUserIds] = await Promise.all([
-    mfaFactors.distinct("userId"),
-    passkeyCredentials.distinct("userId", { revokedAt: null }),
+  const [totpFactorOwners, activePasskeyOwners] = await Promise.all([
+    mfaFactors
+      .find({}, { projection: { _id: 0, userId: 1 } })
+      .toArray(),
+    passkeyCredentials
+      .find(
+        { revokedAt: null },
+        { projection: { _id: 0, userId: 1 } },
+      )
+      .toArray(),
   ]);
   const byHexId = new Map<string, ObjectId>();
 
-  for (const userId of [...totpUserIds, ...passkeyUserIds]) {
-    byHexId.set(userId.toHexString(), userId);
+  for (const owner of [...totpFactorOwners, ...activePasskeyOwners]) {
+    byHexId.set(owner.userId.toHexString(), owner.userId);
   }
 
   if (byHexId.size === 0) {

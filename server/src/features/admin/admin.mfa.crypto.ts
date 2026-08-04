@@ -164,7 +164,11 @@ function createTotpCode(secret: string, timeStep: number): string {
     .padStart(ADMIN_MFA_POLICY.digits, "0");
 }
 
-function timingSafeCodeEqual(left: string, right: string): boolean {
+function timingSafeCodeEqual(left: unknown, right: unknown): boolean {
+  if (typeof left !== "string" || typeof right !== "string") {
+    return false;
+  }
+
   const leftBuffer = Buffer.from(left, "utf8");
   const rightBuffer = Buffer.from(right, "utf8");
 

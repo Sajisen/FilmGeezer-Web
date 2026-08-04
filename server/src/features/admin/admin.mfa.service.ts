@@ -733,10 +733,16 @@ export async function disableAdminMfa(
         session: mongoSession,
       });
 
-      const [currentFactor, passkeyCount] = await Promise.all([
-        findAdminMfaFactorByUserId(context.userId, mongoSession),
-        countActiveAdminPasskeys(context.userId, mongoSession),
-      ]);
+      // MongoDB ClientSession operations inside a transaction must run
+      // sequentially; Promise.all can issue overlapping transaction commands.
+      const currentFactor = await findAdminMfaFactorByUserId(
+        context.userId,
+        mongoSession,
+      );
+      const passkeyCount = await countActiveAdminPasskeys(
+        context.userId,
+        mongoSession,
+      );
 
       if (!currentFactor) {
         throw new AdminMfaOperationError(

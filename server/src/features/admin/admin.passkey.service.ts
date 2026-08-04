@@ -515,16 +515,17 @@ export async function verifyAdminPasskeyRegistration(input: {
           throw error;
         }
 
-        const [factor, passkeyCount] = await Promise.all([
-          findAdminMfaFactorByUserId(
-            input.context.userId,
-            mongoSession,
-          ),
-          countActiveAdminPasskeys(
-            input.context.userId,
-            mongoSession,
-          ),
-        ]);
+        // MongoDB transactions must use serial operations on a ClientSession.
+        // Running these calls through Promise.all can attempt overlapping
+        // transaction commands and fail even after WebAuthn verification.
+        const factor = await findAdminMfaFactorByUserId(
+          input.context.userId,
+          mongoSession,
+        );
+        const passkeyCount = await countActiveAdminPasskeys(
+          input.context.userId,
+          mongoSession,
+        );
         const recoveryCodeCount = await getAdminRecoveryCodeCount(
           input.context.userId,
           factor,
@@ -800,18 +801,19 @@ export async function verifyAdminPasskeyLogin(input: {
 
   try {
     await mongoSession.withTransaction(async () => {
-      const [passkeyConsumed, loginConsumed] = await Promise.all([
-        consumeAdminPasskeyChallenge(
-          challenge._id,
-          login.checkedAt,
-          mongoSession,
-        ),
-        consumeAdminMfaChallenge(
-          login.challenge._id,
-          login.checkedAt,
-          mongoSession,
-        ),
-      ]);
+      // The Node.js driver does not support parallel operations inside one
+      // transaction. Consume both single-use challenges sequentially so the
+      // transaction either commits both changes or rolls both changes back.
+      const passkeyConsumed = await consumeAdminPasskeyChallenge(
+        challenge._id,
+        login.checkedAt,
+        mongoSession,
+      );
+      const loginConsumed = await consumeAdminMfaChallenge(
+        login.challenge._id,
+        login.checkedAt,
+        mongoSession,
+      );
 
       if (!passkeyConsumed || !loginConsumed) {
         throw new AdminPasskeyVerificationError(
@@ -1151,14 +1153,19 @@ export async function revokeAdministratorPasskey(input: {
         session: mongoSession,
       });
 
-      const [credential, passkeyCount, factor] = await Promise.all([
-        findActiveAdminPasskeyByCredentialId(
-          { userId: input.context.userId, credentialId },
-          mongoSession,
-        ),
-        countActiveAdminPasskeys(input.context.userId, mongoSession),
-        findAdminMfaFactorByUserId(input.context.userId, mongoSession),
-      ]);
+      // Keep all operations on this transaction session sequential.
+      const credential = await findActiveAdminPasskeyByCredentialId(
+        { userId: input.context.userId, credentialId },
+        mongoSession,
+      );
+      const passkeyCount = await countActiveAdminPasskeys(
+        input.context.userId,
+        mongoSession,
+      );
+      const factor = await findAdminMfaFactorByUserId(
+        input.context.userId,
+        mongoSession,
+      );
 
       if (!credential) {
         throw new AdminPasskeyOperationError(

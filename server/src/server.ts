@@ -7,6 +7,7 @@ import { initializeWatchlistStorage } from "./features/watchlist/watchlist.index
 import { initializePreferencesStorage } from "./features/preferences/preferences.indexes.js";
 import { initializeContactStorage } from "./features/contact/contact.indexes.js";
 import { initializeAdminStorage } from "./features/admin/admin.indexes.js";
+import { isAdminWebAuthnConfigured } from "./features/admin/admin.passkey.config.js";
 
 const { PORT, HOST } = env;
 
@@ -25,6 +26,11 @@ void Promise.all([
 ])
   .then(() => {
     console.log("FilmGeezer application storage is ready.");
+    console.log(
+      isAdminWebAuthnConfigured()
+        ? `Administrator passkeys are ready for ${env.ADMIN_WEBAUTHN_ORIGIN}.`
+        : "Administrator passkeys are disabled until ADMIN_WEBAUTHN_RP_ID and ADMIN_WEBAUTHN_ORIGIN are configured.",
+    );
   })
   .catch((error) => {
     console.error(

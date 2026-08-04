@@ -357,10 +357,11 @@ export async function verifyAdminMfaChallenge(
       return;
     }
 
+    if (error instanceof AdminMfaVerificationError) {
+      clearAdminSessionCookie(response);
+    }
+
     if (handleMfaError(error, response)) {
-      if (error instanceof AdminMfaVerificationError) {
-        clearAdminSessionCookie(response);
-      }
       return;
     }
 
@@ -883,7 +884,10 @@ export async function removeAdminPasskey(
   try {
     const result = await revokeAdministratorPasskey({
       context: getAdminContext(request),
-      credentialId: request.params.credentialId ?? "",
+      credentialId:
+        typeof request.params.credentialId === "string"
+          ? request.params.credentialId
+          : "",
       requestMetadata: createRequestMetadata(request),
     });
     response.status(200).json({
