@@ -11,7 +11,11 @@
     "preadmin:grant": "npm run build",
     "admin:grant": "node dist/scripts/grantAdmin.js",
     "preadmin:revoke": "npm run build",
-    "admin:revoke": "node dist/scripts/revokeAdmin.js"
+    "admin:revoke": "node dist/scripts/revokeAdmin.js",
+    "preadmin:mfa-secrets": "npm run build",
+    "admin:mfa-secrets": "node dist/scripts/generateAdminMfaSecrets.js",
+    "preadmin:mfa-reset": "npm run build",
+    "admin:mfa-reset": "node dist/scripts/resetAdminMfa.js"
   },
   "keywords": [],
   "author": "",
@@ -30,7 +34,8 @@
     "mongodb": "^7.5.0",
     "multer": "2.2.0",
     "sharp": "0.35.3",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "qrcode": "1.5.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

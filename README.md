@@ -365,3 +365,78 @@ Administrator support actions are written to `admin_audit_events` as:
 admin-support-replied
 admin-support-status-updated
 ```
+
+## Administrator MFA and recent authentication
+
+FilmGeezer administration supports TOTP authenticator-app MFA, one-time recovery codes, restricted enrollment sessions, and a recent-authentication timestamp for future sensitive actions.
+
+### Server configuration
+
+Generate a dedicated encryption key and recovery-code pepper:
+
+```powershell
+cd server
+npm run admin:mfa-secrets
+```
+
+Copy both generated values into the server environment:
+
+```env
+ADMIN_MFA_REQUIRED=false
+ADMIN_MFA_ENCRYPTION_KEY=<generated 32-byte base64 key>
+ADMIN_MFA_RECOVERY_PEPPER=<generated independent pepper>
+```
+
+`ADMIN_MFA_ENCRYPTION_KEY` encrypts TOTP secrets with AES-256-GCM. `ADMIN_MFA_RECOVERY_PEPPER` is used only to create keyed hashes for recovery codes. Keep both values outside source control and preserve them during deployments.
+
+Install the QR-code dependency and update the lock file:
+
+```powershell
+cd server
+npm install
+```
+
+### Safe rollout
+
+1. Configure both MFA secrets while `ADMIN_MFA_REQUIRED=false`.
+2. Restart the API and sign in to the administrator application.
+3. Open **Settings** and enroll an authenticator app.
+4. Save the displayed recovery codes outside the browser and authenticator device.
+5. Sign out and verify password + TOTP login.
+6. Set `ADMIN_MFA_REQUIRED=true` before exposing the production admin subdomain.
+
+When policy is required, an administrator without a factor receives a restricted session that can access only session, logout, and MFA-enrollment routes. The dashboard, support inbox, and every `/api/admin/*` operational route remain blocked until setup completes.
+
+### Recovery and emergency reset
+
+Each recovery code works once. Generating a replacement set invalidates every previous code.
+
+A server operator can remove an administrator's factor and revoke all of that account's administrator sessions:
+
+```powershell
+npm run admin:mfa-reset -- -- --email=administrator@example.com
+```
+
+The next administrator sign-in must complete enrollment again when `ADMIN_MFA_REQUIRED=true`. The reset command does not remove the administrator role or affect ordinary public FilmGeezer sessions.
+
+### Security behavior
+
+- TOTP uses SHA-1, six digits, 30-second periods, and a one-step clock-drift window.
+- A TOTP time step cannot be accepted twice for the same administrator.
+- Login MFA challenges expire after ten minutes and allow five failed attempts.
+- Recovery codes are high-entropy, HMAC-hashed, and never stored in plaintext.
+- The setup secret is encrypted before it reaches MongoDB.
+- Full administrator sessions are issued only after successful MFA when a factor exists.
+- `recentAuthenticationAt` is refreshed only after password + MFA proof.
+- Sensitive future routes can use `requireRecentAdminAuthentication` for a ten-minute confirmation window.
+- MFA setup, login, recovery use, regeneration, disabling, reset, and failed challenges produce administrator audit events.
+- Disabling or resetting MFA revokes all administrator sessions for that account.
+
+### MongoDB collections
+
+```text
+admin_mfa_factors
+admin_mfa_challenges
+```
+
+The challenge collection has a TTL cleanup index. TOTP secrets are stored only as AES-GCM ciphertext, IV, authentication tag, and key version. Recovery codes are stored only as keyed hashes.

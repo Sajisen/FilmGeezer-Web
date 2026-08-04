@@ -6,28 +6,94 @@ export interface AdminUser {
   roles: Array<"user" | "admin">;
 }
 
+export type AdminSessionAccessLevel = "full" | "mfa-enrollment";
+
 export interface AdminSessionSummary {
+  accessLevel: AdminSessionAccessLevel;
   createdAt: string;
   lastSeenAt: string;
+  recentAuthenticationAt: string;
+  mfaVerifiedAt: string | null;
   idleExpiresAt: string;
   expiresAt: string;
 }
 
+export interface AdminSecuritySummary {
+  mfaEnabled: boolean;
+  mfaRequiredByPolicy: boolean;
+  recoveryCodesRemaining: number;
+  mfaEnabledAt: string | null;
+}
+
 export interface AdminSessionResponse {
   status: "success";
-  code: "ADMIN_SESSION_ACTIVE";
+  code: "ADMIN_SESSION_ACTIVE" | "ADMIN_MFA_ENROLLMENT_REQUIRED";
   user: AdminUser;
   session: AdminSessionSummary;
   csrfToken: string;
+  security: AdminSecuritySummary;
 }
 
 export interface AdminLoginResponse {
   status: "success";
-  code: "ADMIN_LOGIN_SUCCEEDED";
+  code: "ADMIN_LOGIN_SUCCEEDED" | "ADMIN_MFA_ENROLLMENT_REQUIRED";
   message: string;
   user: AdminUser;
   session: AdminSessionSummary;
   csrfToken: string;
+  security: AdminSecuritySummary;
+}
+
+export interface AdminMfaChallengeResponse {
+  status: "success";
+  code: "ADMIN_MFA_CHALLENGE_REQUIRED";
+  message: string;
+  challenge: {
+    expiresAt: string;
+    recoveryAllowed: boolean;
+  };
+}
+
+export type AdminLoginResult =
+  | AdminLoginResponse
+  | AdminMfaChallengeResponse;
+
+export interface AdminMfaStatusResponse {
+  status: "success";
+  code: "ADMIN_MFA_STATUS_READY";
+  security: AdminSecuritySummary & {
+    configured: boolean;
+  };
+}
+
+export interface AdminMfaSetupResponse {
+  status: "success";
+  code: "ADMIN_MFA_SETUP_READY";
+  setup: {
+    setupId: string;
+    secret: string;
+    otpAuthUri: string;
+    qrDataUrl: string;
+    expiresAt: string;
+  };
+}
+
+export interface AdminMfaRecoveryCodesResponse {
+  status: "success";
+  code:
+    | "ADMIN_MFA_ENABLED"
+    | "ADMIN_MFA_RECOVERY_CODES_REGENERATED";
+  message: string;
+  enabledAt?: string;
+  generatedAt?: string;
+  recoveryCodes: string[];
+}
+
+export interface AdminReauthenticationResponse {
+  status: "success";
+  code: "ADMIN_REAUTHENTICATION_SUCCEEDED";
+  message: string;
+  authenticatedAt: string;
 }
 
 export interface AdminOverview {
@@ -66,7 +132,14 @@ export interface AdminErrorPayload {
 export type AdminAuthStatus =
   | "bootstrapping"
   | "guest"
+  | "mfa-required"
+  | "mfa-enrollment"
   | "authenticated";
+
+export interface AdminMfaChallengeState {
+  expiresAt: string;
+  recoveryAllowed: boolean;
+}
 
 export type AdminSupportCategory =
   | "general"

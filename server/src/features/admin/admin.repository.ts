@@ -25,6 +25,9 @@ export interface CreateAdminSessionInput {
   csrfSecretHash: string;
   userAgentSummary: string | null;
   ipHash: string | null;
+  accessLevel: import("./admin.types.js").AdminSessionAccessLevel;
+  recentAuthenticationAt: Date;
+  mfaVerifiedAt: Date | null;
   createdAt: Date;
   expiresAt: Date;
 }
@@ -43,8 +46,11 @@ export async function createAdminSession(
     csrfSecretHash: input.csrfSecretHash,
     userAgentSummary: input.userAgentSummary,
     ipHash: input.ipHash,
+    accessLevel: input.accessLevel,
     createdAt: input.createdAt,
     lastSeenAt: input.createdAt,
+    recentAuthenticationAt: input.recentAuthenticationAt,
+    mfaVerifiedAt: input.mfaVerifiedAt,
     expiresAt: input.expiresAt,
     revokedAt: null,
     revocationReason: null,
@@ -127,6 +133,36 @@ export async function revokeAllAdminSessionsForUser(
   const result = await sessions.updateMany(
     {
       userId: input.userId,
+      revokedAt: null,
+    },
+    {
+      $set: {
+        revokedAt: input.revokedAt,
+        revocationReason: input.reason,
+      },
+    },
+    session ? { session } : undefined,
+  );
+
+  return result.modifiedCount;
+}
+
+
+export async function revokeOtherAdminSessionsForUser(
+  input: {
+    userId: ObjectId;
+    exceptSessionId: ObjectId;
+    revokedAt: Date;
+    reason: AdminSessionRevocationReason;
+  },
+  session?: ClientSession,
+): Promise<number> {
+  const { sessions } = await getAdminCollections();
+
+  const result = await sessions.updateMany(
+    {
+      userId: input.userId,
+      _id: { $ne: input.exceptSessionId },
       revokedAt: null,
     },
     {

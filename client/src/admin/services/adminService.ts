@@ -1,7 +1,14 @@
 import type {
   AdminErrorPayload,
   AdminLoginResponse,
+  AdminLoginResult,
+  AdminMfaChallengeResponse,
+  AdminMfaRecoveryCodesResponse,
+  AdminMfaSetupResponse,
+  AdminMfaStatusResponse,
   AdminOverviewResponse,
+  AdminReauthenticationResponse,
+  AdminSecuritySummary,
   AdminSessionResponse,
   AdminSessionSummary,
   AdminSupportCategory,
@@ -40,11 +47,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isAdminUser(value: unknown): value is AdminUser {
-  if (!isRecord(value)) {
-    return false;
-  }
-
   return (
+    isRecord(value) &&
     typeof value.userId === "string" &&
     typeof value.email === "string" &&
     typeof value.displayName === "string" &&
@@ -59,26 +63,43 @@ function isAdminUser(value: unknown): value is AdminUser {
 function isAdminSessionSummary(
   value: unknown,
 ): value is AdminSessionSummary {
-  if (!isRecord(value)) {
-    return false;
-  }
+  return (
+    isRecord(value) &&
+    (value.accessLevel === "full" ||
+      value.accessLevel === "mfa-enrollment") &&
+    typeof value.createdAt === "string" &&
+    typeof value.lastSeenAt === "string" &&
+    typeof value.recentAuthenticationAt === "string" &&
+    (value.mfaVerifiedAt === null ||
+      typeof value.mfaVerifiedAt === "string") &&
+    typeof value.idleExpiresAt === "string" &&
+    typeof value.expiresAt === "string"
+  );
+}
 
-  return [
-    value.createdAt,
-    value.lastSeenAt,
-    value.idleExpiresAt,
-    value.expiresAt,
-  ].every((item) => typeof item === "string");
+function isAdminSecuritySummary(
+  value: unknown,
+): value is AdminSecuritySummary {
+  return (
+    isRecord(value) &&
+    typeof value.mfaEnabled === "boolean" &&
+    typeof value.mfaRequiredByPolicy === "boolean" &&
+    typeof value.recoveryCodesRemaining === "number" &&
+    (value.mfaEnabledAt === null ||
+      typeof value.mfaEnabledAt === "string")
+  );
 }
 
 function isSessionResponse(value: unknown): value is AdminSessionResponse {
   return (
     isRecord(value) &&
     value.status === "success" &&
-    value.code === "ADMIN_SESSION_ACTIVE" &&
+    (value.code === "ADMIN_SESSION_ACTIVE" ||
+      value.code === "ADMIN_MFA_ENROLLMENT_REQUIRED") &&
     isAdminUser(value.user) &&
     isAdminSessionSummary(value.session) &&
-    typeof value.csrfToken === "string"
+    typeof value.csrfToken === "string" &&
+    isAdminSecuritySummary(value.security)
   );
 }
 
@@ -86,11 +107,94 @@ function isLoginResponse(value: unknown): value is AdminLoginResponse {
   return (
     isRecord(value) &&
     value.status === "success" &&
-    value.code === "ADMIN_LOGIN_SUCCEEDED" &&
+    (value.code === "ADMIN_LOGIN_SUCCEEDED" ||
+      value.code === "ADMIN_MFA_ENROLLMENT_REQUIRED") &&
     typeof value.message === "string" &&
     isAdminUser(value.user) &&
     isAdminSessionSummary(value.session) &&
-    typeof value.csrfToken === "string"
+    typeof value.csrfToken === "string" &&
+    isAdminSecuritySummary(value.security)
+  );
+}
+
+function isMfaChallengeResponse(
+  value: unknown,
+): value is AdminMfaChallengeResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_MFA_CHALLENGE_REQUIRED" &&
+    typeof value.message === "string" &&
+    isRecord(value.challenge) &&
+    typeof value.challenge.expiresAt === "string" &&
+    typeof value.challenge.recoveryAllowed === "boolean"
+  );
+}
+
+function isLoginResult(value: unknown): value is AdminLoginResult {
+  return isLoginResponse(value) || isMfaChallengeResponse(value);
+}
+
+function isMfaStatusResponse(
+  value: unknown,
+): value is AdminMfaStatusResponse {
+  if (
+    !isRecord(value) ||
+    value.status !== "success" ||
+    value.code !== "ADMIN_MFA_STATUS_READY" ||
+    !isRecord(value.security)
+  ) {
+    return false;
+  }
+
+  return (
+    isAdminSecuritySummary(value.security) &&
+    typeof value.security.configured === "boolean"
+  );
+}
+
+function isMfaSetupResponse(
+  value: unknown,
+): value is AdminMfaSetupResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_MFA_SETUP_READY" &&
+    isRecord(value.setup) &&
+    typeof value.setup.setupId === "string" &&
+    typeof value.setup.secret === "string" &&
+    typeof value.setup.otpAuthUri === "string" &&
+    typeof value.setup.qrDataUrl === "string" &&
+    typeof value.setup.expiresAt === "string"
+  );
+}
+
+function isMfaRecoveryCodesResponse(
+  value: unknown,
+): value is AdminMfaRecoveryCodesResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    (value.code === "ADMIN_MFA_ENABLED" ||
+      value.code === "ADMIN_MFA_RECOVERY_CODES_REGENERATED") &&
+    typeof value.message === "string" &&
+    Array.isArray(value.recoveryCodes) &&
+    value.recoveryCodes.every((code) => typeof code === "string") &&
+    (value.enabledAt === undefined || typeof value.enabledAt === "string") &&
+    (value.generatedAt === undefined ||
+      typeof value.generatedAt === "string")
+  );
+}
+
+function isReauthenticationResponse(
+  value: unknown,
+): value is AdminReauthenticationResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_REAUTHENTICATION_SUCCEEDED" &&
+    typeof value.message === "string" &&
+    typeof value.authenticatedAt === "string"
   );
 }
 
@@ -137,14 +241,12 @@ const SUPPORT_CATEGORIES: AdminSupportCategory[] = [
   "account",
   "feedback",
 ];
-
 const SUPPORT_STATUSES: AdminSupportStatus[] = [
   "new",
   "in-review",
   "resolved",
   "spam",
 ];
-
 const SUPPORT_SENDER_ROLES: AdminSupportSenderRole[] = [
   "user",
   "admin",
@@ -205,20 +307,18 @@ function isSupportThread(
     return false;
   }
 
-  const messagesAreValid = value.messages.every(
-    (message) =>
-      isRecord(message) &&
-      typeof message.id === "string" &&
-      typeof message.senderRole === "string" &&
-      SUPPORT_SENDER_ROLES.includes(
-        message.senderRole as AdminSupportSenderRole,
-      ) &&
-      typeof message.body === "string" &&
-      typeof message.createdAt === "string",
-  );
-
   return (
-    messagesAreValid &&
+    value.messages.every(
+      (message) =>
+        isRecord(message) &&
+        typeof message.id === "string" &&
+        typeof message.senderRole === "string" &&
+        SUPPORT_SENDER_ROLES.includes(
+          message.senderRole as AdminSupportSenderRole,
+        ) &&
+        typeof message.body === "string" &&
+        typeof message.createdAt === "string",
+    ) &&
     (value.delivery.channel === "in-app" ||
       value.delivery.channel === "email") &&
     typeof value.delivery.available === "boolean" &&
@@ -303,7 +403,6 @@ async function adminRequest<T>(
     body:
       input.body !== undefined ? JSON.stringify(input.body) : undefined,
   });
-
   const payload = await parseJson(response);
 
   if (!response.ok) {
@@ -334,22 +433,48 @@ export function getAdminSession(
 export function loginAdmin(input: {
   email: string;
   password: string;
-}): Promise<AdminLoginResponse> {
+}): Promise<AdminLoginResult> {
   return adminRequest("/api/admin/auth/login", {
     method: "POST",
     body: input,
-    guard: isLoginResponse,
+    guard: isLoginResult,
     fallbackMessage: "Administrator sign-in could not be completed.",
   });
+}
+
+export function verifyAdminMfaLogin(input: {
+  method: "totp" | "recovery";
+  code: string;
+}): Promise<AdminLoginResponse> {
+  return adminRequest("/api/admin/auth/mfa/verify", {
+    method: "POST",
+    body: input,
+    guard: isLoginResponse,
+    fallbackMessage: "Administrator MFA could not be verified.",
+  });
+}
+
+export async function cancelAdminMfaLogin(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/auth/mfa/cancel`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const payload = await parseJson(response);
+    throw new AdminApiError(
+      response.status,
+      isRecord(payload) ? payload : {},
+      "Administrator MFA verification could not be cancelled.",
+    );
+  }
 }
 
 export async function logoutAdmin(csrfToken: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/admin/auth/logout`, {
     method: "POST",
     credentials: "include",
-    headers: {
-      "X-Admin-CSRF-Token": csrfToken,
-    },
+    headers: { "X-Admin-CSRF-Token": csrfToken },
   });
 
   if (!response.ok) {
@@ -360,6 +485,104 @@ export async function logoutAdmin(csrfToken: string): Promise<void> {
       "Administrator sign-out could not be completed.",
     );
   }
+}
+
+export function getAdminMfaStatus(
+  signal?: AbortSignal,
+): Promise<AdminMfaStatusResponse> {
+  return adminRequest("/api/admin/auth/mfa/status", {
+    signal,
+    guard: isMfaStatusResponse,
+    fallbackMessage: "Administrator MFA status could not be loaded.",
+  });
+}
+
+export function startAdminMfaSetup(
+  input: { password?: string },
+  csrfToken: string,
+): Promise<AdminMfaSetupResponse> {
+  return adminRequest("/api/admin/auth/mfa/setup", {
+    method: "POST",
+    body: input,
+    csrfToken,
+    guard: isMfaSetupResponse,
+    fallbackMessage: "Administrator MFA setup could not be started.",
+  });
+}
+
+export function completeAdminMfaSetup(
+  input: { setupId: string; code: string },
+  csrfToken: string,
+): Promise<AdminMfaRecoveryCodesResponse> {
+  return adminRequest("/api/admin/auth/mfa/setup/verify", {
+    method: "POST",
+    body: input,
+    csrfToken,
+    guard: isMfaRecoveryCodesResponse,
+    fallbackMessage: "Administrator MFA setup could not be completed.",
+  });
+}
+
+export function regenerateAdminMfaRecoveryCodes(
+  input: {
+    password: string;
+    method: "totp" | "recovery";
+    code: string;
+  },
+  csrfToken: string,
+): Promise<AdminMfaRecoveryCodesResponse> {
+  return adminRequest("/api/admin/auth/mfa/recovery-codes", {
+    method: "POST",
+    body: input,
+    csrfToken,
+    guard: isMfaRecoveryCodesResponse,
+    fallbackMessage: "Recovery codes could not be regenerated.",
+  });
+}
+
+export async function disableAdminMfa(
+  input: {
+    password: string;
+    method: "totp" | "recovery";
+    code: string;
+  },
+  csrfToken: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/auth/mfa/disable`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Admin-CSRF-Token": csrfToken,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const payload = await parseJson(response);
+    throw new AdminApiError(
+      response.status,
+      isRecord(payload) ? payload : {},
+      "Administrator MFA could not be disabled.",
+    );
+  }
+}
+
+export function reauthenticateAdmin(
+  input: {
+    password: string;
+    method: "totp" | "recovery";
+    code: string;
+  },
+  csrfToken: string,
+): Promise<AdminReauthenticationResponse> {
+  return adminRequest("/api/admin/auth/reauthenticate", {
+    method: "POST",
+    body: input,
+    csrfToken,
+    guard: isReauthenticationResponse,
+    fallbackMessage: "Administrator identity could not be confirmed.",
+  });
 }
 
 export function getAdminOverview(

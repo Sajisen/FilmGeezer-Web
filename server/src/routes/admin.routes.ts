@@ -18,6 +18,7 @@ import { ADMIN_HTTP_POLICY } from "../features/admin/admin.constants.js";
 import {
   requireAdminCsrfProtection,
   requireAdminSession,
+  requireFullAdminSession,
 } from "../middleware/admin.middleware.js";
 
 const router = Router();
@@ -89,6 +90,7 @@ const supportWriteRateLimit = createAdminRateLimit({
 });
 
 router.use(requireAdminSession);
+router.use(requireFullAdminSession);
 
 router.get("/overview", overviewRateLimit, getAdminDashboardOverview);
 router.get("/support", supportReadRateLimit, getAdminSupportInbox);

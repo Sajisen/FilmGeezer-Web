@@ -32,7 +32,7 @@ function SidebarContent({
 }: {
   onNavigate?: () => void;
 }) {
-  const { user } = useAdminAuth();
+  const { user, security } = useAdminAuth();
 
   return (
     <>
@@ -70,9 +70,20 @@ function SidebarContent({
 
       <div className="border-t border-white/8 p-4">
         <div className="rounded-2xl border border-white/8 bg-slate-950/35 px-4 py-3">
-          <p className="truncate text-sm font-bold text-white">
-            {user?.displayName ?? "Administrator"}
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="truncate text-sm font-bold text-white">
+              {user?.displayName ?? "Administrator"}
+            </p>
+            <span
+              className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.12em] ${
+                security?.mfaEnabled
+                  ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200"
+                  : "border-amber-300/20 bg-amber-400/10 text-amber-200"
+              }`}
+            >
+              {security?.mfaEnabled ? "MFA" : "Password"}
+            </span>
+          </div>
           <p className="mt-0.5 truncate text-xs text-slate-500">
             {user?.email}
           </p>

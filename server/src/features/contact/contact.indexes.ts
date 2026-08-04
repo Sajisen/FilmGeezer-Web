@@ -54,6 +54,10 @@ async function prepareContactStorage(): Promise<void> {
       unique: true,
     },
     {
+      key: { lastMessageAt: -1, _id: -1 },
+      name: "contact_last_message_at_id",
+    },
+    {
       key: { status: 1, lastMessageAt: -1 },
       name: "contact_status_last_message_at",
     },
@@ -73,21 +77,6 @@ async function prepareContactStorage(): Promise<void> {
     {
       key: { userId: 1, status: 1, lastMessageAt: -1 },
       name: "contact_requester_status_last_message_at",
-    },
-    {
-      key: {
-        subject: "text",
-        name: "text",
-        emailNormalized: "text",
-        referenceId: "text",
-      },
-      name: "contact_admin_search_text",
-      weights: {
-        referenceId: 10,
-        subject: 6,
-        emailNormalized: 4,
-        name: 2,
-      },
     },
   ]);
 

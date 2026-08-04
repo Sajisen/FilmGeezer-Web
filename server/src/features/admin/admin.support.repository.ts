@@ -22,11 +22,13 @@ function escapeRegularExpression(value: string): string {
 function createSearchFilter(
   search: string,
 ): Filter<ContactMessageDocument> | null {
-  if (!search) {
+  const normalizedSearch = search.trim();
+
+  if (!normalizedSearch) {
     return null;
   }
 
-  const normalizedReference = search.trim().toUpperCase();
+  const normalizedReference = normalizedSearch.toUpperCase();
 
   if (/^FG-\d{8}-[A-F0-9]{8}$/u.test(normalizedReference)) {
     return { referenceId: normalizedReference };
@@ -40,15 +42,36 @@ function createSearchFilter(
     };
   }
 
-  if (search.includes("@")) {
+  if (normalizedSearch.includes("@")) {
     return {
       emailNormalized: {
-        $regex: `^${escapeRegularExpression(search.toLowerCase())}`,
+        $regex: `^${escapeRegularExpression(
+          normalizedSearch.toLowerCase(),
+        )}`,
       },
     };
   }
 
-  return { $text: { $search: search } };
+  /*
+   * MongoDB text indexes and the $text predicate are not available while
+   * the application's Stable API client uses apiStrict: true. This escaped
+   * case-insensitive fallback is suitable for the bounded, administrator-only
+   * support inbox. Exact references and email prefixes continue to use their
+   * normal indexed paths above.
+   */
+  const generalPattern = new RegExp(
+    escapeRegularExpression(normalizedSearch),
+    "i",
+  );
+
+  return {
+    $or: [
+      { subject: generalPattern },
+      { name: generalPattern },
+      { emailNormalized: generalPattern },
+      { referenceId: generalPattern },
+    ],
+  };
 }
 
 function createListFilter(

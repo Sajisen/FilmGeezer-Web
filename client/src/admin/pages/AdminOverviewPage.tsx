@@ -4,6 +4,7 @@ import {
 } from "react";
 import { Link } from "react-router";
 
+import { useAdminAuth } from "../auth/adminAuthContext";
 import { getAdminOverview } from "../services/adminService";
 import type { AdminOverview } from "../types/admin";
 
@@ -35,6 +36,7 @@ function MetricCard({
 }
 
 export default function AdminOverviewPage() {
+  const { security } = useAdminAuth();
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -158,18 +160,38 @@ export default function AdminOverviewPage() {
           </Link>
         </article>
 
-        <article className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-6">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-200">
-            Production gate
+        <article
+          className={`rounded-2xl border p-6 ${
+            security?.mfaEnabled
+              ? "border-emerald-300/15 bg-emerald-300/[0.05]"
+              : "border-amber-300/15 bg-amber-300/[0.05]"
+          }`}
+        >
+          <p
+            className={`text-xs font-black uppercase tracking-[0.2em] ${
+              security?.mfaEnabled
+                ? "text-emerald-200"
+                : "text-amber-200"
+            }`}
+          >
+            Administrator security
           </p>
           <h2 className="mt-3 text-lg font-black text-white">
-            MFA comes before launch
+            {security?.mfaEnabled
+              ? "MFA is protecting this account"
+              : "Complete MFA before production"}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            Password, role checks, short sessions, CSRF protection, and audit
-            logging are active. Administrator MFA remains a required hardening
-            milestone before public production use.
+            {security?.mfaEnabled
+              ? `${security.recoveryCodesRemaining} recovery code(s) remain. Review security settings before adding destructive administration controls.`
+              : "Password, role checks, short sessions, CSRF protection, and audit logging are active. Enroll an authenticator before exposing the admin subdomain publicly."}
           </p>
+          <Link
+            to="/settings"
+            className="mt-5 inline-flex min-h-10 items-center rounded-full border border-white/10 px-4 text-sm font-black text-slate-200 transition hover:bg-white/[0.04]"
+          >
+            Open security settings
+          </Link>
         </article>
       </section>
     </div>

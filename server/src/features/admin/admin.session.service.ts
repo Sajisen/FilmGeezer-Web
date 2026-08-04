@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 
+import { env } from "../../config/env.js";
 import { findActiveUserById } from "../auth/repositories/authUser.repository.js";
 import { createProfileImagePath } from "../profile-image/profileImage.path.js";
 import { ADMIN_SESSION_POLICY } from "./admin.constants.js";
@@ -8,6 +9,7 @@ import {
   AdminPersistenceError,
 } from "./admin.errors.js";
 import { initializeAdminStorage } from "./admin.indexes.js";
+import { findAdminMfaFactorByUserId } from "./admin.mfa.repository.js";
 import {
   createAdminAuditEvent,
   findAdminSessionByTokenHash,
@@ -96,7 +98,10 @@ export async function resolveAdminSession(
       throw new AdminAuthenticationRequiredError();
     }
 
-    const user = await findActiveUserById(session.userId);
+    const [user, mfaFactor] = await Promise.all([
+      findActiveUserById(session.userId),
+      findAdminMfaFactorByUserId(session.userId),
+    ]);
 
     if (!user) {
       await revokeKnownSession({
@@ -113,6 +118,46 @@ export async function resolveAdminSession(
         sessionId: session._id,
         userId: session.userId,
         reason: "role-removed",
+        revokedAt: checkedAt,
+      });
+      throw new AdminAuthenticationRequiredError();
+    }
+
+    const mfaEnabled = mfaFactor !== null;
+
+    if (
+      session.accessLevel === "full" &&
+      mfaEnabled &&
+      session.mfaVerifiedAt === null
+    ) {
+      await revokeKnownSession({
+        sessionId: session._id,
+        userId: session.userId,
+        reason: "security-event",
+        revokedAt: checkedAt,
+      });
+      throw new AdminAuthenticationRequiredError();
+    }
+
+    if (
+      env.ADMIN_MFA_REQUIRED &&
+      !mfaEnabled &&
+      session.accessLevel !== "mfa-enrollment"
+    ) {
+      await revokeKnownSession({
+        sessionId: session._id,
+        userId: session.userId,
+        reason: "security-event",
+        revokedAt: checkedAt,
+      });
+      throw new AdminAuthenticationRequiredError();
+    }
+
+    if (session.accessLevel === "mfa-enrollment" && mfaEnabled) {
+      await revokeKnownSession({
+        sessionId: session._id,
+        userId: session.userId,
+        reason: "security-event",
         revokedAt: checkedAt,
       });
       throw new AdminAuthenticationRequiredError();
@@ -142,8 +187,16 @@ export async function resolveAdminSession(
       roles: [...user.roles],
       csrfToken,
       csrfSecretHash: session.csrfSecretHash,
+      accessLevel: session.accessLevel,
+      mfaEnabled,
+      mfaRequiredByPolicy: env.ADMIN_MFA_REQUIRED,
+      recoveryCodesRemaining:
+        mfaFactor?.recoveryCodeHashes.length ?? 0,
+      mfaEnabledAt: mfaFactor?.enabledAt ?? null,
       createdAt: session.createdAt,
       lastSeenAt: effectiveLastSeenAt,
+      recentAuthenticationAt: session.recentAuthenticationAt,
+      mfaVerifiedAt: session.mfaVerifiedAt,
       idleExpiresAt: new Date(
         effectiveLastSeenAt.getTime() +
           ADMIN_SESSION_POLICY.idleTimeoutMilliseconds,

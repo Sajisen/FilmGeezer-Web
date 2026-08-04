@@ -99,6 +99,50 @@ export async function requireAdminSession(
   }
 }
 
+export function requireFullAdminSession(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): void {
+  const context = getAdminContext(request);
+
+  if (context.accessLevel !== "full") {
+    response.status(403).json({
+      status: "error",
+      code: "ADMIN_MFA_ENROLLMENT_REQUIRED",
+      message:
+        "Administrator MFA enrollment must be completed before this area can be used.",
+    });
+    return;
+  }
+
+  next();
+}
+
+export function requireRecentAdminAuthentication(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): void {
+  const context = getAdminContext(request);
+  const age = Date.now() - context.recentAuthenticationAt.getTime();
+
+  if (
+    age < 0 ||
+    age > ADMIN_SESSION_POLICY.recentAuthenticationLifetimeMilliseconds
+  ) {
+    response.status(403).json({
+      status: "error",
+      code: "ADMIN_RECENT_AUTHENTICATION_REQUIRED",
+      message:
+        "Confirm your administrator password and MFA before continuing.",
+    });
+    return;
+  }
+
+  next();
+}
+
 export function requireAdminCsrfProtection(
   request: Request,
   response: Response,

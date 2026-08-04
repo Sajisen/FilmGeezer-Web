@@ -1,50 +1,41 @@
-import {
-  ObjectId,
-  type TransactionOptions,
-} from "mongodb";
+import { randomUUID } from "node:crypto";
 
-import { getMongoClient } from "../../config/database.js";
+import { ObjectId } from "mongodb";
+
+import { env } from "../../config/env.js";
+import { verifyPassword } from "../auth/auth.password.js";
+import { findAuthCredentialByUserId } from "../auth/repositories/authCredential.repository.js";
+import { findUserByNormalizedEmail } from "../auth/repositories/authUser.repository.js";
 import {
-  passwordHashNeedsRehash,
-  hashPassword,
-  verifyPassword,
-} from "../auth/auth.password.js";
-import {
-  findAuthCredentialByUserId,
-  replaceCredentialPasswordHash,
-} from "../auth/repositories/authCredential.repository.js";
-import {
-  findUserByNormalizedEmail,
-  recordSuccessfulLogin,
-} from "../auth/repositories/authUser.repository.js";
-import { createProfileImagePath } from "../profile-image/profileImage.path.js";
-import { initializeAdminStorage } from "./admin.indexes.js";
+  ADMIN_MFA_POLICY,
+} from "./admin.constants.js";
 import {
   AdminInvalidCredentialsError,
   AdminPersistenceError,
 } from "./admin.errors.js";
+import { initializeAdminStorage } from "./admin.indexes.js";
 import {
-  createAdminSessionSecrets,
+  createAdminMfaChallenge,
+  findAdminMfaFactorByUserId,
+  invalidateOpenAdminMfaChallenges,
+} from "./admin.mfa.repository.js";
+import {
+  createAdminAuditEvent,
+} from "./admin.repository.js";
+import {
+  createAdminMfaChallengeToken,
   hashAdminIpAddress,
+  hashAdminMfaChallengeToken,
   summarizeAdminUserAgent,
 } from "./admin.session.js";
 import {
-  createAdminAuditEvent,
-  createAdminSession,
-  makeRoomForAdminSession,
-} from "./admin.repository.js";
-import { ADMIN_SESSION_POLICY } from "./admin.constants.js";
+  issueAdminSession,
+  type IssuedAdminSessionResult,
+} from "./admin.session-creation.service.js";
 import {
   parseAdminLoginInput,
   type AdminLoginInput,
 } from "./admin.validation.js";
-
-const ADMIN_LOGIN_TRANSACTION_OPTIONS: TransactionOptions = {
-  readPreference: "primary",
-  readConcern: { level: "snapshot" },
-  writeConcern: { w: "majority" },
-  maxCommitTimeMS: 5_000,
-};
 
 const DUMMY_PASSWORD_HASH =
   "$argon2id$v=19$m=19456,t=2,p=1$7fff7cXpK6SzkykonWnjuw$2AOO6h2HthwHj1nH4H6zkts//9OsIVzCyQ94lwre9ic";
@@ -54,23 +45,17 @@ export interface AdminRequestMetadata {
   userAgent: string | null;
 }
 
-export interface AdminLoginResult {
-  user: {
-    userId: string;
-    email: string;
-    displayName: string;
-    profileImagePath: string | null;
-    roles: Array<"user" | "admin">;
-  };
-  session: {
-    token: string;
-    csrfToken: string;
-    createdAt: Date;
-    lastSeenAt: Date;
-    idleExpiresAt: Date;
-    expiresAt: Date;
-  };
-}
+export type AdminLoginResult =
+  | {
+      kind: "session";
+      result: IssuedAdminSessionResult;
+    }
+  | {
+      kind: "mfa-challenge";
+      challengeToken: string;
+      expiresAt: Date;
+      recoveryAllowed: boolean;
+    };
 
 async function recordAdminLoginFailure(input: {
   userId: ObjectId | null;
@@ -156,135 +141,74 @@ export async function loginAdministrator(
     throw new AdminInvalidCredentialsError();
   }
 
-  const secrets = createAdminSessionSecrets();
-  const sessionId = new ObjectId();
-  const expiresAt = new Date(
-    attemptedAt.getTime() +
-      ADMIN_SESSION_POLICY.absoluteLifetimeMilliseconds,
-  );
-  const idleExpiresAt = new Date(
-    attemptedAt.getTime() +
-      ADMIN_SESSION_POLICY.idleTimeoutMilliseconds,
-  );
+  const mfaFactor = await findAdminMfaFactorByUserId(user._id);
 
-  let replacementPasswordHash: string | null = null;
-
-  if (passwordHashNeedsRehash(credential.passwordHash)) {
-    replacementPasswordHash = await hashPassword(login.password);
-  }
-
-  const client = await getMongoClient();
-  const mongoSession = client.startSession();
-
-  try {
-    const result = await mongoSession.withTransaction(async () => {
-      const userWasUpdated = await recordSuccessfulLogin(
-        {
-          userId: user._id,
-          loggedInAt: attemptedAt,
-        },
-        mongoSession,
-      );
-
-      if (!userWasUpdated) {
-        throw new AdminInvalidCredentialsError();
-      }
-
-      const sessionsRevokedForLimit = await makeRoomForAdminSession(
-        user._id,
-        attemptedAt,
-        mongoSession,
-      );
-
-      await createAdminSession(
-        {
-          sessionId,
-          userId: user._id,
-          tokenHash: secrets.tokenHash,
-          csrfSecretHash: secrets.csrfSecretHash,
-          userAgentSummary,
-          ipHash,
-          createdAt: attemptedAt,
-          expiresAt,
-        },
-        mongoSession,
-      );
-
-      if (replacementPasswordHash) {
-        const replaced = await replaceCredentialPasswordHash(
-          {
-            credentialId: credential._id,
-            userId: user._id,
-            passwordHash: replacementPasswordHash,
-            updatedAt: attemptedAt,
-          },
-          mongoSession,
-        );
-
-        if (!replaced) {
-          throw new AdminPersistenceError(
-            "The administrator credential hash could not be upgraded.",
-          );
-        }
-      }
-
-      await createAdminAuditEvent(
-        {
-          auditEventId: new ObjectId(),
-          actorUserId: user._id,
-          targetUserId: user._id,
-          eventType: "admin-login-succeeded",
-          outcome: "success",
-          ipHash,
-          userAgentSummary,
-          details: {
-            sessionsRevokedForLimit,
-            passwordHashReplaced: replacementPasswordHash !== null,
-          },
-          createdAt: attemptedAt,
-        },
-        mongoSession,
-      );
-
-      return true;
-    }, ADMIN_LOGIN_TRANSACTION_OPTIONS);
-
-    if (!result) {
-      throw new AdminPersistenceError(
-        "Administrator login completed without a session.",
-      );
-    }
-  } catch (error) {
-    if (
-      error instanceof AdminPersistenceError ||
-      error instanceof AdminInvalidCredentialsError
-    ) {
-      throw error;
-    }
-
-    throw new AdminPersistenceError(
-      "The administrator session could not be created.",
-      { cause: error },
+  if (mfaFactor) {
+    const challengeToken = createAdminMfaChallengeToken();
+    const expiresAt = new Date(
+      attemptedAt.getTime() +
+        ADMIN_MFA_POLICY.challengeLifetimeMilliseconds,
     );
-  } finally {
-    await mongoSession.endSession();
+
+    await invalidateOpenAdminMfaChallenges({
+      userId: user._id,
+      purpose: "login",
+      invalidatedAt: attemptedAt,
+    });
+
+    await createAdminMfaChallenge({
+      challengeId: new ObjectId(),
+      publicId: randomUUID(),
+      purpose: "login",
+      userId: user._id,
+      sessionId: null,
+      tokenHash: hashAdminMfaChallengeToken(challengeToken),
+      encryptedSecret: null,
+      maximumAttempts: ADMIN_MFA_POLICY.maximumVerificationAttempts,
+      ipHash,
+      userAgentSummary,
+      createdAt: attemptedAt,
+      expiresAt,
+    });
+
+    await createAdminAuditEvent({
+      auditEventId: new ObjectId(),
+      actorUserId: user._id,
+      targetUserId: user._id,
+      eventType: "admin-mfa-challenge-created",
+      outcome: "success",
+      ipHash,
+      userAgentSummary,
+      details: {
+        recoveryAllowed: mfaFactor.recoveryCodeHashes.length > 0,
+      },
+      createdAt: attemptedAt,
+    });
+
+    return {
+      kind: "mfa-challenge",
+      challengeToken,
+      expiresAt,
+      recoveryAllowed: mfaFactor.recoveryCodeHashes.length > 0,
+    };
   }
+
+  const accessLevel = env.ADMIN_MFA_REQUIRED
+    ? "mfa-enrollment"
+    : "full";
 
   return {
-    user: {
-      userId: user._id.toHexString(),
-      email: user.emailDisplay,
-      displayName: user.displayName,
-      profileImagePath: createProfileImagePath(user),
-      roles: [...user.roles],
-    },
-    session: {
-      token: secrets.sessionToken,
-      csrfToken: secrets.csrfToken,
-      createdAt: attemptedAt,
-      lastSeenAt: attemptedAt,
-      idleExpiresAt,
-      expiresAt,
-    },
+    kind: "session",
+    result: await issueAdminSession({
+      user,
+      credential,
+      passwordForRehash: login.password,
+      accessLevel,
+      mfaVerifiedAt: null,
+      authenticatedAt: attemptedAt,
+      ipHash,
+      userAgentSummary,
+      authenticationMethod: "password",
+    }),
   };
 }

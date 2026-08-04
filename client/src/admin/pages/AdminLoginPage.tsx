@@ -27,13 +27,24 @@ function AdminShieldIcon() {
 }
 
 export default function AdminLoginPage() {
-  const { signIn, errorMessage: bootstrapError } = useAdminAuth();
+  const {
+    status,
+    mfaChallenge,
+    signIn,
+    verifyMfa,
+    cancelMfa,
+    errorMessage: bootstrapError,
+  } = useAdminAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [method, setMethod] = useState<"totp" | "recovery">("totp");
+  const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const needsMfa = status === "mfa-required";
+
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (isSubmitting) {
@@ -45,12 +56,49 @@ export default function AdminLoginPage() {
 
     try {
       await signIn({ email, password });
+      setPassword("");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
           : "Administrator sign-in could not be completed.",
       );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleMfaSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      await verifyMfa({ method, code });
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Administrator MFA could not be verified.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCancelMfa() {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      await cancelMfa();
+      setCode("");
+      setMethod("totp");
     } finally {
       setIsSubmitting(false);
     }
@@ -80,66 +128,144 @@ export default function AdminLoginPage() {
                   FilmGeezer administration
                 </p>
                 <h1 className="mt-1 text-2xl font-black tracking-tight text-white">
-                  Administrator sign-in
+                  {needsMfa ? "Verify administrator MFA" : "Administrator sign-in"}
                 </h1>
               </div>
             </div>
 
             <p className="mt-4 text-sm leading-6 text-slate-400">
-              Use a verified FilmGeezer account that has been granted the
-              administrator role. Public sessions do not unlock this area.
+              {needsMfa
+                ? "Complete the second security step before an administrator session is created."
+                : "Use a verified FilmGeezer account that has the administrator role. Public sessions do not unlock this area."}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5 px-6 py-6 sm:px-8 sm:py-7">
-            {(errorMessage || bootstrapError) && (
-              <p
-                role="alert"
-                className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100"
+          {needsMfa ? (
+            <form onSubmit={handleMfaSubmit} className="space-y-5 px-6 py-6 sm:px-8 sm:py-7">
+              {(errorMessage || bootstrapError) && (
+                <p role="alert" className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100">
+                  {errorMessage ?? bootstrapError}
+                </p>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-slate-950/45 p-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMethod("totp");
+                    setCode("");
+                  }}
+                  className={`min-h-10 rounded-xl text-sm font-bold transition ${
+                    method === "totp"
+                      ? "bg-sky-500 text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Authenticator
+                </button>
+                <button
+                  type="button"
+                  disabled={!mfaChallenge?.recoveryAllowed}
+                  onClick={() => {
+                    setMethod("recovery");
+                    setCode("");
+                  }}
+                  className={`min-h-10 rounded-xl text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                    method === "recovery"
+                      ? "bg-sky-500 text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Recovery code
+                </button>
+              </div>
+
+              <label className="block">
+                <span className="text-sm font-bold text-slate-200">
+                  {method === "totp" ? "Six-digit code" : "Recovery code"}
+                </span>
+                <input
+                  type="text"
+                  inputMode={method === "totp" ? "numeric" : "text"}
+                  autoComplete="one-time-code"
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  required
+                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+                  placeholder={method === "totp" ? "000000" : "FG-XXXX-XXXX-XXXX"}
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {errorMessage ?? bootstrapError}
+                {isSubmitting ? "Verifying…" : "Verify and continue"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleCancelMfa()}
+                disabled={isSubmitting}
+                className="min-h-11 w-full rounded-2xl border border-white/10 text-sm font-bold text-slate-400 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
+              >
+                Return to sign-in
+              </button>
+
+              {mfaChallenge && (
+                <p className="text-xs leading-5 text-slate-500">
+                  This verification request expires at {new Date(mfaChallenge.expiresAt).toLocaleTimeString()}.
+                </p>
+              )}
+            </form>
+          ) : (
+            <form onSubmit={handlePasswordSubmit} className="space-y-5 px-6 py-6 sm:px-8 sm:py-7">
+              {(errorMessage || bootstrapError) && (
+                <p role="alert" className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100">
+                  {errorMessage ?? bootstrapError}
+                </p>
+              )}
+
+              <label className="block">
+                <span className="text-sm font-bold text-slate-200">Email</span>
+                <input
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+                  placeholder="administrator@example.com"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-slate-200">Password</span>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+                  placeholder="Enter your FilmGeezer password"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                {isSubmitting ? "Checking access…" : "Open administration"}
+              </button>
+
+              <p className="text-xs leading-5 text-slate-500">
+                Administrator sessions are separate from the public site, expire after eight hours, and close after thirty minutes of inactivity.
               </p>
-            )}
-
-            <label className="block">
-              <span className="text-sm font-bold text-slate-200">Email</span>
-              <input
-                type="email"
-                autoComplete="username"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
-                placeholder="administrator@example.com"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-bold text-slate-200">Password</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
-                placeholder="Enter your FilmGeezer password"
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              {isSubmitting ? "Checking access…" : "Open administration"}
-            </button>
-
-            <p className="text-xs leading-5 text-slate-500">
-              Administrator sessions are separate from the public site, expire
-              after eight hours, and close after thirty minutes of inactivity.
-            </p>
-          </form>
+            </form>
+          )}
         </section>
       </div>
     </main>

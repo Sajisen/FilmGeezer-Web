@@ -10,7 +10,9 @@ import { AdminAuthProvider } from "./auth/AdminAuthProvider";
 import { useAdminAuth } from "./auth/adminAuthContext";
 import AdminShell from "./components/AdminShell";
 import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminMfaEnrollmentPage from "./pages/AdminMfaEnrollmentPage";
 import AdminOverviewPage from "./pages/AdminOverviewPage";
+import AdminSecurityPage from "./pages/AdminSecurityPage";
 import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminPlaceholderPage from "./pages/AdminPlaceholderPage";
 
@@ -34,6 +36,10 @@ function ProtectedAdminRoutes() {
     return <AdminBootstrapScreen />;
   }
 
+  if (status === "mfa-enrollment") {
+    return <AdminMfaEnrollmentPage />;
+  }
+
   if (status !== "authenticated") {
     return <AdminLoginPage />;
   }
@@ -49,8 +55,8 @@ function ProtectedAdminRoutes() {
             <AdminPlaceholderPage
               eyebrow="Account administration"
               title="Users"
-              description="Account search and safe administrative controls belong here after the support inbox is complete."
-              nextStep="Add paginated lookup, account state, role visibility, session review, suspension safeguards, and protected audit trails."
+              description="Account search and safe administrative controls belong here after administrator MFA is validated."
+              nextStep="Add paginated lookup, account state, session review, suspension safeguards, recent-authentication checks, and protected audit trails."
             />
           }
         />
@@ -61,7 +67,7 @@ function ProtectedAdminRoutes() {
               eyebrow="Catalog operations"
               title="Content"
               description="This area will later manage FilmGeezer-owned provider links and content-quality reports without exposing the Telegram bot database directly to React."
-              nextStep="Add read/write APIs with validation, revision protection, and complete administrator audit events."
+              nextStep="Add read/write APIs with validation, revision protection, recent-authentication gates, and complete administrator audit events."
             />
           }
         />
@@ -71,22 +77,12 @@ function ProtectedAdminRoutes() {
             <AdminPlaceholderPage
               eyebrow="Security records"
               title="Audit"
-              description="Administrator sign-ins, role changes, and session revocations are already being recorded in MongoDB."
-              nextStep="Add a read-only, paginated audit viewer with safe filtering and no sensitive token or secret exposure."
+              description="Administrator sign-ins, MFA activity, support actions, role changes, and session revocations are already recorded in MongoDB."
+              nextStep="Add a read-only, paginated audit viewer with safe filtering and no sensitive token, secret, or recovery-code exposure."
             />
           }
         />
-        <Route
-          path="settings"
-          element={
-            <AdminPlaceholderPage
-              eyebrow="Administration configuration"
-              title="Settings"
-              description="Sensitive operational settings should remain small, explicit, and protected by recent authentication."
-              nextStep="Add MFA enrollment, administrator session management, and production-domain readiness checks before launch."
-            />
-          }
-        />
+        <Route path="settings" element={<AdminSecurityPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

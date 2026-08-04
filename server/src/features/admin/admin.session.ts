@@ -11,7 +11,10 @@ import type {
 } from "express";
 
 import { env } from "../../config/env.js";
-import { ADMIN_SESSION_POLICY } from "./admin.constants.js";
+import {
+  ADMIN_MFA_POLICY,
+  ADMIN_SESSION_POLICY,
+} from "./admin.constants.js";
 
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/u;
 
@@ -37,7 +40,6 @@ export function createAdminSessionSecrets() {
   const sessionToken = randomBytes(
     ADMIN_SESSION_POLICY.tokenBytes,
   ).toString("base64url");
-
   const csrfToken = deriveAdminCsrfToken(sessionToken);
 
   return {
@@ -46,6 +48,16 @@ export function createAdminSessionSecrets() {
     csrfToken,
     csrfSecretHash: hashAdminCsrfToken(csrfToken),
   };
+}
+
+export function createAdminMfaChallengeToken(): string {
+  return randomBytes(ADMIN_MFA_POLICY.challengeTokenBytes).toString(
+    "base64url",
+  );
+}
+
+export function hashAdminMfaChallengeToken(token: string): string {
+  return createAdminDigest("filmgeezer-admin-mfa-challenge", token);
 }
 
 export function hashAdminSessionToken(sessionToken: string): string {
@@ -112,6 +124,12 @@ export function getAdminSessionCookieName(): string {
     : ADMIN_SESSION_POLICY.developmentCookieName;
 }
 
+export function getAdminMfaChallengeCookieName(): string {
+  return env.NODE_ENV === "production"
+    ? "__Host-filmgeezer_admin_mfa_challenge"
+    : "filmgeezer_admin_mfa_challenge";
+}
+
 function createAdminCookieOptions(expiresAt?: Date): CookieOptions {
   return {
     httpOnly: true,
@@ -141,14 +159,35 @@ export function clearAdminSessionCookie(response: Response): void {
   );
 }
 
-export function readAdminSessionToken(request: Request): string | null {
+export function setAdminMfaChallengeCookie(
+  response: Response,
+  challengeToken: string,
+  expiresAt: Date,
+): void {
+  response.cookie(
+    getAdminMfaChallengeCookieName(),
+    challengeToken,
+    createAdminCookieOptions(expiresAt),
+  );
+}
+
+export function clearAdminMfaChallengeCookie(response: Response): void {
+  response.clearCookie(
+    getAdminMfaChallengeCookieName(),
+    createAdminCookieOptions(),
+  );
+}
+
+function readUniqueCookie(
+  request: Request,
+  cookieName: string,
+): string | null {
   const cookieHeader = request.headers.cookie;
 
   if (!cookieHeader) {
     return null;
   }
 
-  const cookieName = getAdminSessionCookieName();
   const matches: string[] = [];
 
   for (const cookiePart of cookieHeader.split(";")) {
@@ -175,15 +214,33 @@ export function readAdminSessionToken(request: Request): string | null {
     }
   }
 
-  if (matches.length !== 1) {
-    return null;
-  }
+  return matches.length === 1 ? matches[0] ?? null : null;
+}
 
-  const [sessionToken] = matches;
+export function readAdminSessionToken(request: Request): string | null {
+  const sessionToken = readUniqueCookie(
+    request,
+    getAdminSessionCookieName(),
+  );
 
   return sessionToken &&
     sessionToken.length === ADMIN_SESSION_POLICY.tokenCharacterLength &&
     BASE64URL_PATTERN.test(sessionToken)
     ? sessionToken
+    : null;
+}
+
+export function readAdminMfaChallengeToken(
+  request: Request,
+): string | null {
+  const token = readUniqueCookie(
+    request,
+    getAdminMfaChallengeCookieName(),
+  );
+
+  return token &&
+    token.length === 43 &&
+    BASE64URL_PATTERN.test(token)
+    ? token
     : null;
 }

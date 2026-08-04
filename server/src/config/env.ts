@@ -1,4 +1,3 @@
-
 import "dotenv/config";
 import { z } from "zod";
 
@@ -25,6 +24,39 @@ const mongoCollectionNameSchema = z
 const secretPepperSchema = z
   .string()
   .min(32, "Secret pepper must contain at least 32 characters.");
+
+const optionalSecretPepperSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  secretPepperSchema.optional(),
+);
+
+const optionalAdminMfaEncryptionKeySchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  z
+    .string()
+    .refine((value) => {
+      try {
+        return Buffer.from(value, "base64").length === 32;
+      } catch {
+        return false;
+      }
+    }, "ADMIN_MFA_ENCRYPTION_KEY must be a base64-encoded 32-byte key.")
+    .optional(),
+);
 
 const optionalTrimmedStringSchema = z.preprocess(
   (value) => {
@@ -141,6 +173,10 @@ const environmentSchema = z
 
     AUTH_SESSION_PEPPER: secretPepperSchema,
 
+    ADMIN_MFA_REQUIRED: booleanEnvironmentSchema.default(false),
+    ADMIN_MFA_ENCRYPTION_KEY: optionalAdminMfaEncryptionKeySchema,
+    ADMIN_MFA_RECOVERY_PEPPER: optionalSecretPepperSchema,
+
     PROFILE_IMAGE_STORAGE_DRIVER: z
       .enum(["local", "railway-bucket"])
       .default("local"),
@@ -169,6 +205,32 @@ const environmentSchema = z
         path: ["ADMIN_APP_ORIGIN"],
         message:
           "Production must configure the exact administrator application origin.",
+      });
+    }
+
+    const administratorMfaHasPartialConfiguration =
+      Boolean(value.ADMIN_MFA_ENCRYPTION_KEY) !==
+      Boolean(value.ADMIN_MFA_RECOVERY_PEPPER);
+
+    if (administratorMfaHasPartialConfiguration) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_MFA_ENCRYPTION_KEY"],
+        message:
+          "ADMIN_MFA_ENCRYPTION_KEY and ADMIN_MFA_RECOVERY_PEPPER must be configured together.",
+      });
+    }
+
+    if (
+      value.ADMIN_MFA_REQUIRED &&
+      (!value.ADMIN_MFA_ENCRYPTION_KEY ||
+        !value.ADMIN_MFA_RECOVERY_PEPPER)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_MFA_REQUIRED"],
+        message:
+          "ADMIN_MFA_REQUIRED needs both administrator MFA secrets.",
       });
     }
 
