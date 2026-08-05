@@ -460,152 +460,115 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
   background-clip: padding-box;
 }
 
-.welcome-celebration-glow {
+.welcome-celebration-ambient {
   position: absolute;
   z-index: 5;
   top: 50%;
   left: 50%;
-  width: min(92vw, 43rem);
-  aspect-ratio: 1.35;
+  width: min(94vw, 48rem);
+  aspect-ratio: 1.38;
   pointer-events: none;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 30% 46%, rgb(56 189 248 / 24%), transparent 42%),
-    radial-gradient(circle at 72% 42%, rgb(99 102 241 / 18%), transparent 40%);
-  filter: blur(16px);
-  transform: translate(-50%, -50%) scale(0.76);
-  animation: filmgeezer-welcome-flare 1200ms
-    cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.welcome-celebration-field {
-  position: absolute;
-  z-index: 30;
-  top: 50%;
-  left: 50%;
-  width: min(96vw, 54rem);
-  height: min(88dvh, 46rem);
-  overflow: hidden;
-  pointer-events: none;
-  isolation: isolate;
   transform: translate(-50%, -50%);
 }
 
-.welcome-confetti-piece {
+.welcome-celebration-ambient::before,
+.welcome-celebration-ambient::after {
   position: absolute;
-  top: -1.75rem;
-  left: var(--welcome-confetti-left);
-  width: var(--welcome-confetti-size);
-  height: calc(var(--welcome-confetti-size) * 1.75);
-  border-radius: 2px;
-  opacity: 0;
-  background: var(--welcome-confetti-color);
-  box-shadow:
-    0 0 8px color-mix(in srgb, var(--welcome-confetti-color) 58%, transparent),
-    0 0 18px color-mix(in srgb, var(--welcome-confetti-color) 24%, transparent);
-  mix-blend-mode: screen;
-  will-change: transform, opacity;
-  animation: filmgeezer-welcome-confetti
-    var(--welcome-confetti-duration)
-    cubic-bezier(0.18, 0.68, 0.28, 1)
-    var(--welcome-confetti-delay)
-    both;
-}
-
-.welcome-confetti-piece-round {
-  height: var(--welcome-confetti-size);
+  inset: 0;
   border-radius: 999px;
+  content: "";
 }
 
-.welcome-confetti-piece-diamond {
-  border-radius: 1px;
-  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+.welcome-celebration-ambient::before {
+  background:
+    radial-gradient(circle at 26% 52%, rgb(56 189 248 / 22%), transparent 39%),
+    radial-gradient(circle at 74% 45%, rgb(99 102 241 / 18%), transparent 38%),
+    radial-gradient(circle at 50% 58%, rgb(14 165 233 / 10%), transparent 54%);
+  filter: blur(18px);
+  animation: filmgeezer-welcome-ambient-bloom 1550ms
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.welcome-celebration-ambient::after {
+  inset: 10% 8%;
+  border: 1px solid rgb(125 211 252 / 12%);
+  box-shadow:
+    0 0 42px rgb(14 165 233 / 10%),
+    inset 0 0 42px rgb(99 102 241 / 7%);
+  opacity: 0;
+  animation: filmgeezer-welcome-ambient-ring 1350ms
+    cubic-bezier(0.16, 1, 0.3, 1) 90ms both;
+}
+
+.welcome-celebration-canvas {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  contain: strict;
 }
 
 .welcome-dialog-enter {
-  animation: filmgeezer-welcome-dialog-enter 420ms
-    cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: filmgeezer-welcome-dialog-enter 480ms
+    cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes filmgeezer-welcome-confetti {
+@keyframes filmgeezer-welcome-ambient-bloom {
   0% {
     opacity: 0;
-    transform: translate3d(0, -2rem, 0) rotate(0deg) scale(0.72);
+    transform: scale(0.72);
   }
 
-  10% {
-    opacity: 1;
-  }
-
-  42% {
-    opacity: 0.98;
-    transform: translate3d(
-        var(--welcome-confetti-sway),
-        min(32dvh, 16rem),
-        0
-      )
-      rotate(var(--welcome-confetti-mid-rotation))
-      scale(1);
-  }
-
-  78% {
-    opacity: 0.9;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(
-        var(--welcome-confetti-drift),
-        min(82dvh, 43rem),
-        0
-      )
-      rotate(var(--welcome-confetti-rotation))
-      scale(0.92);
-  }
-}
-
-@keyframes filmgeezer-welcome-flare {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.76);
-  }
-
-  42% {
+  34% {
     opacity: 1;
   }
 
   100% {
+    opacity: 0.46;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes filmgeezer-welcome-ambient-ring {
+  0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(1.08);
+    transform: scale(0.84);
+  }
+
+  38% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
   }
 }
 
 @keyframes filmgeezer-welcome-dialog-enter {
   0% {
     opacity: 0;
-    transform: translateY(1rem) scale(0.985);
+    transform: translate3d(0, 0.9rem, 0) scale(0.975);
   }
 
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @media (max-width: 639px) {
-  .welcome-celebration-field {
-    width: calc(100vw - 0.5rem);
-    height: min(94dvh, 42rem);
-  }
-
-  .welcome-confetti-piece:nth-child(3n) {
-    display: none;
+  .welcome-celebration-ambient {
+    width: min(112vw, 34rem);
+    aspect-ratio: 0.88;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .welcome-celebration-glow,
-  .welcome-celebration-field {
+  .welcome-celebration-ambient,
+  .welcome-celebration-canvas {
     display: none;
   }
 
