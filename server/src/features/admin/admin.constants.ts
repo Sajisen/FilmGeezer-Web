@@ -114,6 +114,10 @@ export const ADMIN_HTTP_POLICY = {
     saveBodyLimit: "48kb",
     statusBodyLimit: "4kb",
   },
+  auditRead: {
+    rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+    maximumRequestsPerWindow: 240,
+  },
 } as const;
 
 export const ADMIN_EMAIL_MAXIMUM_LENGTH = 254;

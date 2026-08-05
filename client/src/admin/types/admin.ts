@@ -535,3 +535,99 @@ export type AdminContentSaveInput =
       kind: "movie";
       sources: AdminContentMovieSource[];
     };
+
+export type AdminAuditCategory =
+  | "authentication"
+  | "security"
+  | "sessions"
+  | "roles"
+  | "support"
+  | "users"
+  | "content";
+
+export type AdminAuditCategoryFilter = "all" | AdminAuditCategory;
+export type AdminAuditOutcome = "success" | "failure";
+export type AdminAuditOutcomeFilter = "all" | AdminAuditOutcome;
+
+export type AdminAuditEventType =
+  | "admin-login-succeeded"
+  | "admin-login-failed"
+  | "admin-logout"
+  | "admin-session-revoked"
+  | "admin-role-granted"
+  | "admin-role-revoked"
+  | "admin-support-replied"
+  | "admin-support-status-updated"
+  | "admin-mfa-challenge-created"
+  | "admin-mfa-challenge-failed"
+  | "admin-mfa-login-succeeded"
+  | "admin-mfa-setup-started"
+  | "admin-mfa-enabled"
+  | "admin-mfa-disabled"
+  | "admin-mfa-recovery-used"
+  | "admin-mfa-recovery-regenerated"
+  | "admin-reauthentication-succeeded"
+  | "admin-reauthentication-failed"
+  | "admin-mfa-reset"
+  | "admin-passkey-registration-started"
+  | "admin-passkey-registered"
+  | "admin-passkey-authentication-succeeded"
+  | "admin-passkey-authentication-failed"
+  | "admin-passkey-revoked"
+  | "admin-passkey-used-for-reauthentication"
+  | "admin-passkey-emergency-reset"
+  | "admin-user-suspended"
+  | "admin-user-reactivated"
+  | "admin-user-session-revoked"
+  | "admin-user-sessions-revoked"
+  | "admin-content-created"
+  | "admin-content-updated"
+  | "admin-content-status-updated";
+
+export type AdminAuditEventFilter = "all" | AdminAuditEventType;
+export type AdminAuditDetailValue = string | number | boolean | null;
+
+export interface AdminAuditIdentity {
+  kind: "user" | "system" | "unknown-user";
+  userId: string | null;
+  email: string | null;
+  displayName: string;
+  profileImagePath: string | null;
+  roles: AdminManagedUserRole[];
+  status: AdminManagedUserStatus | null;
+}
+
+export interface AdminAuditEntry {
+  auditEventId: string;
+  eventType: AdminAuditEventType;
+  category: AdminAuditCategory;
+  outcome: AdminAuditOutcome;
+  actor: AdminAuditIdentity;
+  target: AdminAuditIdentity | null;
+  details: Record<string, AdminAuditDetailValue>;
+  userAgentSummary: string | null;
+  createdAt: string;
+}
+
+export interface AdminAuditListFilters {
+  page: number;
+  category: AdminAuditCategoryFilter;
+  event: AdminAuditEventFilter;
+  outcome: AdminAuditOutcomeFilter;
+  actor: string;
+  target: string;
+  from: string;
+  to: string;
+}
+
+export interface AdminAuditListResponse {
+  status: "success";
+  code: "ADMIN_AUDIT_EVENTS_READY";
+  items: AdminAuditEntry[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}

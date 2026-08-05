@@ -8,6 +8,7 @@ import {
 import { rateLimit } from "express-rate-limit";
 
 import { getAdminDashboardOverview } from "../controllers/admin.controller.js";
+import { getAdminAuditEvents } from "../controllers/adminAudit.controller.js";
 import {
   getAdminContentEntries,
   getAdminContentEntry,
@@ -138,10 +139,19 @@ const contentWriteRateLimit = createAdminRateLimit({
   message: "Too many administrator content changes. Please wait.",
 });
 
+const auditReadRateLimit = createAdminRateLimit({
+  windowMs: ADMIN_HTTP_POLICY.auditRead.rateLimitWindowMilliseconds,
+  limit: ADMIN_HTTP_POLICY.auditRead.maximumRequestsPerWindow,
+  identifier: "filmgeezer-admin-audit-read",
+  code: "ADMIN_AUDIT_READ_RATE_LIMITED",
+  message: "Too many administrator audit requests. Please wait.",
+});
+
 router.use(requireAdminSession);
 router.use(requireFullAdminSession);
 
 router.get("/overview", overviewRateLimit, getAdminDashboardOverview);
+router.get("/audit", auditReadRateLimit, getAdminAuditEvents);
 router.get("/support", supportReadRateLimit, getAdminSupportInbox);
 router.get(
   "/support/:referenceId",

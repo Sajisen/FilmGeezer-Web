@@ -1,4 +1,8 @@
 import type {
+  AdminAuditEntry,
+  AdminAuditIdentity,
+  AdminAuditListFilters,
+  AdminAuditListResponse,
   AdminContentDetail,
   AdminContentDetailResponse,
   AdminContentListFilters,
@@ -783,6 +787,84 @@ function isAdminContentMutationResponse(
   );
 }
 
+const ADMIN_AUDIT_CATEGORIES = [
+  "authentication",
+  "security",
+  "sessions",
+  "roles",
+  "support",
+  "users",
+  "content",
+] as const;
+
+function isAdminAuditIdentity(
+  value: unknown,
+): value is AdminAuditIdentity {
+  return (
+    isRecord(value) &&
+    (value.kind === "user" ||
+      value.kind === "system" ||
+      value.kind === "unknown-user") &&
+    (value.userId === null || typeof value.userId === "string") &&
+    (value.email === null || typeof value.email === "string") &&
+    typeof value.displayName === "string" &&
+    (value.profileImagePath === null ||
+      typeof value.profileImagePath === "string") &&
+    Array.isArray(value.roles) &&
+    value.roles.every((role) => role === "user" || role === "admin") &&
+    (value.status === null ||
+      (typeof value.status === "string" &&
+        MANAGED_USER_STATUSES.includes(
+          value.status as (typeof MANAGED_USER_STATUSES)[number],
+        )))
+  );
+}
+
+function isAdminAuditEntry(value: unknown): value is AdminAuditEntry {
+  return (
+    isRecord(value) &&
+    typeof value.auditEventId === "string" &&
+    typeof value.eventType === "string" &&
+    typeof value.category === "string" &&
+    ADMIN_AUDIT_CATEGORIES.includes(
+      value.category as (typeof ADMIN_AUDIT_CATEGORIES)[number],
+    ) &&
+    (value.outcome === "success" || value.outcome === "failure") &&
+    isAdminAuditIdentity(value.actor) &&
+    (value.target === null || isAdminAuditIdentity(value.target)) &&
+    isRecord(value.details) &&
+    Object.values(value.details).every(
+      (detail) =>
+        detail === null ||
+        typeof detail === "string" ||
+        typeof detail === "number" ||
+        typeof detail === "boolean",
+    ) &&
+    (value.userAgentSummary === null ||
+      typeof value.userAgentSummary === "string") &&
+    typeof value.createdAt === "string"
+  );
+}
+
+function isAdminAuditListResponse(
+  value: unknown,
+): value is AdminAuditListResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_AUDIT_EVENTS_READY" &&
+    Array.isArray(value.items) &&
+    value.items.every(isAdminAuditEntry) &&
+    isRecord(value.pagination) &&
+    [
+      value.pagination.page,
+      value.pagination.pageSize,
+      value.pagination.totalItems,
+      value.pagination.totalPages,
+    ].every((item) => typeof item === "number")
+  );
+}
+
 async function parseJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -1403,4 +1485,39 @@ export function updateAdminContentEntryStatus(
       fallbackMessage: "The FilmGeezer content status could not be updated.",
     },
   );
+}
+
+export function getAdminAuditEvents(
+  filters: AdminAuditListFilters,
+  signal?: AbortSignal,
+): Promise<AdminAuditListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(filters.page),
+    pageSize: "25",
+    category: filters.category,
+    event: filters.event,
+    outcome: filters.outcome,
+  });
+
+  if (filters.actor.trim()) {
+    parameters.set("actor", filters.actor.trim());
+  }
+
+  if (filters.target.trim()) {
+    parameters.set("target", filters.target.trim());
+  }
+
+  if (filters.from) {
+    parameters.set("from", filters.from);
+  }
+
+  if (filters.to) {
+    parameters.set("to", filters.to);
+  }
+
+  return adminRequest(`/api/admin/audit?${parameters.toString()}`, {
+    signal,
+    guard: isAdminAuditListResponse,
+    fallbackMessage: "Administrator audit records could not be loaded.",
+  });
 }

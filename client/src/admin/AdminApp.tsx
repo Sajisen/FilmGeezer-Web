@@ -16,7 +16,7 @@ import AdminSecurityPage from "./pages/AdminSecurityPage";
 import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminContentPage from "./pages/AdminContentPage";
-import AdminPlaceholderPage from "./pages/AdminPlaceholderPage";
+import AdminAuditPage from "./pages/AdminAuditPage";
 
 function AdminBootstrapScreen() {
   return (
@@ -65,17 +65,7 @@ function ProtectedAdminRoutes() {
         <Route path="support" element={<AdminSupportPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="content" element={<AdminContentPage />} />
-        <Route
-          path="audit"
-          element={
-            <AdminPlaceholderPage
-              eyebrow="Security records"
-              title="Audit"
-              description="Administrator sign-ins, passkey and MFA activity, support actions, role changes, and session revocations are already recorded securely."
-              nextStep="Add a read-only, paginated audit viewer with actor, event, target, and date filters while excluding tokens, challenges, credential material, secrets, recovery codes, and sensitive request content."
-            />
-          }
-        />
+        <Route path="audit" element={<AdminAuditPage />} />
         <Route path="settings" element={<AdminSecurityPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

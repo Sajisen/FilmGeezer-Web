@@ -62,6 +62,14 @@ async function createAdminIndexes(): Promise<void> {
       { targetUserId: 1, createdAt: -1 },
       { name: "admin_audit_target_created_at" },
     ),
+    auditEvents.createIndex(
+      { eventType: 1, createdAt: -1 },
+      { name: "admin_audit_event_created_at" },
+    ),
+    auditEvents.createIndex(
+      { outcome: 1, createdAt: -1 },
+      { name: "admin_audit_outcome_created_at" },
+    ),
     mfaFactors.createIndex(
       { userId: 1 },
       { name: "admin_mfa_factor_user_unique", unique: true },

@@ -49,7 +49,6 @@ const WORKSPACE_ITEMS: NavigationItem[] = [
     label: "Content",
     description: "Links and catalogue",
     icon: "content",
-    planned: true,
   },
 ];
 
@@ -59,7 +58,6 @@ const SYSTEM_ITEMS: NavigationItem[] = [
     label: "Audit",
     description: "Security activity",
     icon: "audit",
-    planned: true,
   },
   {
     to: "/settings",
