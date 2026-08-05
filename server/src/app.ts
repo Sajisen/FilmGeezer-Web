@@ -27,6 +27,7 @@ import profileImageRoutes from "./routes/profileImage.routes.js";
 import accountPreferencesRoutes from "./routes/accountPreferences.routes.js";
 import recommendationsRoutes from "./routes/recommendations.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 import adminAuthRoutes from "./routes/adminAuth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 
@@ -107,6 +108,11 @@ app.use(
 app.use(
   "/api/contact",
   contactRoutes,
+);
+
+app.use(
+  "/api/notifications",
+  notificationRoutes,
 );
 
 app.use(

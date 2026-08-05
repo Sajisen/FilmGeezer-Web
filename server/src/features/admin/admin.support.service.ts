@@ -6,6 +6,8 @@ import {
   CONTACT_THREAD_MESSAGE_SCHEMA_VERSION,
 } from "../contact/contact.constants.js";
 import { initializeContactStorage } from "../contact/contact.indexes.js";
+import { initializeNotificationStorage } from "../notifications/notification.indexes.js";
+import { createSupportReplyNotification } from "../notifications/notification.service.js";
 import type {
   ContactMessageDocument,
   ContactThreadMessageDocument,
@@ -73,6 +75,7 @@ function toSummary(
 async function ensureStorage(): Promise<void> {
   await Promise.all([
     initializeContactStorage(),
+    initializeNotificationStorage(),
     initializeAdminStorage(),
   ]);
 }
@@ -260,6 +263,17 @@ export async function replyToAdminSupportConversation(
         if (!appended) {
           throw new AdminSupportMessageLimitError();
         }
+
+        await createSupportReplyNotification(
+          {
+            userId: targetUserId,
+            messageId: message._id,
+            referenceId,
+            subject: conversation.subject,
+            createdAt,
+          },
+          session,
+        );
 
         await createAdminAuditEvent(
           {

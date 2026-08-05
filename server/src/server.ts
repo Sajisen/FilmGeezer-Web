@@ -6,6 +6,7 @@ import { initializeAuthStorage } from "./features/auth/auth.indexes.js";
 import { initializeWatchlistStorage } from "./features/watchlist/watchlist.indexes.js";
 import { initializePreferencesStorage } from "./features/preferences/preferences.indexes.js";
 import { initializeContactStorage } from "./features/contact/contact.indexes.js";
+import { initializeNotificationStorage } from "./features/notifications/notification.indexes.js";
 import { initializeAdminStorage } from "./features/admin/admin.indexes.js";
 import { isAdminWebAuthnConfigured } from "./features/admin/admin.passkey.config.js";
 
@@ -22,6 +23,7 @@ void Promise.all([
   initializeWatchlistStorage(),
   initializePreferencesStorage(),
   initializeContactStorage(),
+  initializeNotificationStorage(),
   initializeAdminStorage(),
 ])
   .then(() => {

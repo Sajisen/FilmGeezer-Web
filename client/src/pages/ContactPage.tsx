@@ -82,6 +82,7 @@ function ContactPage() {
     useState<ContactSubmissionResponse | null>(null);
 
   const conversationAbortRef = useRef<AbortController | null>(null);
+  const openedRequestFromNotificationRef = useRef<string | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.add("contact-page-scrollbar");
@@ -201,6 +202,34 @@ function ContactPage() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      openedRequestFromNotificationRef.current = null;
+      return;
+    }
+
+    const requestedReferenceId = new URLSearchParams(
+      location.search,
+    ).get("request");
+
+    if (
+      !requestedReferenceId ||
+      openedRequestFromNotificationRef.current === requestedReferenceId
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      openedRequestFromNotificationRef.current = requestedReferenceId;
+      void openConversation(requestedReferenceId);
+      navigate("/contact", { replace: true });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [location.search, navigate, openConversation, status]);
 
   function showComposer() {
     conversationAbortRef.current?.abort();

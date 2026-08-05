@@ -63,6 +63,10 @@ function getFallbackAnnouncement(
     return "Contact";
   }
 
+  if (pathname === "/notifications") {
+    return "Notifications";
+  }
+
   if (pathname === "/about") {
     return "About FilmGeezer";
   }

@@ -28,6 +28,12 @@ import {
   type LocalAuthSessionResult,
 } from "./auth.session-creation.service.js";
 import {
+  createWelcomeNotification,
+} from "../notifications/notification.service.js";
+import {
+  initializeNotificationStorage,
+} from "../notifications/notification.indexes.js";
+import {
   parseEmailVerificationInput,
   type EmailVerificationInput,
 } from "./auth.validation.js";
@@ -120,7 +126,10 @@ export async function verifyEmailAddress(
   const verification =
     parseEmailVerificationInput(input);
 
-  await initializeAuthStorage();
+  await Promise.all([
+    initializeAuthStorage(),
+    initializeNotificationStorage(),
+  ]);
 
   const checkedAt = new Date();
 
@@ -473,6 +482,14 @@ export async function verifyEmailAddress(
 
               createdAt:
                 verifiedAt,
+            },
+            session,
+          );
+
+          await createWelcomeNotification(
+            {
+              userId: pendingUser._id,
+              createdAt: verifiedAt,
             },
             session,
           );

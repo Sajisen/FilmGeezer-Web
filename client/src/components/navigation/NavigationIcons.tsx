@@ -67,6 +67,28 @@ export function BookmarkIcon({
   );
 }
 
+export function BellIcon({
+  className = "h-5 w-5",
+}: NavigationIconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="M6.75 9.5a5.25 5.25 0 0 1 10.5 0c0 5.75 2.25 6.25 2.25 6.25h-15S6.75 15.25 6.75 9.5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 19h4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </IconShell>
+  );
+}
+
 export function UserIcon({
   className = "h-5 w-5",
 }: NavigationIconProps) {
