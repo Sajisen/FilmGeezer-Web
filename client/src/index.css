@@ -438,48 +438,76 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
   background: rgb(56 189 248 / 78%);
 }
 
-.welcome-celebration-field {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(94vw, 56rem);
-  height: min(82vh, 48rem);
-  overflow: hidden;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
+.welcome-dialog-scrollbar {
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(56 189 248 / 46%) transparent;
+  -webkit-overflow-scrolling: touch;
 }
 
-.welcome-celebration-flare {
-  position: absolute;
-  top: 16%;
-  left: 50%;
-  width: min(72vw, 34rem);
-  aspect-ratio: 1;
+.welcome-dialog-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.welcome-dialog-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.welcome-dialog-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
   border-radius: 999px;
-  background: radial-gradient(
-    circle,
-    rgb(56 189 248 / 20%),
-    rgb(99 102 241 / 8%) 42%,
-    transparent 70%
-  );
-  transform: translateX(-50%) scale(0.72);
-  animation: filmgeezer-welcome-flare 1100ms
+  background: rgb(56 189 248 / 46%);
+  background-clip: padding-box;
+}
+
+.welcome-celebration-glow {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: 50%;
+  width: min(92vw, 43rem);
+  aspect-ratio: 1.35;
+  pointer-events: none;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 46%, rgb(56 189 248 / 24%), transparent 42%),
+    radial-gradient(circle at 72% 42%, rgb(99 102 241 / 18%), transparent 40%);
+  filter: blur(16px);
+  transform: translate(-50%, -50%) scale(0.76);
+  animation: filmgeezer-welcome-flare 1200ms
     cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.welcome-celebration-field {
+  position: absolute;
+  z-index: 30;
+  top: 50%;
+  left: 50%;
+  width: min(96vw, 54rem);
+  height: min(88dvh, 46rem);
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  transform: translate(-50%, -50%);
 }
 
 .welcome-confetti-piece {
   position: absolute;
-  top: -1.5rem;
+  top: -1.75rem;
   left: var(--welcome-confetti-left);
   width: var(--welcome-confetti-size);
-  height: calc(var(--welcome-confetti-size) * 1.8);
+  height: calc(var(--welcome-confetti-size) * 1.75);
   border-radius: 2px;
   opacity: 0;
   background: var(--welcome-confetti-color);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--welcome-confetti-color) 34%, transparent);
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--welcome-confetti-color) 58%, transparent),
+    0 0 18px color-mix(in srgb, var(--welcome-confetti-color) 24%, transparent);
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
   animation: filmgeezer-welcome-confetti
     var(--welcome-confetti-duration)
-    cubic-bezier(0.2, 0.72, 0.28, 1)
+    cubic-bezier(0.18, 0.68, 0.28, 1)
     var(--welcome-confetti-delay)
     both;
 }
@@ -487,6 +515,11 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
 .welcome-confetti-piece-round {
   height: var(--welcome-confetti-size);
   border-radius: 999px;
+}
+
+.welcome-confetti-piece-diamond {
+  border-radius: 1px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 
 .welcome-dialog-enter {
@@ -497,11 +530,22 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
 @keyframes filmgeezer-welcome-confetti {
   0% {
     opacity: 0;
-    transform: translate3d(0, -1.5rem, 0) rotate(0deg);
+    transform: translate3d(0, -2rem, 0) rotate(0deg) scale(0.72);
   }
 
-  12% {
-    opacity: 0.95;
+  10% {
+    opacity: 1;
+  }
+
+  42% {
+    opacity: 0.98;
+    transform: translate3d(
+        var(--welcome-confetti-sway),
+        min(32dvh, 16rem),
+        0
+      )
+      rotate(var(--welcome-confetti-mid-rotation))
+      scale(1);
   }
 
   78% {
@@ -512,26 +556,27 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
     opacity: 0;
     transform: translate3d(
         var(--welcome-confetti-drift),
-        min(78vh, 44rem),
+        min(82dvh, 43rem),
         0
       )
-      rotate(var(--welcome-confetti-rotation));
+      rotate(var(--welcome-confetti-rotation))
+      scale(0.92);
   }
 }
 
 @keyframes filmgeezer-welcome-flare {
   0% {
     opacity: 0;
-    transform: translateX(-50%) scale(0.72);
+    transform: translate(-50%, -50%) scale(0.76);
   }
 
-  45% {
+  42% {
     opacity: 1;
   }
 
   100% {
     opacity: 0;
-    transform: translateX(-50%) scale(1.08);
+    transform: translate(-50%, -50%) scale(1.08);
   }
 }
 
@@ -547,7 +592,19 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
   }
 }
 
+@media (max-width: 639px) {
+  .welcome-celebration-field {
+    width: calc(100vw - 0.5rem);
+    height: min(94dvh, 42rem);
+  }
+
+  .welcome-confetti-piece:nth-child(3n) {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .welcome-celebration-glow,
   .welcome-celebration-field {
     display: none;
   }

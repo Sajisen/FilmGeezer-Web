@@ -20,8 +20,10 @@ type WelcomeConfettiStyle = CSSProperties & {
   "--welcome-confetti-drift": string;
   "--welcome-confetti-duration": string;
   "--welcome-confetti-left": string;
+  "--welcome-confetti-mid-rotation": string;
   "--welcome-confetti-rotation": string;
   "--welcome-confetti-size": string;
+  "--welcome-confetti-sway": string;
 };
 
 const WELCOME_CONFETTI_COLORS = [
@@ -33,21 +35,24 @@ const WELCOME_CONFETTI_COLORS = [
   "#dbeafe",
 ];
 
-const WELCOME_CONFETTI = Array.from({ length: 28 }, (_, index) => {
+const WELCOME_CONFETTI = Array.from({ length: 36 }, (_, index) => {
   const style: WelcomeConfettiStyle = {
     "--welcome-confetti-color":
       WELCOME_CONFETTI_COLORS[index % WELCOME_CONFETTI_COLORS.length],
-    "--welcome-confetti-delay": `${(index % 7) * 70}ms`,
-    "--welcome-confetti-drift": `${((index * 47) % 180) - 90}px`,
-    "--welcome-confetti-duration": `${2100 + (index % 6) * 180}ms`,
-    "--welcome-confetti-left": `${4 + ((index * 37) % 92)}%`,
-    "--welcome-confetti-rotation": `${420 + (index % 5) * 120}deg`,
-    "--welcome-confetti-size": `${5 + (index % 4) * 2}px`,
+    "--welcome-confetti-delay": `${(index % 9) * 54}ms`,
+    "--welcome-confetti-drift": `${((index * 53) % 220) - 110}px`,
+    "--welcome-confetti-duration": `${1950 + (index % 7) * 150}ms`,
+    "--welcome-confetti-left": `${3 + ((index * 31) % 94)}%`,
+    "--welcome-confetti-mid-rotation": `${200 + (index % 6) * 58}deg`,
+    "--welcome-confetti-rotation": `${480 + (index % 6) * 135}deg`,
+    "--welcome-confetti-size": `${4 + (index % 4) * 1.5}px`,
+    "--welcome-confetti-sway": `${((index * 41) % 90) - 45}px`,
   };
 
   return {
     id: index,
-    isRound: index % 6 === 0,
+    isRound: index % 7 === 0,
+    isDiamond: index % 5 === 0,
     style,
   };
 });
@@ -121,7 +126,7 @@ export default function WelcomeNotificationDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[130] grid place-items-center overflow-x-hidden overflow-y-auto bg-slate-950/80 px-4 py-8 backdrop-blur-lg"
+      className="fixed inset-0 z-[130] grid place-items-center overflow-x-hidden overflow-y-auto bg-slate-950/80 px-3 py-4 backdrop-blur-lg sm:px-4 sm:py-8"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
@@ -129,32 +134,21 @@ export default function WelcomeNotificationDialog({
         }
       }}
     >
-      <div className="welcome-celebration-field" aria-hidden="true">
-        <span className="welcome-celebration-flare" />
-        {WELCOME_CONFETTI.map((piece) => (
-          <span
-            key={piece.id}
-            className={`welcome-confetti-piece ${
-              piece.isRound ? "welcome-confetti-piece-round" : ""
-            }`}
-            style={piece.style}
-          />
-        ))}
-      </div>
+      <span className="welcome-celebration-glow" aria-hidden="true" />
 
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="filmgeezer-welcome-title"
-        className="welcome-dialog-enter relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-sky-300/15 bg-slate-900 shadow-2xl shadow-black/60"
+        className="welcome-dialog-enter welcome-dialog-scrollbar relative z-20 max-h-[calc(100dvh-2rem)] w-full max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-[1.5rem] border border-sky-300/15 bg-slate-900 shadow-2xl shadow-black/60 sm:max-h-[calc(100dvh-4rem)] sm:max-w-2xl sm:rounded-[2rem]"
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_18%_0%,rgba(56,189,248,0.22),transparent_42%),radial-gradient(circle_at_82%_10%,rgba(99,102,241,0.18),transparent_38%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_18%_0%,rgba(56,189,248,0.22),transparent_42%),radial-gradient(circle_at_82%_10%,rgba(99,102,241,0.18),transparent_38%)] sm:h-64" />
 
-        <div className="relative p-5 sm:p-7 lg:p-8">
+        <div className="relative p-4 sm:p-7 lg:p-8">
           <div className="flex items-start justify-between gap-4">
-            <span className="grid h-13 w-13 place-items-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-200 shadow-lg shadow-sky-950/20">
-              <BellIcon className="h-6 w-6" />
+            <span className="grid h-11 w-11 place-items-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-200 shadow-lg shadow-sky-950/20 sm:h-13 sm:w-13">
+              <BellIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </span>
 
             <button
@@ -162,66 +156,88 @@ export default function WelcomeNotificationDialog({
               type="button"
               onClick={onClose}
               aria-label="Close welcome message"
-              className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-slate-950/30 text-slate-400 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-slate-950/30 text-slate-400 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:h-10 sm:w-10"
             >
-              <CloseIcon className="h-5 w-5" />
+              <CloseIcon className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
 
-          <p className="mt-6 text-[0.68rem] font-black uppercase tracking-[0.22em] text-sky-300">
+          <p className="mt-4 text-[0.62rem] font-black uppercase tracking-[0.2em] text-sky-300 sm:mt-6 sm:text-[0.68rem] sm:tracking-[0.22em]">
             Account ready
           </p>
           <h2
             id="filmgeezer-welcome-title"
-            className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl"
+            className="mt-1.5 break-words text-2xl font-black tracking-tight text-white sm:mt-2 sm:text-4xl"
           >
             Welcome to FilmGeezer, {displayName}.
           </h2>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
+          <p className="mt-3 max-w-xl text-[0.82rem] leading-6 text-slate-300 sm:mt-4 sm:text-base sm:leading-7">
             {notification.message}
           </p>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/[0.08] bg-slate-950/35 p-4">
-              <BellIcon className="h-5 w-5 text-sky-300" />
-              <p className="mt-3 text-sm font-black text-white">Discover</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Browse Movies, TV Series, Anime, and K-Drama in one place.
-              </p>
+          <div className="mt-5 grid gap-2 sm:mt-7 sm:grid-cols-3 sm:gap-3">
+            <div className="flex items-start gap-3 rounded-xl border border-white/[0.08] bg-slate-950/35 p-3 sm:block sm:rounded-2xl sm:p-4">
+              <BellIcon className="mt-0.5 h-4 w-4 shrink-0 text-sky-300 sm:mt-0 sm:h-5 sm:w-5" />
+              <div>
+                <p className="text-sm font-black text-white sm:mt-3">
+                  Discover
+                </p>
+                <p className="mt-0.5 text-[0.72rem] leading-5 text-slate-500 sm:mt-1 sm:text-xs">
+                  Browse Movies, TV Series, Anime, and K-Drama in one place.
+                </p>
+              </div>
             </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-slate-950/35 p-4">
-              <BookmarkIcon className="h-5 w-5 text-sky-300" />
-              <p className="mt-3 text-sm font-black text-white">Save</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Keep up to fifty titles in your account Watchlist.
-              </p>
+            <div className="flex items-start gap-3 rounded-xl border border-white/[0.08] bg-slate-950/35 p-3 sm:block sm:rounded-2xl sm:p-4">
+              <BookmarkIcon className="mt-0.5 h-4 w-4 shrink-0 text-sky-300 sm:mt-0 sm:h-5 sm:w-5" />
+              <div>
+                <p className="text-sm font-black text-white sm:mt-3">Save</p>
+                <p className="mt-0.5 text-[0.72rem] leading-5 text-slate-500 sm:mt-1 sm:text-xs">
+                  Keep the films and series you love together in your Watchlist.
+                </p>
+              </div>
             </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-slate-950/35 p-4">
-              <SettingsIcon className="h-5 w-5 text-sky-300" />
-              <p className="mt-3 text-sm font-black text-white">Personalize</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Shape recommendations using your interests and saved titles.
-              </p>
+            <div className="flex items-start gap-3 rounded-xl border border-white/[0.08] bg-slate-950/35 p-3 sm:block sm:rounded-2xl sm:p-4">
+              <SettingsIcon className="mt-0.5 h-4 w-4 shrink-0 text-sky-300 sm:mt-0 sm:h-5 sm:w-5" />
+              <div>
+                <p className="text-sm font-black text-white sm:mt-3">
+                  Personalize
+                </p>
+                <p className="mt-0.5 text-[0.72rem] leading-5 text-slate-500 sm:mt-1 sm:text-xs">
+                  Shape recommendations using your interests and saved titles.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:mt-7 sm:flex sm:justify-end sm:gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-full border border-white/10 px-5 text-sm font-black text-slate-300 transition hover:bg-white/[0.05] hover:text-white"
+              className="min-h-10 rounded-full border border-white/10 px-3 text-xs font-black text-slate-300 transition hover:bg-white/[0.05] hover:text-white sm:min-h-11 sm:px-5 sm:text-sm"
             >
               Continue browsing
             </button>
             <button
               type="button"
               onClick={() => goTo("/")}
-              className="min-h-11 rounded-full bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
+              className="min-h-10 rounded-full bg-sky-500 px-3 text-xs font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 sm:min-h-11 sm:px-5 sm:text-sm"
             >
               Start exploring
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="welcome-celebration-field" aria-hidden="true">
+        {WELCOME_CONFETTI.map((piece) => (
+          <span
+            key={piece.id}
+            className={`welcome-confetti-piece ${
+              piece.isRound ? "welcome-confetti-piece-round" : ""
+            } ${piece.isDiamond ? "welcome-confetti-piece-diamond" : ""}`}
+            style={piece.style}
+          />
+        ))}
       </div>
     </div>,
     document.body,
