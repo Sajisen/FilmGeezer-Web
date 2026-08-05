@@ -57,7 +57,7 @@ export default function NotificationPopover({
         ) : null}
       </div>
 
-      <div className="max-h-[28rem] overflow-y-auto p-2.5">
+      <div className="notification-popover-scrollbar max-h-[28rem] overflow-y-auto p-2.5">
         {status === "loading" || status === "idle" ? (
           <div className="space-y-2" role="status" aria-label="Loading notifications">
             {[0, 1, 2].map((item) => (

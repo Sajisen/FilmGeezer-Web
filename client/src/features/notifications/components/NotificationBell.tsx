@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -9,21 +10,26 @@ import {
 } from "react-router";
 
 import { BellIcon } from "../../../components/navigation/NavigationIcons";
+import { useAuth } from "../../auth/authContext";
 import type { UserNotification } from "../../../types/notification";
 import { useNotifications } from "../notificationContext";
 import NotificationPopover from "./NotificationPopover";
+import WelcomeNotificationDialog from "./WelcomeNotificationDialog";
 
 export default function NotificationBell({
   className = "",
 }: {
   className?: string;
 }) {
+  const auth = useAuth();
   const notifications = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [welcomeNotification, setWelcomeNotification] =
+    useState<UserNotification | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -43,25 +49,54 @@ export default function NotificationBell({
       return;
     }
 
+    function closePopover() {
+      setIsOpen(false);
+    }
+
     function handlePointerDown(event: PointerEvent) {
       if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
+        closePopover();
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        closePopover();
         triggerRef.current?.focus();
       }
     }
 
+    function handleWheel(event: WheelEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        closePopover();
+      }
+    }
+
+    function handleScroll(event: Event) {
+      const target = event.target;
+
+      if (
+        target instanceof Node &&
+        containerRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      closePopover();
+    }
+
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("wheel", handleWheel, true);
+    document.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", closePopover);
 
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("wheel", handleWheel, true);
+      document.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", closePopover);
     };
   }, [isOpen]);
 
@@ -86,16 +121,19 @@ export default function NotificationBell({
     setActionError(null);
 
     try {
-      if (notification.readAt === null) {
-        await notifications.markRead(notification.id);
-      }
+      const nextNotification =
+        notification.readAt === null
+          ? await notifications.markRead(notification.id)
+          : notification;
 
       setIsOpen(false);
-      navigate(
-        notification.action.kind === "welcome"
-          ? `/notifications?open=${encodeURIComponent(notification.id)}`
-          : notification.action.href,
-      );
+
+      if (nextNotification.action.kind === "welcome") {
+        setWelcomeNotification(nextNotification);
+        return;
+      }
+
+      navigate(nextNotification.action.href);
     } catch (error) {
       setActionError(
         error instanceof Error
@@ -123,6 +161,13 @@ export default function NotificationBell({
       setIsMutating(false);
     }
   }
+
+  const closeWelcome = useCallback(() => {
+    setWelcomeNotification(null);
+    window.setTimeout(() => {
+      triggerRef.current?.focus();
+    }, 0);
+  }, []);
 
   const unreadLabel =
     notifications.unreadCount === 0
@@ -180,6 +225,14 @@ export default function NotificationBell({
             setActionError(null);
             void notifications.refreshSummary();
           }}
+        />
+      ) : null}
+
+      {welcomeNotification && auth.user ? (
+        <WelcomeNotificationDialog
+          notification={welcomeNotification}
+          displayName={auth.user.displayName}
+          onClose={closeWelcome}
         />
       ) : null}
     </div>

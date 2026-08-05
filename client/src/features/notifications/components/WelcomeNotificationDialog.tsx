@@ -1,6 +1,7 @@
 import {
   useEffect,
   useRef,
+  type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
@@ -12,6 +13,44 @@ import {
   SettingsIcon,
 } from "../../../components/navigation/NavigationIcons";
 import type { UserNotification } from "../../../types/notification";
+
+type WelcomeConfettiStyle = CSSProperties & {
+  "--welcome-confetti-color": string;
+  "--welcome-confetti-delay": string;
+  "--welcome-confetti-drift": string;
+  "--welcome-confetti-duration": string;
+  "--welcome-confetti-left": string;
+  "--welcome-confetti-rotation": string;
+  "--welcome-confetti-size": string;
+};
+
+const WELCOME_CONFETTI_COLORS = [
+  "#38bdf8",
+  "#0ea5e9",
+  "#22d3ee",
+  "#60a5fa",
+  "#818cf8",
+  "#dbeafe",
+];
+
+const WELCOME_CONFETTI = Array.from({ length: 28 }, (_, index) => {
+  const style: WelcomeConfettiStyle = {
+    "--welcome-confetti-color":
+      WELCOME_CONFETTI_COLORS[index % WELCOME_CONFETTI_COLORS.length],
+    "--welcome-confetti-delay": `${(index % 7) * 70}ms`,
+    "--welcome-confetti-drift": `${((index * 47) % 180) - 90}px`,
+    "--welcome-confetti-duration": `${2100 + (index % 6) * 180}ms`,
+    "--welcome-confetti-left": `${4 + ((index * 37) % 92)}%`,
+    "--welcome-confetti-rotation": `${420 + (index % 5) * 120}deg`,
+    "--welcome-confetti-size": `${5 + (index % 4) * 2}px`,
+  };
+
+  return {
+    id: index,
+    isRound: index % 6 === 0,
+    style,
+  };
+});
 
 export default function WelcomeNotificationDialog({
   notification,
@@ -82,7 +121,7 @@ export default function WelcomeNotificationDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[130] grid place-items-center overflow-y-auto bg-slate-950/80 px-4 py-8 backdrop-blur-lg"
+      className="fixed inset-0 z-[130] grid place-items-center overflow-x-hidden overflow-y-auto bg-slate-950/80 px-4 py-8 backdrop-blur-lg"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
@@ -90,12 +129,25 @@ export default function WelcomeNotificationDialog({
         }
       }}
     >
+      <div className="welcome-celebration-field" aria-hidden="true">
+        <span className="welcome-celebration-flare" />
+        {WELCOME_CONFETTI.map((piece) => (
+          <span
+            key={piece.id}
+            className={`welcome-confetti-piece ${
+              piece.isRound ? "welcome-confetti-piece-round" : ""
+            }`}
+            style={piece.style}
+          />
+        ))}
+      </div>
+
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="filmgeezer-welcome-title"
-        className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border border-sky-300/15 bg-slate-900 shadow-2xl shadow-black/60"
+        className="welcome-dialog-enter relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-sky-300/15 bg-slate-900 shadow-2xl shadow-black/60"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_18%_0%,rgba(56,189,248,0.22),transparent_42%),radial-gradient(circle_at_82%_10%,rgba(99,102,241,0.18),transparent_38%)]" />
 
@@ -159,7 +211,7 @@ export default function WelcomeNotificationDialog({
               onClick={onClose}
               className="min-h-11 rounded-full border border-white/10 px-5 text-sm font-black text-slate-300 transition hover:bg-white/[0.05] hover:text-white"
             >
-              Keep browsing notifications
+              Continue browsing
             </button>
             <button
               type="button"

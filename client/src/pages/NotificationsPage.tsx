@@ -10,7 +10,6 @@ import {
   useSearchParams,
 } from "react-router";
 
-import ContentContainer from "../components/layout/ContentContainer";
 import {
   BellIcon,
   CheckIcon,
@@ -348,9 +347,9 @@ function NotificationsPage() {
         id="main-content"
         className="min-h-screen bg-slate-950 py-10 text-white"
       >
-        <ContentContainer>
+        <div className="mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
           <div className="h-56 animate-pulse rounded-[2rem] border border-white/[0.07] bg-white/[0.025] motion-reduce:animate-none" />
-        </ContentContainer>
+        </div>
       </main>
     );
   }
@@ -362,7 +361,7 @@ function NotificationsPage() {
         className="relative min-h-screen overflow-hidden bg-slate-950 py-12 text-white"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_20%_0%,rgba(14,165,233,0.16),transparent_38%),radial-gradient(circle_at_80%_10%,rgba(79,70,229,0.12),transparent_34%)]" />
-        <ContentContainer className="relative">
+        <div className="relative mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
           <section className="mx-auto max-w-2xl rounded-[2rem] border border-white/10 bg-slate-900/70 p-7 text-center shadow-2xl shadow-black/25 backdrop-blur-xl sm:p-10">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-200">
               <UserIcon className="h-6 w-6" />
@@ -381,7 +380,7 @@ function NotificationsPage() {
               Sign in
             </button>
           </section>
-        </ContentContainer>
+        </div>
       </main>
     );
   }
@@ -393,7 +392,7 @@ function NotificationsPage() {
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_14%_0%,rgba(14,165,233,0.16),transparent_38%),radial-gradient(circle_at_86%_4%,rgba(99,102,241,0.13),transparent_34%)]" />
 
-      <ContentContainer className="relative">
+      <div className="relative mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/60 shadow-2xl shadow-black/20 backdrop-blur-xl">
           <div className="border-b border-white/[0.07] px-5 py-6 sm:px-7 sm:py-8 lg:px-9">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -555,7 +554,7 @@ function NotificationsPage() {
             ) : null}
           </div>
         </section>
-      </ContentContainer>
+      </div>
 
       {welcomeNotification ? (
         <WelcomeNotificationDialog
