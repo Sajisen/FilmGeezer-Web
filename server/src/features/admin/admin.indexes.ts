@@ -2,6 +2,7 @@ import { ADMIN_SCHEMA_VERSION } from "./admin.constants.js";
 import { getAdminCollections } from "./admin.collections.js";
 import { migrateLegacyAdminRecoveryCodes } from "./admin.recovery.repository.js";
 import { initializeAdminSecurityStates } from "./admin.security.repository.js";
+import { initializeAdminGovernanceState } from "./admin.governance.repository.js";
 
 let initializationPromise: Promise<void> | null = null;
 
@@ -132,6 +133,7 @@ async function createAdminIndexes(): Promise<void> {
 
   await migrateLegacyAdminRecoveryCodes();
   await initializeAdminSecurityStates();
+  await initializeAdminGovernanceState();
 }
 
 export function initializeAdminStorage(): Promise<void> {

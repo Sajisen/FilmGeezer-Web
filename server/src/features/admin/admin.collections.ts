@@ -4,6 +4,7 @@ import { getWebDatabase } from "../../config/database.js";
 import { ADMIN_COLLECTION_NAMES } from "./admin.constants.js";
 import type {
   AdminAuditEventDocument,
+  AdminGovernanceStateDocument,
   AdminMfaChallengeDocument,
   AdminMfaFactorDocument,
   AdminPasskeyChallengeDocument,
@@ -22,6 +23,7 @@ export interface AdminCollections {
   passkeyCredentials: Collection<AdminPasskeyCredentialDocument>;
   passkeyChallenges: Collection<AdminPasskeyChallengeDocument>;
   securityStates: Collection<AdminSecurityStateDocument>;
+  governanceStates: Collection<AdminGovernanceStateDocument>;
 }
 
 export async function getAdminCollections(): Promise<AdminCollections> {
@@ -51,6 +53,9 @@ export async function getAdminCollections(): Promise<AdminCollections> {
     ),
     securityStates: database.collection<AdminSecurityStateDocument>(
       ADMIN_COLLECTION_NAMES.securityStates,
+    ),
+    governanceStates: database.collection<AdminGovernanceStateDocument>(
+      ADMIN_COLLECTION_NAMES.governanceStates,
     ),
   };
 }

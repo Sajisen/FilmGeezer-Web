@@ -81,6 +81,10 @@ export const ADMIN_AUDIT_EVENT_VALUES = [
   "admin-passkey-revoked",
   "admin-passkey-used-for-reauthentication",
   "admin-passkey-emergency-reset",
+  "admin-user-suspended",
+  "admin-user-reactivated",
+  "admin-user-session-revoked",
+  "admin-user-sessions-revoked",
 ] as const;
 
 export type AdminAuditEvent =
@@ -133,6 +137,15 @@ export interface AdminRecoveryFactorDocument {
   schemaVersion: number;
   userId: ObjectId;
   recoveryCodeHashes: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+
+export interface AdminGovernanceStateDocument {
+  _id: "administrator-membership";
+  schemaVersion: number;
+  revision: number;
   createdAt: Date;
   updatedAt: Date;
 }

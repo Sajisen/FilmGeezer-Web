@@ -166,6 +166,23 @@ async function createAuthenticationIndexes():
         name:
           "users_status_created_at",
       },
+      {
+        key: {
+          roles: 1,
+          status: 1,
+          createdAt: -1,
+        },
+        name:
+          "users_roles_status_created_at",
+      },
+      {
+        key: {
+          emailVerifiedAt: 1,
+          createdAt: -1,
+        },
+        name:
+          "users_verification_created_at",
+      },
     ]),
 
     identities.createIndexes([

@@ -13,6 +13,7 @@ import {
   AdminRoleOperationError,
 } from "./admin.errors.js";
 import { initializeAdminStorage } from "./admin.indexes.js";
+import { touchAdminMembershipGovernanceState } from "./admin.governance.repository.js";
 import {
   createAdminAuditEvent,
   revokeAllAdminSessionsForUser,
@@ -43,6 +44,8 @@ export async function grantAdministratorRole(
 
   try {
     const result = await mongoSession.withTransaction(async () => {
+      const changedAt = new Date();
+      await touchAdminMembershipGovernanceState(changedAt, mongoSession);
       const { users } = await getAuthCollections();
       const user = await users.findOne(
         {
@@ -62,7 +65,6 @@ export async function grantAdministratorRole(
         );
       }
 
-      const changedAt = new Date();
       const alreadyAdmin = user.roles.includes("admin");
 
       if (!alreadyAdmin) {
@@ -123,6 +125,8 @@ export async function revokeAdministratorRole(
 
   try {
     const result = await mongoSession.withTransaction(async () => {
+      const changedAt = new Date();
+      await touchAdminMembershipGovernanceState(changedAt, mongoSession);
       const { users } = await getAuthCollections();
       const user = await users.findOne(
         { emailNormalized: normalizedEmail },
@@ -156,8 +160,6 @@ export async function revokeAdministratorRole(
           );
         }
       }
-
-      const changedAt = new Date();
 
       if (wasAdmin) {
         await users.updateOne(

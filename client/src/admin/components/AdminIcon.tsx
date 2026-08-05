@@ -11,8 +11,10 @@ export type AdminIconName =
   | "copy"
   | "close"
   | "content"
+  | "device"
   | "external"
   | "filter"
+  | "lock"
   | "inbox"
   | "key"
   | "logout"
@@ -25,6 +27,8 @@ export type AdminIconName =
   | "settings"
   | "shield"
   | "support"
+  | "unlock"
+  | "userBlock"
   | "users";
 
 interface AdminIconProps extends SVGProps<SVGSVGElement> {
@@ -120,6 +124,14 @@ export default function AdminIcon({
           <path d="m10 9 5 3-5 3Z" />
         </svg>
       );
+    case "device":
+      return (
+        <svg {...commonProps}>
+          <rect x="4" y="3" width="16" height="13" rx="2" />
+          <path d="M8 21h8" />
+          <path d="M12 16v5" />
+        </svg>
+      );
     case "external":
       return (
         <svg {...commonProps}>
@@ -149,6 +161,13 @@ export default function AdminIcon({
           <circle cx="8.5" cy="10.5" r="4.5" />
           <path d="m12 13.5 8 7" />
           <path d="m17 17 2-2" />
+        </svg>
+      );
+    case "lock":
+      return (
+        <svg {...commonProps}>
+          <rect x="4" y="10" width="16" height="11" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
         </svg>
       );
     case "logout":
@@ -226,6 +245,22 @@ export default function AdminIcon({
           <path d="M4 5h16v11H8l-4 4Z" />
           <path d="M8 9h8" />
           <path d="M8 12h5" />
+        </svg>
+      );
+    case "unlock":
+      return (
+        <svg {...commonProps}>
+          <rect x="4" y="10" width="16" height="11" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 7.4-2.1" />
+        </svg>
+      );
+    case "userBlock":
+      return (
+        <svg {...commonProps}>
+          <circle cx="9" cy="7" r="4" />
+          <path d="M2 21v-2a4 4 0 0 1 4-4h5" />
+          <circle cx="17" cy="17" r="4" />
+          <path d="m14.2 14.2 5.6 5.6" />
         </svg>
       );
     case "users":

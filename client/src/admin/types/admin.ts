@@ -311,3 +311,107 @@ export interface AdminPasskeyRevokeResponse {
 
 export type AdminRegistrationCredential = RegistrationResponseJSON;
 export type AdminAuthenticationCredential = AuthenticationResponseJSON;
+
+
+export type AdminManagedUserStatus =
+  | "pending"
+  | "active"
+  | "suspended"
+  | "deactivated"
+  | "deleted";
+
+export type AdminManagedUserRole = "user" | "admin";
+export type AdminManagedUserVerificationFilter =
+  | "all"
+  | "verified"
+  | "unverified";
+export type AdminManagedUserStatusFilter =
+  | "all"
+  | AdminManagedUserStatus;
+export type AdminManagedUserRoleFilter =
+  | "all"
+  | AdminManagedUserRole;
+
+export interface AdminManagedUserSummary {
+  userId: string;
+  email: string;
+  displayName: string;
+  profileImagePath: string | null;
+  status: AdminManagedUserStatus;
+  roles: AdminManagedUserRole[];
+  emailVerified: boolean;
+  activeSessionCount: number;
+  isCurrentAdministrator: boolean;
+  finalAdministratorProtected: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface AdminManagedUserSession {
+  sessionId: string;
+  provider: "local" | "clerk";
+  userAgentSummary: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  recentAuthenticationAt: string | null;
+  expiresAt: string;
+}
+
+export interface AdminManagedUserDetail {
+  user: AdminManagedUserSummary & {
+    emailVerifiedAt: string | null;
+    suspendedAt: string | null;
+    deactivatedAt: string | null;
+    deletedAt: string | null;
+  };
+  identities: Array<{
+    provider: "local" | "clerk";
+    createdAt: string;
+  }>;
+  activeSessions: AdminManagedUserSession[];
+  permissions: {
+    canSuspend: boolean;
+    canReactivate: boolean;
+    canRevokeSessions: boolean;
+    blockedReason: string | null;
+  };
+}
+
+export interface AdminUserListFilters {
+  page: number;
+  status: AdminManagedUserStatusFilter;
+  role: AdminManagedUserRoleFilter;
+  verification: AdminManagedUserVerificationFilter;
+  search: string;
+}
+
+export interface AdminUserListResponse {
+  status: "success";
+  code: "ADMIN_USERS_READY";
+  items: AdminManagedUserSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminUserDetailResponse {
+  status: "success";
+  code: "ADMIN_USER_READY";
+  detail: AdminManagedUserDetail;
+}
+
+export interface AdminUserMutationResponse {
+  status: "success";
+  code:
+    | "ADMIN_USER_SUSPENDED"
+    | "ADMIN_USER_REACTIVATED"
+    | "ADMIN_USER_SESSION_REVOKED"
+    | "ADMIN_USER_SESSIONS_REVOKED";
+  message: string;
+  revokedSessions?: number;
+  detail: AdminManagedUserDetail;
+}

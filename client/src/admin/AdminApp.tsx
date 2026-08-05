@@ -14,6 +14,7 @@ import AdminMfaEnrollmentPage from "./pages/AdminMfaEnrollmentPage";
 import AdminOverviewPage from "./pages/AdminOverviewPage";
 import AdminSecurityPage from "./pages/AdminSecurityPage";
 import AdminSupportPage from "./pages/AdminSupportPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminPlaceholderPage from "./pages/AdminPlaceholderPage";
 
 function AdminBootstrapScreen() {
@@ -61,17 +62,7 @@ function ProtectedAdminRoutes() {
       <Route element={<AdminShell />}>
         <Route index element={<AdminOverviewPage />} />
         <Route path="support" element={<AdminSupportPage />} />
-        <Route
-          path="users"
-          element={
-            <AdminPlaceholderPage
-              eyebrow="Account administration"
-              title="Users"
-              description="Search and review FilmGeezer accounts through protected, auditable administrator controls."
-              nextStep="Add paginated user lookup, identity and status summaries, public-session review and revocation, suspension/reactivation safeguards, self-action protection, final-administrator protection, recent-authentication checks, and complete audit events."
-            />
-          }
-        />
+        <Route path="users" element={<AdminUsersPage />} />
         <Route
           path="content"
           element={

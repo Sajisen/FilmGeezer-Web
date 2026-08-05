@@ -7,6 +7,7 @@ export const ADMIN_COLLECTION_NAMES = {
   passkeyCredentials: "admin_passkey_credentials",
   passkeyChallenges: "admin_passkey_challenges",
   securityStates: "admin_security_states",
+  governanceStates: "admin_governance_states",
 } as const;
 
 export const ADMIN_SCHEMA_VERSION = 4;
@@ -93,6 +94,15 @@ export const ADMIN_HTTP_POLICY = {
     maximumRequestsPerWindow: 80,
     replyBodyLimit: "8kb",
     statusBodyLimit: "4kb",
+  },
+  userRead: {
+    rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+    maximumRequestsPerWindow: 240,
+  },
+  userWrite: {
+    rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+    maximumRequestsPerWindow: 60,
+    reasonBodyLimit: "4kb",
   },
 } as const;
 

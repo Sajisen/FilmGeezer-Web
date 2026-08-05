@@ -3,6 +3,9 @@ import type {
   AdminLoginResponse,
   AdminLoginResult,
   AdminMfaChallengeResponse,
+  AdminManagedUserDetail,
+  AdminManagedUserSession,
+  AdminManagedUserSummary,
   AdminMfaRecoveryCodesResponse,
   AdminMfaSetupResponse,
   AdminMfaStatusResponse,
@@ -29,6 +32,10 @@ import type {
   AdminSupportStatus,
   AdminSupportThreadResponse,
   AdminUser,
+  AdminUserDetailResponse,
+  AdminUserListFilters,
+  AdminUserListResponse,
+  AdminUserMutationResponse,
 } from "../types/admin";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -463,6 +470,149 @@ function isPasskeyRevokeResponse(
   );
 }
 
+
+const MANAGED_USER_STATUSES = [
+  "pending",
+  "active",
+  "suspended",
+  "deactivated",
+  "deleted",
+] as const;
+
+function isManagedUserSummary(
+  value: unknown,
+): value is AdminManagedUserSummary {
+  return (
+    isRecord(value) &&
+    typeof value.userId === "string" &&
+    typeof value.email === "string" &&
+    typeof value.displayName === "string" &&
+    (value.profileImagePath === null ||
+      typeof value.profileImagePath === "string") &&
+    typeof value.status === "string" &&
+    MANAGED_USER_STATUSES.includes(
+      value.status as (typeof MANAGED_USER_STATUSES)[number],
+    ) &&
+    Array.isArray(value.roles) &&
+    value.roles.every((role) => role === "user" || role === "admin") &&
+    typeof value.emailVerified === "boolean" &&
+    typeof value.activeSessionCount === "number" &&
+    typeof value.isCurrentAdministrator === "boolean" &&
+    typeof value.finalAdministratorProtected === "boolean" &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string" &&
+    (value.lastLoginAt === null || typeof value.lastLoginAt === "string")
+  );
+}
+
+function isManagedUserSession(
+  value: unknown,
+): value is AdminManagedUserSession {
+  return (
+    isRecord(value) &&
+    typeof value.sessionId === "string" &&
+    (value.provider === "local" || value.provider === "clerk") &&
+    (value.userAgentSummary === null ||
+      typeof value.userAgentSummary === "string") &&
+    typeof value.createdAt === "string" &&
+    typeof value.lastSeenAt === "string" &&
+    (value.recentAuthenticationAt === null ||
+      typeof value.recentAuthenticationAt === "string") &&
+    typeof value.expiresAt === "string"
+  );
+}
+
+function isManagedUserDetailUser(
+  value: unknown,
+): value is AdminManagedUserDetail["user"] {
+  return (
+    isRecord(value) &&
+    isManagedUserSummary(value) &&
+    (value.emailVerifiedAt === null ||
+      typeof value.emailVerifiedAt === "string") &&
+    (value.suspendedAt === null ||
+      typeof value.suspendedAt === "string") &&
+    (value.deactivatedAt === null ||
+      typeof value.deactivatedAt === "string") &&
+    (value.deletedAt === null ||
+      typeof value.deletedAt === "string")
+  );
+}
+
+function isManagedUserDetail(
+  value: unknown,
+): value is AdminManagedUserDetail {
+  return (
+    isRecord(value) &&
+    isManagedUserDetailUser(value.user) &&
+    Array.isArray(value.identities) &&
+    value.identities.every(
+      (identity) =>
+        isRecord(identity) &&
+        (identity.provider === "local" ||
+          identity.provider === "clerk") &&
+        typeof identity.createdAt === "string",
+    ) &&
+    Array.isArray(value.activeSessions) &&
+    value.activeSessions.every(isManagedUserSession) &&
+    isRecord(value.permissions) &&
+    typeof value.permissions.canSuspend === "boolean" &&
+    typeof value.permissions.canReactivate === "boolean" &&
+    typeof value.permissions.canRevokeSessions === "boolean" &&
+    (value.permissions.blockedReason === null ||
+      typeof value.permissions.blockedReason === "string")
+  );
+}
+
+function isAdminUserListResponse(
+  value: unknown,
+): value is AdminUserListResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_USERS_READY" &&
+    Array.isArray(value.items) &&
+    value.items.every(isManagedUserSummary) &&
+    isRecord(value.pagination) &&
+    [
+      value.pagination.page,
+      value.pagination.pageSize,
+      value.pagination.totalItems,
+      value.pagination.totalPages,
+    ].every((item) => typeof item === "number")
+  );
+}
+
+function isAdminUserDetailResponse(
+  value: unknown,
+): value is AdminUserDetailResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_USER_READY" &&
+    isManagedUserDetail(value.detail)
+  );
+}
+
+function isAdminUserMutationResponse(
+  value: unknown,
+): value is AdminUserMutationResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    (
+      value.code === "ADMIN_USER_SUSPENDED" ||
+      value.code === "ADMIN_USER_REACTIVATED" ||
+      value.code === "ADMIN_USER_SESSION_REVOKED" ||
+      value.code === "ADMIN_USER_SESSIONS_REVOKED"
+    ) &&
+    typeof value.message === "string" &&
+    (value.revokedSessions === undefined ||
+      typeof value.revokedSessions === "number") &&
+    isManagedUserDetail(value.detail)
+  );
+}
+
 async function parseJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -879,6 +1029,106 @@ export function revokeAdminPasskey(
       csrfToken,
       guard: isPasskeyRevokeResponse,
       fallbackMessage: "The passkey could not be removed.",
+    },
+  );
+}
+
+
+export function getAdminUsers(
+  filters: AdminUserListFilters,
+  signal?: AbortSignal,
+): Promise<AdminUserListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(filters.page),
+    pageSize: "20",
+    status: filters.status,
+    role: filters.role,
+    verification: filters.verification,
+  });
+
+  if (filters.search.trim()) {
+    parameters.set("search", filters.search.trim());
+  }
+
+  return adminRequest(`/api/admin/users?${parameters.toString()}`, {
+    signal,
+    guard: isAdminUserListResponse,
+    fallbackMessage: "FilmGeezer accounts could not be loaded.",
+  });
+}
+
+export function getAdminUserDetail(
+  userId: string,
+  signal?: AbortSignal,
+): Promise<AdminUserDetailResponse> {
+  return adminRequest(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    signal,
+    guard: isAdminUserDetailResponse,
+    fallbackMessage: "The FilmGeezer account could not be loaded.",
+  });
+}
+
+export function suspendAdminUser(
+  userId: string,
+  reason: string,
+  csrfToken: string,
+): Promise<AdminUserMutationResponse> {
+  return adminRequest(
+    `/api/admin/users/${encodeURIComponent(userId)}/suspend`,
+    {
+      method: "POST",
+      body: { reason },
+      csrfToken,
+      guard: isAdminUserMutationResponse,
+      fallbackMessage: "The FilmGeezer account could not be suspended.",
+    },
+  );
+}
+
+export function reactivateAdminUser(
+  userId: string,
+  reason: string,
+  csrfToken: string,
+): Promise<AdminUserMutationResponse> {
+  return adminRequest(
+    `/api/admin/users/${encodeURIComponent(userId)}/reactivate`,
+    {
+      method: "POST",
+      body: { reason },
+      csrfToken,
+      guard: isAdminUserMutationResponse,
+      fallbackMessage: "The FilmGeezer account could not be reactivated.",
+    },
+  );
+}
+
+export function revokeAdminUserSession(
+  userId: string,
+  sessionId: string,
+  csrfToken: string,
+): Promise<AdminUserMutationResponse> {
+  return adminRequest(
+    `/api/admin/users/${encodeURIComponent(userId)}/sessions/${encodeURIComponent(sessionId)}`,
+    {
+      method: "DELETE",
+      csrfToken,
+      guard: isAdminUserMutationResponse,
+      fallbackMessage: "The public FilmGeezer session could not be revoked.",
+    },
+  );
+}
+
+export function revokeAllAdminUserSessions(
+  userId: string,
+  csrfToken: string,
+): Promise<AdminUserMutationResponse> {
+  return adminRequest(
+    `/api/admin/users/${encodeURIComponent(userId)}/sessions/revoke-all`,
+    {
+      method: "POST",
+      csrfToken,
+      guard: isAdminUserMutationResponse,
+      fallbackMessage: "The public FilmGeezer sessions could not be revoked.",
     },
   );
 }

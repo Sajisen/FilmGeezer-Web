@@ -43,7 +43,6 @@ const WORKSPACE_ITEMS: NavigationItem[] = [
     label: "Users",
     description: "Accounts and access",
     icon: "users",
-    planned: true,
   },
   {
     to: "/content",

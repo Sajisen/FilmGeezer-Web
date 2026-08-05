@@ -9,6 +9,14 @@ import { rateLimit } from "express-rate-limit";
 
 import { getAdminDashboardOverview } from "../controllers/admin.controller.js";
 import {
+  deleteAdminUserSession,
+  getAdminUserDetail,
+  getAdminUsers,
+  postAdminUserReactivation,
+  postAdminUserSessionsRevocation,
+  postAdminUserSuspension,
+} from "../controllers/adminUser.controller.js";
+import {
   getAdminSupportInbox,
   getAdminSupportThread,
   patchAdminSupportStatus,
@@ -19,6 +27,7 @@ import {
   requireAdminCsrfProtection,
   requireAdminSession,
   requireFullAdminSession,
+  requireRecentAdminAuthentication,
 } from "../middleware/admin.middleware.js";
 
 const router = Router();
@@ -54,7 +63,7 @@ function createAdminRateLimit(input: {
     legacyHeaders: false,
     identifier: input.identifier,
     passOnStoreError: false,
-    handler: (_request, response) => {
+    handler: (_request: Request, response: Response) => {
       response.setHeader("Cache-Control", "no-store");
       response.status(429).json({
         status: "error",
@@ -87,6 +96,23 @@ const supportWriteRateLimit = createAdminRateLimit({
   identifier: "filmgeezer-admin-support-write",
   code: "ADMIN_SUPPORT_WRITE_RATE_LIMITED",
   message: "Too many administrator support changes. Please wait.",
+});
+
+
+const userReadRateLimit = createAdminRateLimit({
+  windowMs: ADMIN_HTTP_POLICY.userRead.rateLimitWindowMilliseconds,
+  limit: ADMIN_HTTP_POLICY.userRead.maximumRequestsPerWindow,
+  identifier: "filmgeezer-admin-user-read",
+  code: "ADMIN_USER_READ_RATE_LIMITED",
+  message: "Too many administrator user requests. Please wait.",
+});
+
+const userWriteRateLimit = createAdminRateLimit({
+  windowMs: ADMIN_HTTP_POLICY.userWrite.rateLimitWindowMilliseconds,
+  limit: ADMIN_HTTP_POLICY.userWrite.maximumRequestsPerWindow,
+  identifier: "filmgeezer-admin-user-write",
+  code: "ADMIN_USER_WRITE_RATE_LIMITED",
+  message: "Too many administrator user changes. Please wait.",
 });
 
 router.use(requireAdminSession);
@@ -122,6 +148,52 @@ router.patch(
     strict: true,
   }),
   patchAdminSupportStatus,
+);
+
+
+router.get("/users", userReadRateLimit, getAdminUsers);
+router.get("/users/:userId", userReadRateLimit, getAdminUserDetail);
+
+router.delete(
+  "/users/:userId/sessions/:sessionId",
+  userWriteRateLimit,
+  requireRecentAdminAuthentication,
+  requireAdminCsrfProtection,
+  deleteAdminUserSession,
+);
+
+router.post(
+  "/users/:userId/sessions/revoke-all",
+  userWriteRateLimit,
+  requireRecentAdminAuthentication,
+  requireAdminCsrfProtection,
+  postAdminUserSessionsRevocation,
+);
+
+router.post(
+  "/users/:userId/suspend",
+  userWriteRateLimit,
+  requireRecentAdminAuthentication,
+  requireAdminCsrfProtection,
+  requireJson,
+  json({
+    limit: ADMIN_HTTP_POLICY.userWrite.reasonBodyLimit,
+    strict: true,
+  }),
+  postAdminUserSuspension,
+);
+
+router.post(
+  "/users/:userId/reactivate",
+  userWriteRateLimit,
+  requireRecentAdminAuthentication,
+  requireAdminCsrfProtection,
+  requireJson,
+  json({
+    limit: ADMIN_HTTP_POLICY.userWrite.reasonBodyLimit,
+    strict: true,
+  }),
+  postAdminUserReactivation,
 );
 
 export default router;
