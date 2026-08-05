@@ -15,6 +15,7 @@ import AdminOverviewPage from "./pages/AdminOverviewPage";
 import AdminSecurityPage from "./pages/AdminSecurityPage";
 import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import AdminContentPage from "./pages/AdminContentPage";
 import AdminPlaceholderPage from "./pages/AdminPlaceholderPage";
 
 function AdminBootstrapScreen() {
@@ -63,17 +64,7 @@ function ProtectedAdminRoutes() {
         <Route index element={<AdminOverviewPage />} />
         <Route path="support" element={<AdminSupportPage />} />
         <Route path="users" element={<AdminUsersPage />} />
-        <Route
-          path="content"
-          element={
-            <AdminPlaceholderPage
-              eyebrow="Catalog operations"
-              title="Content"
-              description="Review and manage FilmGeezer-owned provider links without exposing internal content databases directly to React."
-              nextStep="Add TMDB title lookup, validated link editing and ordering, revision protection, recent-authentication gates, canonical media identity checks, safe external-link rules, and complete administrator audit events."
-            />
-          }
-        />
+        <Route path="content" element={<AdminContentPage />} />
         <Route
           path="audit"
           element={

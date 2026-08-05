@@ -415,3 +415,123 @@ export interface AdminUserMutationResponse {
   revokedSessions?: number;
   detail: AdminManagedUserDetail;
 }
+
+export type AdminContentMediaType = "movie" | "tv";
+export type AdminContentKind = "movie" | "series";
+export type AdminContentStatusFilter = "all" | "active" | "inactive";
+export type AdminContentMediaTypeFilter = "all" | AdminContentMediaType;
+
+export interface AdminContentSummary {
+  mediaType: AdminContentMediaType;
+  tmdbId: number;
+  kind: AdminContentKind;
+  title: string;
+  year: string;
+  active: boolean;
+  sourceCount: number;
+  linkCount: number;
+  revision: number;
+  updatedAt: string | null;
+}
+
+export interface AdminContentMediaSnapshot {
+  mediaType: AdminContentMediaType;
+  tmdbId: number;
+  title: string;
+  year: string;
+  rating: number;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  overview: string;
+}
+
+export interface AdminContentSeriesOption {
+  id: string;
+  url: string;
+  isMain: boolean;
+  active: boolean;
+}
+
+export interface AdminContentMovieQualityLink {
+  url: string;
+  size: string | null;
+}
+
+export interface AdminContentMovieSource {
+  id: string;
+  isMain: boolean;
+  active: boolean;
+  links: {
+    "720p": AdminContentMovieQualityLink | null;
+    "1080p": AdminContentMovieQualityLink | null;
+  };
+}
+
+export interface AdminContentDetail {
+  media: AdminContentMediaSnapshot;
+  exists: boolean;
+  active: boolean;
+  kind: AdminContentKind;
+  revision: number;
+  revisionToken: string;
+  updatedAt: string | null;
+  seriesOptions: AdminContentSeriesOption[];
+  movieSources: AdminContentMovieSource[];
+}
+
+export interface AdminContentListFilters {
+  page: number;
+  mediaType: AdminContentMediaTypeFilter;
+  status: AdminContentStatusFilter;
+  search: string;
+}
+
+export interface AdminContentListResponse {
+  status: "success";
+  code: "ADMIN_CONTENT_ENTRIES_READY";
+  items: AdminContentSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminContentTmdbSearchResponse {
+  status: "success";
+  code: "ADMIN_CONTENT_TMDB_RESULTS_READY";
+  items: AdminContentMediaSnapshot[];
+  pagination: {
+    page: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminContentDetailResponse {
+  status: "success";
+  code: "ADMIN_CONTENT_ENTRY_READY";
+  detail: AdminContentDetail;
+}
+
+export interface AdminContentMutationResponse {
+  status: "success";
+  code: "ADMIN_CONTENT_ENTRY_SAVED" | "ADMIN_CONTENT_STATUS_UPDATED";
+  message: string;
+  detail: AdminContentDetail;
+}
+
+export type AdminContentSaveInput =
+  | {
+      expectedRevision: number;
+      expectedRevisionToken: string;
+      kind: "series";
+      options: AdminContentSeriesOption[];
+    }
+  | {
+      expectedRevision: number;
+      expectedRevisionToken: string;
+      kind: "movie";
+      sources: AdminContentMovieSource[];
+    };

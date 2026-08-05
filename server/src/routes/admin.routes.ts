@@ -9,6 +9,13 @@ import { rateLimit } from "express-rate-limit";
 
 import { getAdminDashboardOverview } from "../controllers/admin.controller.js";
 import {
+  getAdminContentEntries,
+  getAdminContentEntry,
+  getAdminContentTmdbSearch,
+  patchAdminContentEntryStatus,
+  putAdminContentEntry,
+} from "../controllers/adminContent.controller.js";
+import {
   deleteAdminUserSession,
   getAdminUserDetail,
   getAdminUsers,
@@ -115,6 +122,22 @@ const userWriteRateLimit = createAdminRateLimit({
   message: "Too many administrator user changes. Please wait.",
 });
 
+const contentReadRateLimit = createAdminRateLimit({
+  windowMs: ADMIN_HTTP_POLICY.contentRead.rateLimitWindowMilliseconds,
+  limit: ADMIN_HTTP_POLICY.contentRead.maximumRequestsPerWindow,
+  identifier: "filmgeezer-admin-content-read",
+  code: "ADMIN_CONTENT_READ_RATE_LIMITED",
+  message: "Too many administrator content requests. Please wait.",
+});
+
+const contentWriteRateLimit = createAdminRateLimit({
+  windowMs: ADMIN_HTTP_POLICY.contentWrite.rateLimitWindowMilliseconds,
+  limit: ADMIN_HTTP_POLICY.contentWrite.maximumRequestsPerWindow,
+  identifier: "filmgeezer-admin-content-write",
+  code: "ADMIN_CONTENT_WRITE_RATE_LIMITED",
+  message: "Too many administrator content changes. Please wait.",
+});
+
 router.use(requireAdminSession);
 router.use(requireFullAdminSession);
 
@@ -194,6 +217,44 @@ router.post(
     strict: true,
   }),
   postAdminUserReactivation,
+);
+
+router.get("/content", contentReadRateLimit, getAdminContentEntries);
+router.get(
+  "/content/tmdb/search",
+  contentReadRateLimit,
+  getAdminContentTmdbSearch,
+);
+router.get(
+  "/content/:mediaType/:tmdbId",
+  contentReadRateLimit,
+  getAdminContentEntry,
+);
+
+router.put(
+  "/content/:mediaType/:tmdbId",
+  contentWriteRateLimit,
+  requireRecentAdminAuthentication,
+  requireAdminCsrfProtection,
+  requireJson,
+  json({
+    limit: ADMIN_HTTP_POLICY.contentWrite.saveBodyLimit,
+    strict: true,
+  }),
+  putAdminContentEntry,
+);
+
+router.patch(
+  "/content/:mediaType/:tmdbId/status",
+  contentWriteRateLimit,
+  requireRecentAdminAuthentication,
+  requireAdminCsrfProtection,
+  requireJson,
+  json({
+    limit: ADMIN_HTTP_POLICY.contentWrite.statusBodyLimit,
+    strict: true,
+  }),
+  patchAdminContentEntryStatus,
 );
 
 export default router;

@@ -163,7 +163,9 @@ export default function AdminRecentAuthenticationDialog({
         );
       } catch (error) {
         if (isPasskeyPromptCancellation(error)) {
-          throw new Error("Passkey confirmation was cancelled.");
+          throw new Error("Passkey confirmation was cancelled.", {
+            cause: error,
+          });
         }
 
         throw error;

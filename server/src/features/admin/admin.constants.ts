@@ -104,6 +104,16 @@ export const ADMIN_HTTP_POLICY = {
     maximumRequestsPerWindow: 60,
     reasonBodyLimit: "4kb",
   },
+  contentRead: {
+    rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+    maximumRequestsPerWindow: 240,
+  },
+  contentWrite: {
+    rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+    maximumRequestsPerWindow: 80,
+    saveBodyLimit: "48kb",
+    statusBodyLimit: "4kb",
+  },
 } as const;
 
 export const ADMIN_EMAIL_MAXIMUM_LENGTH = 254;

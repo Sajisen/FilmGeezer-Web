@@ -1,4 +1,16 @@
 import type {
+  AdminContentDetail,
+  AdminContentDetailResponse,
+  AdminContentListFilters,
+  AdminContentListResponse,
+  AdminContentMediaSnapshot,
+  AdminContentMovieQualityLink,
+  AdminContentMovieSource,
+  AdminContentMutationResponse,
+  AdminContentSaveInput,
+  AdminContentSeriesOption,
+  AdminContentSummary,
+  AdminContentTmdbSearchResponse,
   AdminErrorPayload,
   AdminLoginResponse,
   AdminLoginResult,
@@ -613,6 +625,164 @@ function isAdminUserMutationResponse(
   );
 }
 
+
+function isAdminContentMediaSnapshot(
+  value: unknown,
+): value is AdminContentMediaSnapshot {
+  return (
+    isRecord(value) &&
+    (value.mediaType === "movie" || value.mediaType === "tv") &&
+    typeof value.tmdbId === "number" &&
+    typeof value.title === "string" &&
+    typeof value.year === "string" &&
+    typeof value.rating === "number" &&
+    (value.posterUrl === null || typeof value.posterUrl === "string") &&
+    (value.backdropUrl === null || typeof value.backdropUrl === "string") &&
+    typeof value.overview === "string"
+  );
+}
+
+function isAdminContentSeriesOption(
+  value: unknown,
+): value is AdminContentSeriesOption {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.url === "string" &&
+    typeof value.isMain === "boolean" &&
+    typeof value.active === "boolean"
+  );
+}
+
+function isAdminContentMovieQualityLink(
+  value: unknown,
+): value is AdminContentMovieQualityLink {
+  return (
+    isRecord(value) &&
+    typeof value.url === "string" &&
+    (value.size === null || typeof value.size === "string")
+  );
+}
+
+function isNullableAdminContentMovieQualityLink(
+  value: unknown,
+): value is AdminContentMovieQualityLink | null {
+  return value === null || isAdminContentMovieQualityLink(value);
+}
+
+function isAdminContentMovieSource(
+  value: unknown,
+): value is AdminContentMovieSource {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.isMain === "boolean" &&
+    typeof value.active === "boolean" &&
+    isRecord(value.links) &&
+    isNullableAdminContentMovieQualityLink(value.links["720p"]) &&
+    isNullableAdminContentMovieQualityLink(value.links["1080p"])
+  );
+}
+
+function isAdminContentSummary(
+  value: unknown,
+): value is AdminContentSummary {
+  return (
+    isRecord(value) &&
+    (value.mediaType === "movie" || value.mediaType === "tv") &&
+    typeof value.tmdbId === "number" &&
+    (value.kind === "movie" || value.kind === "series") &&
+    typeof value.title === "string" &&
+    typeof value.year === "string" &&
+    typeof value.active === "boolean" &&
+    typeof value.sourceCount === "number" &&
+    typeof value.linkCount === "number" &&
+    typeof value.revision === "number" &&
+    (value.updatedAt === null || typeof value.updatedAt === "string")
+  );
+}
+
+function isAdminContentDetail(
+  value: unknown,
+): value is AdminContentDetail {
+  return (
+    isRecord(value) &&
+    isAdminContentMediaSnapshot(value.media) &&
+    typeof value.exists === "boolean" &&
+    typeof value.active === "boolean" &&
+    (value.kind === "movie" || value.kind === "series") &&
+    typeof value.revision === "number" &&
+    typeof value.revisionToken === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.revisionToken) &&
+    (value.updatedAt === null || typeof value.updatedAt === "string") &&
+    Array.isArray(value.seriesOptions) &&
+    value.seriesOptions.every(isAdminContentSeriesOption) &&
+    Array.isArray(value.movieSources) &&
+    value.movieSources.every(isAdminContentMovieSource)
+  );
+}
+
+function isAdminContentListResponse(
+  value: unknown,
+): value is AdminContentListResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_CONTENT_ENTRIES_READY" &&
+    Array.isArray(value.items) &&
+    value.items.every(isAdminContentSummary) &&
+    isRecord(value.pagination) &&
+    [
+      value.pagination.page,
+      value.pagination.pageSize,
+      value.pagination.totalItems,
+      value.pagination.totalPages,
+    ].every((item) => typeof item === "number")
+  );
+}
+
+function isAdminContentTmdbSearchResponse(
+  value: unknown,
+): value is AdminContentTmdbSearchResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_CONTENT_TMDB_RESULTS_READY" &&
+    Array.isArray(value.items) &&
+    value.items.every(isAdminContentMediaSnapshot) &&
+    isRecord(value.pagination) &&
+    [
+      value.pagination.page,
+      value.pagination.totalItems,
+      value.pagination.totalPages,
+    ].every((item) => typeof item === "number")
+  );
+}
+
+function isAdminContentDetailResponse(
+  value: unknown,
+): value is AdminContentDetailResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ADMIN_CONTENT_ENTRY_READY" &&
+    isAdminContentDetail(value.detail)
+  );
+}
+
+function isAdminContentMutationResponse(
+  value: unknown,
+): value is AdminContentMutationResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    (value.code === "ADMIN_CONTENT_ENTRY_SAVED" ||
+      value.code === "ADMIN_CONTENT_STATUS_UPDATED") &&
+    typeof value.message === "string" &&
+    isAdminContentDetail(value.detail)
+  );
+}
+
 async function parseJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -624,7 +794,7 @@ async function parseJson(response: Response): Promise<unknown> {
 async function adminRequest<T>(
   path: string,
   input: {
-    method?: "GET" | "POST" | "PATCH" | "DELETE";
+    method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     body?: unknown;
     csrfToken?: string;
     signal?: AbortSignal;
@@ -1129,6 +1299,108 @@ export function revokeAllAdminUserSessions(
       csrfToken,
       guard: isAdminUserMutationResponse,
       fallbackMessage: "The public FilmGeezer sessions could not be revoked.",
+    },
+  );
+}
+
+export function getAdminContentEntries(
+  filters: AdminContentListFilters,
+  signal?: AbortSignal,
+): Promise<AdminContentListResponse> {
+  const parameters = new URLSearchParams({
+    page: String(filters.page),
+    pageSize: "20",
+    mediaType: filters.mediaType,
+    status: filters.status,
+  });
+
+  if (filters.search.trim()) {
+    parameters.set("search", filters.search.trim());
+  }
+
+  return adminRequest(`/api/admin/content?${parameters.toString()}`, {
+    signal,
+    guard: isAdminContentListResponse,
+    fallbackMessage: "FilmGeezer content entries could not be loaded.",
+  });
+}
+
+export function searchAdminContentTmdb(
+  input: {
+    mediaType: "movie" | "tv";
+    query: string;
+    page: number;
+  },
+  signal?: AbortSignal,
+): Promise<AdminContentTmdbSearchResponse> {
+  const parameters = new URLSearchParams({
+    mediaType: input.mediaType,
+    query: input.query.trim(),
+    page: String(input.page),
+  });
+
+  return adminRequest(
+    `/api/admin/content/tmdb/search?${parameters.toString()}`,
+    {
+      signal,
+      guard: isAdminContentTmdbSearchResponse,
+      fallbackMessage: "TMDB title search could not be completed.",
+    },
+  );
+}
+
+export function getAdminContentEntry(
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+  signal?: AbortSignal,
+): Promise<AdminContentDetailResponse> {
+  return adminRequest(
+    `/api/admin/content/${mediaType}/${encodeURIComponent(String(tmdbId))}`,
+    {
+      signal,
+      guard: isAdminContentDetailResponse,
+      fallbackMessage: "The FilmGeezer content entry could not be loaded.",
+    },
+  );
+}
+
+export function saveAdminContentEntry(
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+  input: AdminContentSaveInput,
+  csrfToken: string,
+): Promise<AdminContentMutationResponse> {
+  return adminRequest(
+    `/api/admin/content/${mediaType}/${encodeURIComponent(String(tmdbId))}`,
+    {
+      method: "PUT",
+      body: input,
+      csrfToken,
+      guard: isAdminContentMutationResponse,
+      fallbackMessage: "The FilmGeezer content links could not be saved.",
+    },
+  );
+}
+
+export function updateAdminContentEntryStatus(
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+  input: {
+    expectedRevision: number;
+    expectedRevisionToken: string;
+    active: boolean;
+    reason: string;
+  },
+  csrfToken: string,
+): Promise<AdminContentMutationResponse> {
+  return adminRequest(
+    `/api/admin/content/${mediaType}/${encodeURIComponent(String(tmdbId))}/status`,
+    {
+      method: "PATCH",
+      body: input,
+      csrfToken,
+      guard: isAdminContentMutationResponse,
+      fallbackMessage: "The FilmGeezer content status could not be updated.",
     },
   );
 }

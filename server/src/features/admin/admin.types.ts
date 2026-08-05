@@ -85,6 +85,9 @@ export const ADMIN_AUDIT_EVENT_VALUES = [
   "admin-user-reactivated",
   "admin-user-session-revoked",
   "admin-user-sessions-revoked",
+  "admin-content-created",
+  "admin-content-updated",
+  "admin-content-status-updated",
 ] as const;
 
 export type AdminAuditEvent =
