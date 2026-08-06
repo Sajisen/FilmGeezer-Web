@@ -9,13 +9,18 @@ const DEVELOPMENT_CLIENT_ORIGINS = [
   "http://192.168.17.250:5173",
 ] as const;
 
+const developmentClientOrigins =
+  env.NODE_ENV === "development"
+    ? DEVELOPMENT_CLIENT_ORIGINS
+    : [];
+
 export const ADMIN_APP_ORIGIN =
   env.ADMIN_APP_ORIGIN ?? env.CLIENT_APP_ORIGIN;
 
 export const ALLOWED_CLIENT_ORIGINS = Array.from(
   new Set<string>([
     env.CLIENT_APP_ORIGIN,
-    ...DEVELOPMENT_CLIENT_ORIGINS,
+    ...developmentClientOrigins,
   ]),
 );
 
@@ -30,9 +35,7 @@ const allowedClientOriginSet = new Set<string>(ALLOWED_CLIENT_ORIGINS);
 const allowedCorsOriginSet = new Set<string>(ALLOWED_CORS_ORIGINS);
 const allowedAdminOriginSet = new Set<string>([
   ADMIN_APP_ORIGIN,
-  ...(env.NODE_ENV === "development"
-    ? DEVELOPMENT_CLIENT_ORIGINS
-    : []),
+  ...developmentClientOrigins,
 ]);
 
 export function isAllowedClientOrigin(origin: string): boolean {

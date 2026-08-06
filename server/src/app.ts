@@ -4,6 +4,7 @@ import cors from "cors";
 import {
   isAllowedCorsOrigin,
 } from "./config/cors.js";
+import { env } from "./config/env.js";
 
 import healthRoutes from "./routes/health.routes.js";
 import searchRoutes from "./routes/search.routes.js";
@@ -35,8 +36,19 @@ import {
   handleHttpError,
 } from "./middleware/httpError.middleware.js";
 
-const app =
-  express();
+const app = express();
+
+app.disable("x-powered-by");
+
+/*
+ * Railway terminates TLS and forwards requests to the service through one
+ * trusted edge hop. Trusting exactly one proxy lets Express and
+ * express-rate-limit use Railway's forwarded request metadata without
+ * accepting an arbitrary multi-hop chain supplied by the browser.
+ */
+if (env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
 
 app.use(
   cors({

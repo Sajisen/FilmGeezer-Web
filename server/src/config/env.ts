@@ -238,6 +238,31 @@ const environmentSchema = z
   .superRefine((value, context) => {
     if (
       value.NODE_ENV === "production" &&
+      !value.CLIENT_APP_ORIGIN.startsWith("https://")
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["CLIENT_APP_ORIGIN"],
+        message:
+          "Production must configure the public FilmGeezer application with an HTTPS origin.",
+      });
+    }
+
+    if (
+      value.NODE_ENV === "production" &&
+      value.ADMIN_APP_ORIGIN &&
+      !value.ADMIN_APP_ORIGIN.startsWith("https://")
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_APP_ORIGIN"],
+        message:
+          "Production must configure the administrator application with an HTTPS origin.",
+      });
+    }
+
+    if (
+      value.NODE_ENV === "production" &&
       !value.ADMIN_APP_ORIGIN
     ) {
       context.addIssue({
