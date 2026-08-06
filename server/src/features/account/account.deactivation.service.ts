@@ -13,6 +13,14 @@ import {
 } from "../auth/auth.errors.js";
 
 import {
+  countActiveEligibleAdministrators,
+} from "../admin/admin.user.repository.js";
+
+import {
+  touchAdminMembershipGovernanceState,
+} from "../admin/admin.governance.repository.js";
+
+import {
   developmentAuthEmailService,
   type AuthEmailService,
 } from "../auth/auth.email.js";
@@ -101,6 +109,22 @@ export async function deactivateAccount(
     const result =
       await session.withTransaction(
         async () => {
+          if (auth.roles.includes("admin")) {
+            await touchAdminMembershipGovernanceState(
+              deactivatedAt,
+              session,
+            );
+
+            const activeAdministratorCount =
+              await countActiveEligibleAdministrators(session);
+
+            if (activeAdministratorCount <= 1) {
+              throw new AuthAccountDeactivationError(
+                "final-administrator-protected",
+              );
+            }
+          }
+
           const user =
             await deactivateActiveUser(
               {

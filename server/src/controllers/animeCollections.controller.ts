@@ -1,3 +1,4 @@
+import { setPublicCollectionCacheHeaders } from "../utils/publicCacheHeaders.js";
 import type {
   Request,
   Response,
@@ -12,6 +13,8 @@ export async function getAnimeCollectionPage(
   try {
     const collections =
       await getAnimeCollections()
+
+    setPublicCollectionCacheHeaders(res);
 
     res.status(200).json({
       status: 'success',

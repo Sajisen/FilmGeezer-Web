@@ -2,20 +2,60 @@ import BannerSearch from "../components/BannerSearch";
 import ContentContainer from "../components/layout/ContentContainer";
 import MediaRow from "../components/MediaRow";
 import PageBanner from "../components/PageBanner";
+import PersonalRecommendationsRow from "../components/PersonalRecommendationsRow";
 import EmptyState from "../components/states/EmptyState";
 import ErrorState from "../components/states/ErrorState";
 import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useMovieCollections } from "../hooks/useMovieCollections";
+import { usePersonalRecommendations } from "../hooks/usePersonalRecommendations";
+import { createCollectionRowAllocator } from "../utils/collectionRows";
+import { excludeMediaItems } from "../utils/recommendations";
 import { buildSearchHref } from "../utils/searchLinks";
 import moviesBanner from "../assets/images/movies-banner.png";
+
+const CURATED_ROW_LIMIT = 28;
 
 function MoviesPage() {
   const { collections, isLoading, errorMessage, reload } =
     useMovieCollections();
+  const recommendations = usePersonalRecommendations("movie");
 
-  const hasMovieCollections = Object.values(collections).some(
-    (items) => items.length > 0,
+  const recommendationItems =
+    recommendations.available && recommendations.basis
+      ? excludeMediaItems(
+          recommendations.items,
+          collections.trendingAndNowPlaying,
+        ).slice(0, 24)
+      : [];
+
+  const allocateRow = createCollectionRowAllocator([
+    ...collections.trendingAndNowPlaying,
+    ...recommendationItems,
+  ]);
+
+  const essentials = allocateRow(
+    collections.essentials,
+    CURATED_ROW_LIMIT,
   );
+  const actionAdventureCrimeThriller = allocateRow(
+    collections.actionAdventureCrimeThriller,
+    CURATED_ROW_LIMIT,
+  );
+  const comedy = allocateRow(collections.comedy, CURATED_ROW_LIMIT);
+  const drama = allocateRow(
+    collections.drama,
+    CURATED_ROW_LIMIT,
+  );
+  const family = allocateRow(collections.family, CURATED_ROW_LIMIT);
+
+  const hasMovieCollections = [
+    collections.trendingAndNowPlaying,
+    collections.essentials,
+    collections.actionAdventureCrimeThriller,
+    collections.comedy,
+    collections.drama,
+    collections.family,
+  ].some((items) => items.length > 0);
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -39,7 +79,7 @@ function MoviesPage() {
 
       {isLoading && (
         <CollectionRowsSkeleton
-          rowCount={4}
+          rowCount={6}
           label="Loading curated Movie collections"
         />
       )}
@@ -70,52 +110,84 @@ function MoviesPage() {
               title="Trending & Now Playing"
               description="Current releases and movies receiving strong audience attention."
               items={collections.trendingAndNowPlaying}
-              viewMoreHref={buildSearchHref({ scope: "movie", preset: "trending" })}
+              viewMoreHref={buildSearchHref({
+                scope: "movie",
+                preset: "trending",
+              })}
             />
           )}
 
-          {collections.essentials.length > 0 && (
+          {recommendations.basis && recommendationItems.length > 0 && (
+            <PersonalRecommendationsRow
+              category="movie"
+              basis={recommendations.basis}
+              items={recommendationItems}
+            />
+          )}
+
+          {essentials.length > 0 && (
             <MediaRow
               title="FilmGeezer Essentials"
               description="Recognisable, highly regarded movies selected using rating, popularity, and audience confidence."
-              items={collections.essentials}
-              viewMoreHref={buildSearchHref({ scope: "movie", preset: "essentials" })}
+              items={essentials}
+              viewMoreHref={buildSearchHref({
+                scope: "movie",
+                preset: "essentials",
+              })}
             />
           )}
 
-          {collections.actionAdventureCrimeThriller.length > 0 && (
+          {actionAdventureCrimeThriller.length > 0 && (
             <MediaRow
               title="Action, Adventure, Crime & Thriller"
               description="High-energy stories, dangerous missions, investigations, and suspense."
-              items={collections.actionAdventureCrimeThriller}
-              viewMoreHref={buildSearchHref({ scope: "movie", genres: ["Action", "Adventure", "Crime", "Thriller"], genreMode: "any", minRating: "6" })}
+              items={actionAdventureCrimeThriller}
+              viewMoreHref={buildSearchHref({
+                scope: "movie",
+                genres: ["Action", "Adventure", "Crime", "Thriller"],
+                genreMode: "any",
+                minRating: "6",
+              })}
             />
           )}
 
-          {collections.comedy.length > 0 && (
+          {comedy.length > 0 && (
             <MediaRow
               title="Comedy"
-              description="Popular comedies and lighter movies worth adding to your watch list."
-              items={collections.comedy}
-              viewMoreHref={buildSearchHref({ scope: "movie", genres: ["Comedy"], minRating: "6" })}
+              description="Popular comedies and lighter movies worth adding to your Watchlist."
+              items={comedy}
+              viewMoreHref={buildSearchHref({
+                scope: "movie",
+                genres: ["Comedy"],
+                minRating: "6",
+              })}
             />
           )}
 
-          {collections.dramaRomance.length > 0 && (
+          {drama.length > 0 && (
             <MediaRow
-              title="Drama & Romance"
-              description="Character-driven, emotional, and relationship-focused movies."
-              items={collections.dramaRomance}
-              viewMoreHref={buildSearchHref({ scope: "movie", genres: ["Drama", "Romance"], genreMode: "any", minRating: "6" })}
+              title="Drama"
+              description="Grounded, character-driven stories without action-heavy titles dominating the row."
+              items={drama}
+              viewMoreHref={buildSearchHref({
+                scope: "movie",
+                preset: "movie-drama",
+                genres: ["Drama"],
+                minRating: "6",
+              })}
             />
           )}
 
-          {collections.family.length > 0 && (
+          {family.length > 0 && (
             <MediaRow
               title="Family"
               description="Accessible family movies and suitable animated favourites."
-              items={collections.family}
-              viewMoreHref={buildSearchHref({ scope: "movie", genres: ["Family"], minRating: "6" })}
+              items={family}
+              viewMoreHref={buildSearchHref({
+                scope: "movie",
+                genres: ["Family"],
+                minRating: "6",
+              })}
             />
           )}
         </>

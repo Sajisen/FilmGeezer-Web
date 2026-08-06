@@ -46,12 +46,12 @@ function Footer() {
             <h3 className="font-semibold text-white">Support</h3>
 
             <div className="mt-4 flex flex-col gap-3 text-sm text-slate-400">
-              <Link to="/help" className="transition hover:text-white">
-                Help
-              </Link>
-
               <Link to="/contact" className="transition hover:text-white">
                 Contact
+              </Link>
+
+              <Link to="/about" className="transition hover:text-white">
+                About
               </Link>
             </div>
           </div>

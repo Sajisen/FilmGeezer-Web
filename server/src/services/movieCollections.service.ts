@@ -1,445 +1,379 @@
-import type { MediaItem } from '../types/media.js'
+import { createStaleWhileRevalidateCache } from "../utils/staleWhileRevalidateCache.js";
+import type { MediaItem } from "../types/media.js";
+import {
+  allocateUniqueCollectionRows,
+  calculateCollectionQualityScore,
+  getCollectionCandidateKey,
+  interleaveCollectionCandidateGroups,
+  removeDuplicateCollectionCandidates,
+} from "../utils/collectionRanking.js";
 import {
   getTmdbMovieCollectionSources,
   type TmdbMovieCollectionCandidate,
-} from './tmdb.service.js'
+} from "./tmdb.service.js";
 
 export interface MovieCollections {
-  trendingAndNowPlaying: MediaItem[]
-  essentials: MediaItem[]
-
-  actionAdventureCrimeThriller:
-    MediaItem[]
-
-  comedy: MediaItem[]
-  dramaRomance: MediaItem[]
-  family: MediaItem[]
+  trendingAndNowPlaying: MediaItem[];
+  essentials: MediaItem[];
+  actionAdventureCrimeThriller: MediaItem[];
+  comedy: MediaItem[];
+  drama: MediaItem[];
+  family: MediaItem[];
 }
 
-const CURRENT_ROW_LIMIT = 30
-const ESSENTIALS_ROW_LIMIT = 20
-const GENRE_ROW_LIMIT = 16
+const TRENDING_ROW_LIMIT = 30;
+const ESSENTIALS_RESERVOIR_LIMIT = 50;
+const GENRE_RESERVOIR_LIMIT = 44;
 
-const CACHE_DURATION_MS =
-  30 * 60 * 1000
-
-const ANIMATION_GENRE = 'Animation'
+const ANIMATION_GENRE = "Animation";
+const ACTION_GENRES = ["Action", "Adventure", "Crime", "Thriller"];
+const DRAMA_DISTRACTOR_GENRES = [
+  "Action",
+  "Adventure",
+  "Crime",
+  "Thriller",
+  "Science Fiction",
+  "Horror",
+  "War",
+];
 
 const blockedDiscoveryTerms = [
-  'adult film',
-  'erotic film',
-  'pornographic',
-  'softcore',
-]
+  "adult film",
+  "erotic film",
+  "pornographic",
+  "softcore",
+  "sexploitation",
+];
 
-function getCandidateKey(
-  candidate: TmdbMovieCollectionCandidate,
-) {
-  return `${candidate.item.mediaType}:${candidate.item.tmdbId}`
-}
-
-function isAnime(
-  candidate: TmdbMovieCollectionCandidate,
-) {
+function isAnime(candidate: TmdbMovieCollectionCandidate) {
   return (
-    candidate.item.language === 'JA' &&
-    candidate.item.genres.includes(
-      ANIMATION_GENRE,
-    )
-  )
+    candidate.item.language === "JA" &&
+    candidate.item.genres.includes(ANIMATION_GENRE)
+  );
 }
 
-function isSuitableForPublicMovies(
-  candidate: TmdbMovieCollectionCandidate,
-) {
+function isSuitableForPublicMovies(candidate: TmdbMovieCollectionCandidate) {
   const searchableText =
-    `${candidate.item.title} ${candidate.item.overview}`.toLowerCase()
+    `${candidate.item.title} ${candidate.item.overview}`.toLowerCase();
 
   return (
     !candidate.isAdult &&
     !candidate.isVideo &&
     candidate.hasPoster &&
     !isAnime(candidate) &&
-    !blockedDiscoveryTerms.some(
-      (term) =>
-        searchableText.includes(term),
-    )
-  )
+    !blockedDiscoveryTerms.some((term) => searchableText.includes(term))
+  );
 }
 
-function interleaveCandidates(
-  firstCandidates:
-    TmdbMovieCollectionCandidate[],
+function qualityScore(candidate: TmdbMovieCollectionCandidate) {
+  return calculateCollectionQualityScore(candidate, 1200, 6.4);
+}
 
-  secondCandidates:
-    TmdbMovieCollectionCandidate[],
+function getReleaseYear(candidate: TmdbMovieCollectionCandidate) {
+  const year = Number(candidate.releaseDate.slice(0, 4));
+  return Number.isInteger(year) && year > 0 ? year : null;
+}
+
+function buildEraBalancedEssentials(
+  rankedCandidates: TmdbMovieCollectionCandidate[],
 ) {
-  const combinedCandidates:
-    TmdbMovieCollectionCandidate[] = []
+  const currentYear = new Date().getUTCFullYear();
+  const recent: TmdbMovieCollectionCandidate[] = [];
+  const modern: TmdbMovieCollectionCandidate[] = [];
+  const contemporary: TmdbMovieCollectionCandidate[] = [];
+  const classics: TmdbMovieCollectionCandidate[] = [];
+  const unknown: TmdbMovieCollectionCandidate[] = [];
 
-  const longestLength = Math.max(
-    firstCandidates.length,
-    secondCandidates.length,
-  )
+  for (const candidate of rankedCandidates) {
+    const year = getReleaseYear(candidate);
 
-  for (
-    let index = 0;
-    index < longestLength;
-    index += 1
-  ) {
-    const firstCandidate =
-      firstCandidates[index]
-
-    const secondCandidate =
-      secondCandidates[index]
-
-    if (firstCandidate) {
-      combinedCandidates.push(
-        firstCandidate,
-      )
-    }
-
-    if (secondCandidate) {
-      combinedCandidates.push(
-        secondCandidate,
-      )
+    if (year === null) {
+      unknown.push(candidate);
+    } else if (year >= currentYear - 7) {
+      recent.push(candidate);
+    } else if (year >= currentYear - 18) {
+      modern.push(candidate);
+    } else if (year >= currentYear - 35) {
+      contemporary.push(candidate);
+    } else {
+      classics.push(candidate);
     }
   }
 
-  return combinedCandidates
-}
+  const eras = {
+    recent: { items: recent, cursor: 0, limit: 20, used: 0 },
+    modern: { items: modern, cursor: 0, limit: 15, used: 0 },
+    contemporary: {
+      items: contemporary,
+      cursor: 0,
+      limit: 10,
+      used: 0,
+    },
+    classic: { items: classics, cursor: 0, limit: 5, used: 0 },
+  };
 
-function removeDuplicateCandidates(
-  candidates:
-    TmdbMovieCollectionCandidate[],
-) {
-  const seenKeys = new Set<string>()
+  const schedule = [
+    "recent",
+    "modern",
+    "recent",
+    "modern",
+    "contemporary",
+    "recent",
+    "modern",
+    "classic",
+    "contemporary",
+    "recent",
+  ] as const;
 
-  return candidates.filter(
-    (candidate) => {
-      const candidateKey =
-        getCandidateKey(candidate)
+  const balanced: TmdbMovieCollectionCandidate[] = [];
+  const usedKeys = new Set<string>();
+  let madeProgress = true;
 
-      if (seenKeys.has(candidateKey)) {
-        return false
+  while (
+    balanced.length < ESSENTIALS_RESERVOIR_LIMIT &&
+    madeProgress
+  ) {
+    madeProgress = false;
+
+    for (const eraName of schedule) {
+      const era = eras[eraName];
+
+      if (era.used >= era.limit || era.cursor >= era.items.length) {
+        continue;
       }
 
-      seenKeys.add(candidateKey)
-      return true
-    },
-  )
-}
+      const candidate = era.items[era.cursor];
+      era.cursor += 1;
+      era.used += 1;
 
-function calculateQualityScore(
-  candidate: TmdbMovieCollectionCandidate,
-) {
-  const globalAverageRating = 6.5
-  const confidenceVotes = 1500
+      const key = getCollectionCandidateKey(candidate);
 
-  const voteConfidence =
-    candidate.voteCount /
-    (candidate.voteCount +
-      confidenceVotes)
+      if (usedKeys.has(key)) {
+        continue;
+      }
 
-  const weightedRating =
-    voteConfidence *
-      candidate.voteAverage +
-    (1 - voteConfidence) *
-      globalAverageRating
+      usedKeys.add(key);
+      balanced.push(candidate);
+      madeProgress = true;
 
-  const popularityBoost =
-    Math.log10(
-      candidate.popularity + 1,
-    ) * 0.35
-
-  const voteCountBoost =
-    Math.log10(
-      candidate.voteCount + 1,
-    ) * 0.2
-
-  const imageBoost =
-    candidate.hasBackdrop ? 0.1 : 0
-
-  return (
-    weightedRating +
-    popularityBoost +
-    voteCountBoost +
-    imageBoost
-  )
-}
-
-function countMatchingGenres(
-  candidate:
-    TmdbMovieCollectionCandidate,
-
-  genres: string[],
-) {
-  return genres.filter((genre) =>
-    candidate.item.genres.includes(
-      genre,
-    ),
-  ).length
-}
-
-function calculateGenreScore(
-  candidate:
-    TmdbMovieCollectionCandidate,
-
-  genres: string[],
-) {
-  const genreRelevanceBoost =
-    countMatchingGenres(
-      candidate,
-      genres,
-    ) * 0.08
-
-  return (
-    calculateQualityScore(candidate) +
-    genreRelevanceBoost
-  )
-}
-
-function buildGenreCandidates(
-  qualityPool:
-    TmdbMovieCollectionCandidate[],
-
-  fallbackCandidates:
-    TmdbMovieCollectionCandidate[],
-
-  genres: string[],
-  minVoteAverage: number,
-  minVoteCount: number,
-) {
-  return removeDuplicateCandidates([
-    ...qualityPool.filter(
-      (candidate) =>
-        candidate.item.genres.some(
-          (genre) =>
-            genres.includes(genre),
-        ),
-    ),
-
-    ...fallbackCandidates,
-  ])
-    .filter(
-      (candidate) =>
-        candidate.voteAverage >=
-          minVoteAverage &&
-        candidate.voteCount >=
-          minVoteCount,
-    )
-    .sort(
-      (
-        firstCandidate,
-        secondCandidate,
-      ) =>
-        calculateGenreScore(
-          secondCandidate,
-          genres,
-        ) -
-        calculateGenreScore(
-          firstCandidate,
-          genres,
-        ),
-    )
-}
-
-function takeUniqueMedia(
-  candidates:
-    TmdbMovieCollectionCandidate[],
-
-  usedMediaKeys: Set<string>,
-  limit: number,
-) {
-  const items: MediaItem[] = []
-
-  for (const candidate of candidates) {
-    const candidateKey =
-      getCandidateKey(candidate)
-
-    if (
-      usedMediaKeys.has(candidateKey) ||
-      !isSuitableForPublicMovies(
-        candidate,
-      )
-    ) {
-      continue
-    }
-
-    usedMediaKeys.add(candidateKey)
-    items.push(candidate.item)
-
-    if (items.length === limit) {
-      break
+      if (balanced.length >= ESSENTIALS_RESERVOIR_LIMIT) {
+        break;
+      }
     }
   }
 
-  return items
+  for (const candidate of [...rankedCandidates, ...unknown]) {
+    const key = getCollectionCandidateKey(candidate);
+
+    if (usedKeys.has(key)) {
+      continue;
+    }
+
+    usedKeys.add(key);
+    balanced.push(candidate);
+
+    if (balanced.length >= ESSENTIALS_RESERVOIR_LIMIT) {
+      break;
+    }
+  }
+
+  return balanced;
 }
 
-let cachedCollections:
-  | {
-      expiresAt: number
-      data: MovieCollections
-    }
-  | null = null
+function countGenres(
+  candidate: TmdbMovieCollectionCandidate,
+  genres: readonly string[],
+) {
+  return genres.filter((genre) => candidate.item.genres.includes(genre)).length;
+}
 
-let pendingCollectionsRequest:
-  | Promise<MovieCollections>
-  | null = null
+function rankCandidates(
+  candidates: TmdbMovieCollectionCandidate[],
+  predicate: (candidate: TmdbMovieCollectionCandidate) => boolean,
+  score: (candidate: TmdbMovieCollectionCandidate) => number,
+) {
+  return removeDuplicateCollectionCandidates(candidates)
+    .filter(
+      (candidate) => isSuitableForPublicMovies(candidate) && predicate(candidate),
+    )
+    .sort((first, second) => score(second) - score(first));
+}
+
+function takeTrending(
+  candidates: TmdbMovieCollectionCandidate[],
+  usedKeys: Set<string>,
+) {
+  const items: MediaItem[] = [];
+
+  for (const candidate of removeDuplicateCollectionCandidates(candidates)) {
+    const key = getCollectionCandidateKey(candidate);
+
+    if (usedKeys.has(key) || !isSuitableForPublicMovies(candidate)) {
+      continue;
+    }
+
+    usedKeys.add(key);
+    items.push(candidate.item);
+
+    if (items.length >= TRENDING_ROW_LIMIT) {
+      break;
+    }
+  }
+
+  return items;
+}
+
 
 async function buildMovieCollections(): Promise<MovieCollections> {
-  const sources =
-    await getTmdbMovieCollectionSources()
+  const sources = await getTmdbMovieCollectionSources();
+  const usedKeys = new Set<string>();
 
-  const usedMediaKeys =
-    new Set<string>()
+  const trendingAndNowPlaying = takeTrending(
+    interleaveCollectionCandidateGroups([
+      sources.trending,
+      sources.nowPlaying,
+    ]),
+    usedKeys,
+  );
 
-  const trendingAndNowPlaying =
-    takeUniqueMedia(
-      interleaveCandidates(
-        sources.trending,
-        sources.nowPlaying,
-      ),
-      usedMediaKeys,
-      CURRENT_ROW_LIMIT,
-    )
+  const qualityPool = removeDuplicateCollectionCandidates([
+    ...sources.popularQuality,
+    ...sources.mostVoted,
+    ...sources.highlyRated,
+  ]);
 
-  const qualityPool =
-    removeDuplicateCandidates([
-      ...sources.popularQuality,
-      ...sources.mostVoted,
-      ...sources.highlyRated,
-    ])
-
-  const essentialsCandidates =
-    qualityPool
-      .filter(
-        (candidate) =>
-          candidate.voteCount >= 1000 &&
-          candidate.voteAverage >= 6.5,
-      )
-      .sort(
-        (
-          firstCandidate,
-          secondCandidate,
-        ) =>
-          calculateQualityScore(
-            secondCandidate,
-          ) -
-          calculateQualityScore(
-            firstCandidate,
-          ),
-      )
-
-  const essentials = takeUniqueMedia(
-    essentialsCandidates,
-    usedMediaKeys,
-    ESSENTIALS_ROW_LIMIT,
-  )
-
-  const actionAdventureCrimeThriller =
-  takeUniqueMedia(
-    buildGenreCandidates(
+  const essentialsCandidates = buildEraBalancedEssentials(
+    rankCandidates(
       qualityPool,
-
-      sources
-        .actionAdventureCrimeThriller,
-
-      [
-        'Action',
-        'Adventure',
-        'Crime',
-        'Thriller',
-      ],
-
-      6.2,
-      300,
+      (candidate) =>
+        candidate.voteAverage >= 6.4 && candidate.voteCount >= 500,
+      qualityScore,
     ),
+  );
 
-    usedMediaKeys,
-    GENRE_ROW_LIMIT,
-  )
+  const actionTargetKeys = new Set(
+    sources.actionAdventureCrimeThriller.map(getCollectionCandidateKey),
+  );
+  const actionCandidates = rankCandidates(
+    [...sources.actionAdventureCrimeThriller, ...qualityPool],
+    (candidate) =>
+      countGenres(candidate, ACTION_GENRES) > 0 &&
+      candidate.voteAverage >= 6.1 &&
+      candidate.voteCount >= 120,
+    (candidate) =>
+      qualityScore(candidate) +
+      countGenres(candidate, ACTION_GENRES) * 0.34 +
+      (actionTargetKeys.has(getCollectionCandidateKey(candidate)) ? 0.35 : 0),
+  );
 
-const comedy = takeUniqueMedia(
-  buildGenreCandidates(
-    qualityPool,
-    sources.comedy,
-    ['Comedy'],
-    6.2,
-    250,
-  ),
+  const comedyTargetKeys = new Set(
+    sources.comedy.map(getCollectionCandidateKey),
+  );
+  const comedyCandidates = rankCandidates(
+    [...sources.comedy, ...qualityPool],
+    (candidate) =>
+      candidate.item.genres.includes("Comedy") &&
+      candidate.voteAverage >= 6 &&
+      candidate.voteCount >= 80,
+    (candidate) =>
+      qualityScore(candidate) +
+      (candidate.item.genres.includes("Comedy") ? 0.55 : 0) +
+      (comedyTargetKeys.has(getCollectionCandidateKey(candidate)) ? 0.3 : 0),
+  );
 
-  usedMediaKeys,
-  GENRE_ROW_LIMIT,
-)
+  const dramaTargetKeys = new Set(
+    sources.drama.map(getCollectionCandidateKey),
+  );
+  const dramaCandidates = rankCandidates(
+    [...sources.drama, ...qualityPool],
+    (candidate) => {
+      const hasDrama = candidate.item.genres.includes("Drama");
+      const competingGenres = countGenres(candidate, DRAMA_DISTRACTOR_GENRES);
 
-const dramaRomance = takeUniqueMedia(
-  buildGenreCandidates(
-    qualityPool,
-    sources.dramaRomance,
-    ['Drama', 'Romance'],
-    6.5,
-    250,
-  ),
+      return (
+        hasDrama &&
+        candidate.voteAverage >= 6.2 &&
+        candidate.voteCount >= 80 &&
+        competingGenres <= 1
+      );
+    },
+    (candidate) => {
+      const key = getCollectionCandidateKey(candidate);
+      const competingPenalty =
+        countGenres(candidate, DRAMA_DISTRACTOR_GENRES) * 0.48;
 
-  usedMediaKeys,
-  GENRE_ROW_LIMIT,
-)
+      return (
+        qualityScore(candidate) +
+        0.55 +
+        (dramaTargetKeys.has(key) ? 0.35 : 0) -
+        competingPenalty
+      );
+    },
+  );
 
-const family = takeUniqueMedia(
-  buildGenreCandidates(
-    qualityPool,
-    sources.family,
-    ['Family'],
-    6.2,
-    150,
-  ),
+  const familyTargetKeys = new Set(
+    sources.family.map(getCollectionCandidateKey),
+  );
+  const familyCandidates = rankCandidates(
+    [...sources.family, ...qualityPool],
+    (candidate) =>
+      candidate.item.genres.includes("Family") &&
+      candidate.voteAverage >= 6 &&
+      candidate.voteCount >= 50,
+    (candidate) =>
+      qualityScore(candidate) +
+      (candidate.item.genres.includes("Family") ? 0.65 : 0) +
+      (familyTargetKeys.has(getCollectionCandidateKey(candidate)) ? 0.3 : 0),
+  );
 
-  usedMediaKeys,
-  GENRE_ROW_LIMIT,
-)
+  const rows = allocateUniqueCollectionRows(
+    [
+      {
+        key: "essentials",
+        candidates: essentialsCandidates,
+        limit: ESSENTIALS_RESERVOIR_LIMIT,
+      },
+      {
+        key: "actionAdventureCrimeThriller",
+        candidates: actionCandidates,
+        limit: GENRE_RESERVOIR_LIMIT,
+      },
+      {
+        key: "comedy",
+        candidates: comedyCandidates,
+        limit: GENRE_RESERVOIR_LIMIT,
+      },
+      {
+        key: "drama",
+        candidates: dramaCandidates,
+        limit: GENRE_RESERVOIR_LIMIT,
+      },
+      {
+        key: "family",
+        candidates: familyCandidates,
+        limit: GENRE_RESERVOIR_LIMIT,
+      },
+    ] as const,
+    usedKeys,
+    isSuitableForPublicMovies,
+  );
 
   return {
-  trendingAndNowPlaying,
-  essentials,
-  actionAdventureCrimeThriller,
-  comedy,
-  dramaRomance,
-  family,
+    trendingAndNowPlaying,
+    essentials: rows.essentials,
+    actionAdventureCrimeThriller: rows.actionAdventureCrimeThriller,
+    comedy: rows.comedy,
+    drama: rows.drama,
+    family: rows.family,
+  };
 }
-}
 
-export async function getMovieCollections(): Promise<MovieCollections> {
-  const now = Date.now()
+const collectionsCache = createStaleWhileRevalidateCache<MovieCollections>({
+  freshDurationMs: 6 * 60 * 60 * 1000,
+  staleDurationMs: 24 * 60 * 60 * 1000,
+  label: "movie collections",
+});
 
-  if (
-    cachedCollections &&
-    cachedCollections.expiresAt > now
-  ) {
-    return cachedCollections.data
-  }
-
-  if (pendingCollectionsRequest) {
-    return pendingCollectionsRequest
-  }
-
-  pendingCollectionsRequest =
-    buildMovieCollections()
-
-  try {
-    const data =
-      await pendingCollectionsRequest
-
-    cachedCollections = {
-      data,
-      expiresAt:
-        Date.now() +
-        CACHE_DURATION_MS,
-    }
-
-    return data
-  } finally {
-    pendingCollectionsRequest = null
-  }
+export function getMovieCollections(): Promise<MovieCollections> {
+  return collectionsCache.get(buildMovieCollections);
 }

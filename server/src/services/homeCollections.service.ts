@@ -1,3 +1,5 @@
+import { isLowConfidenceAnimationOnly } from "../utils/categoryMedia.js";
+import { createStaleWhileRevalidateCache } from "../utils/staleWhileRevalidateCache.js";
 import type { MediaItem } from "../types/media.js";
 import { getTmdbHomeSourceLists } from "./tmdb.service.js";
 
@@ -9,7 +11,6 @@ export interface HomeCollections {
 }
 
 const HOME_ROW_LIMIT = 20;
-const HOME_CACHE_DURATION_MS = 10 * 60 * 1000;
 
 const ANIMATION_GENRE = "Animation";
 
@@ -26,7 +27,11 @@ function getMediaKey(item: MediaItem) {
 }
 
 function isAnime(item: MediaItem) {
-  return item.language === "JA" && item.genres.includes(ANIMATION_GENRE);
+  return (
+    item.language === "JA" &&
+    item.genres.includes(ANIMATION_GENRE) &&
+    !isLowConfidenceAnimationOnly(item)
+  );
 }
 
 function isSuitableForPublicDiscovery(item: MediaItem) {
@@ -77,12 +82,6 @@ function takeUniqueMedia(items: MediaItem[], usedMediaKeys: Set<string>) {
   return uniqueItems;
 }
 
-let cachedCollections: {
-  expiresAt: number;
-  data: HomeCollections;
-} | null = null;
-
-let pendingCollectionsRequest: Promise<HomeCollections> | null = null;
 
 async function buildHomeCollections(): Promise<HomeCollections> {
   const sourceLists = await getTmdbHomeSourceLists();
@@ -129,29 +128,12 @@ async function buildHomeCollections(): Promise<HomeCollections> {
   };
 }
 
-export async function getHomeCollections(): Promise<HomeCollections> {
-  const now = Date.now();
+const collectionsCache = createStaleWhileRevalidateCache<HomeCollections>({
+  freshDurationMs: 2 * 60 * 60 * 1000,
+  staleDurationMs: 12 * 60 * 60 * 1000,
+  label: "home collections",
+});
 
-  if (cachedCollections && cachedCollections.expiresAt > now) {
-    return cachedCollections.data;
-  }
-
-  if (pendingCollectionsRequest) {
-    return pendingCollectionsRequest;
-  }
-
-  pendingCollectionsRequest = buildHomeCollections();
-
-  try {
-    const data = await pendingCollectionsRequest;
-
-    cachedCollections = {
-      data,
-      expiresAt: Date.now() + HOME_CACHE_DURATION_MS,
-    };
-
-    return data;
-  } finally {
-    pendingCollectionsRequest = null;
-  }
+export function getHomeCollections(): Promise<HomeCollections> {
+  return collectionsCache.get(buildHomeCollections);
 }

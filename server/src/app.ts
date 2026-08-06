@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 
 import {
-  isAllowedClientOrigin,
+  isAllowedCorsOrigin,
 } from "./config/cors.js";
 
 import healthRoutes from "./routes/health.routes.js";
@@ -24,6 +24,12 @@ import authRoutes from "./routes/auth.routes.js";
 import accountRoutes from "./routes/account.routes.js";
 import watchlistRoutes from "./routes/watchlist.routes.js";
 import profileImageRoutes from "./routes/profileImage.routes.js";
+import accountPreferencesRoutes from "./routes/accountPreferences.routes.js";
+import recommendationsRoutes from "./routes/recommendations.routes.js";
+import contactRoutes from "./routes/contact.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
+import adminAuthRoutes from "./routes/adminAuth.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 
 import {
   handleHttpError,
@@ -41,7 +47,7 @@ app.use(
       callback(
         null,
         !origin ||
-          isAllowedClientOrigin(
+          isAllowedCorsOrigin(
             origin,
           ),
       );
@@ -61,6 +67,20 @@ app.use(
   authRoutes,
 );
 
+/*
+ * Administrator authentication owns a separate cookie, session store,
+ * body limit, and rate limits from ordinary FilmGeezer authentication.
+ */
+app.use(
+  "/api/admin/auth",
+  adminAuthRoutes,
+);
+
+app.use(
+  "/api/admin",
+  adminRoutes,
+);
+
 app.use(
   "/api/account",
   accountRoutes,
@@ -69,6 +89,30 @@ app.use(
 app.use(
   "/api/watchlist",
   watchlistRoutes,
+);
+
+app.use(
+  "/api/account/preferences",
+  accountPreferencesRoutes,
+);
+
+app.use(
+  "/api/recommendations",
+  recommendationsRoutes,
+);
+
+/*
+ * Contact owns a smaller JSON body limit and rate limiting, so it mounts
+ * before the application-wide JSON parser.
+ */
+app.use(
+  "/api/contact",
+  contactRoutes,
+);
+
+app.use(
+  "/api/notifications",
+  notificationRoutes,
 );
 
 app.use(

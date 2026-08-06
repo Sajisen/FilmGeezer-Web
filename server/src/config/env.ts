@@ -25,6 +25,39 @@ const secretPepperSchema = z
   .string()
   .min(32, "Secret pepper must contain at least 32 characters.");
 
+const optionalSecretPepperSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  secretPepperSchema.optional(),
+);
+
+const optionalAdminMfaEncryptionKeySchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  z
+    .string()
+    .refine((value) => {
+      try {
+        return Buffer.from(value, "base64").length === 32;
+      } catch {
+        return false;
+      }
+    }, "ADMIN_MFA_ENCRYPTION_KEY must be a base64-encoded 32-byte key.")
+    .optional(),
+);
+
 const optionalTrimmedStringSchema = z.preprocess(
   (value) => {
     if (typeof value !== "string") {
@@ -47,6 +80,26 @@ const optionalUrlSchema = z.preprocess(
     return trimmed.length > 0 ? trimmed : undefined;
   },
   z.string().url().optional(),
+);
+
+const optionalWebAuthnRpIdSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim().toLowerCase();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  z
+    .string()
+    .min(1)
+    .max(253)
+    .regex(
+      /^(localhost|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)$/u,
+      "ADMIN_WEBAUTHN_RP_ID must be a hostname such as localhost or admin.filmgeezer.site.",
+    )
+    .optional(),
 );
 
 const booleanEnvironmentSchema = z.preprocess(
@@ -99,6 +152,21 @@ const environmentSchema = z
         );
       }, "CLIENT_APP_ORIGIN must be an http(s) origin without a path, query, or fragment."),
 
+    ADMIN_APP_ORIGIN: optionalUrlSchema.refine((value) => {
+      if (!value) {
+        return true;
+      }
+
+      const url = new URL(value);
+
+      return (
+        (url.protocol === "http:" || url.protocol === "https:") &&
+        url.pathname === "/" &&
+        url.search === "" &&
+        url.hash === ""
+      );
+    }, "ADMIN_APP_ORIGIN must be an http(s) origin without a path, query, or fragment."),
+
     TMDB_READ_ACCESS_TOKEN: z
       .string()
       .trim()
@@ -125,6 +193,30 @@ const environmentSchema = z
 
     AUTH_SESSION_PEPPER: secretPepperSchema,
 
+    ADMIN_MFA_REQUIRED: booleanEnvironmentSchema.default(false),
+    ADMIN_MFA_ENCRYPTION_KEY: optionalAdminMfaEncryptionKeySchema,
+    ADMIN_MFA_RECOVERY_PEPPER: optionalSecretPepperSchema,
+    ADMIN_WEBAUTHN_RP_NAME: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .default("FilmGeezer Administration"),
+    ADMIN_WEBAUTHN_RP_ID: optionalWebAuthnRpIdSchema,
+    ADMIN_WEBAUTHN_ORIGIN: optionalUrlSchema.refine((value) => {
+      if (!value) {
+        return true;
+      }
+
+      const url = new URL(value);
+      return (
+        (url.protocol === "http:" || url.protocol === "https:") &&
+        url.pathname === "/" &&
+        url.search === "" &&
+        url.hash === ""
+      );
+    }, "ADMIN_WEBAUTHN_ORIGIN must be an http(s) origin without a path, query, or fragment."),
+
     PROFILE_IMAGE_STORAGE_DRIVER: z
       .enum(["local", "railway-bucket"])
       .default("local"),
@@ -144,6 +236,96 @@ const environmentSchema = z
       booleanEnvironmentSchema.default(false),
   })
   .superRefine((value, context) => {
+    if (
+      value.NODE_ENV === "production" &&
+      !value.ADMIN_APP_ORIGIN
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_APP_ORIGIN"],
+        message:
+          "Production must configure the exact administrator application origin.",
+      });
+    }
+
+    const administratorMfaHasPartialConfiguration =
+      Boolean(value.ADMIN_MFA_ENCRYPTION_KEY) !==
+      Boolean(value.ADMIN_MFA_RECOVERY_PEPPER);
+
+    if (administratorMfaHasPartialConfiguration) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_MFA_ENCRYPTION_KEY"],
+        message:
+          "ADMIN_MFA_ENCRYPTION_KEY and ADMIN_MFA_RECOVERY_PEPPER must be configured together.",
+      });
+    }
+
+    if (
+      value.ADMIN_MFA_REQUIRED &&
+      (!value.ADMIN_MFA_ENCRYPTION_KEY ||
+        !value.ADMIN_MFA_RECOVERY_PEPPER)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_MFA_REQUIRED"],
+        message:
+          "ADMIN_MFA_REQUIRED needs both administrator MFA secrets.",
+      });
+    }
+
+    const webAuthnHasPartialConfiguration =
+      Boolean(value.ADMIN_WEBAUTHN_RP_ID) !==
+      Boolean(value.ADMIN_WEBAUTHN_ORIGIN);
+
+    if (webAuthnHasPartialConfiguration) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_WEBAUTHN_RP_ID"],
+        message:
+          "ADMIN_WEBAUTHN_RP_ID and ADMIN_WEBAUTHN_ORIGIN must be configured together.",
+      });
+    }
+
+    if (value.ADMIN_WEBAUTHN_RP_ID && value.ADMIN_WEBAUTHN_ORIGIN) {
+      const originHostname = new URL(
+        value.ADMIN_WEBAUTHN_ORIGIN,
+      ).hostname.toLowerCase();
+
+      if (originHostname !== value.ADMIN_WEBAUTHN_RP_ID) {
+        context.addIssue({
+          code: "custom",
+          path: ["ADMIN_WEBAUTHN_ORIGIN"],
+          message:
+            "ADMIN_WEBAUTHN_ORIGIN hostname must exactly match ADMIN_WEBAUTHN_RP_ID.",
+        });
+      }
+
+      if (
+        value.ADMIN_APP_ORIGIN &&
+        new URL(value.ADMIN_APP_ORIGIN).origin !==
+          new URL(value.ADMIN_WEBAUTHN_ORIGIN).origin
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["ADMIN_WEBAUTHN_ORIGIN"],
+          message:
+            "ADMIN_WEBAUTHN_ORIGIN must exactly match ADMIN_APP_ORIGIN.",
+        });
+      }
+
+      if (
+        value.NODE_ENV === "production" &&
+        !value.ADMIN_WEBAUTHN_ORIGIN.startsWith("https://")
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["ADMIN_WEBAUTHN_ORIGIN"],
+          message: "Production administrator WebAuthn must use HTTPS.",
+        });
+      }
+    }
+
     if (
       value.NODE_ENV === "production" &&
       value.PROFILE_IMAGE_STORAGE_DRIVER === "local"

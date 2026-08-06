@@ -23,6 +23,10 @@ import {
 } from "./features/watchlist/WatchlistProvider";
 
 import {
+  NotificationProvider,
+} from "./features/notifications/NotificationProvider";
+
+import {
   isAuthRoutePath,
   readAuthRouteState,
 } from "./features/auth/authNavigation";
@@ -32,12 +36,12 @@ import AccountPage from "./pages/AccountPage";
 import AnimePage from "./pages/AnimePage";
 import ApiTestPage from "./pages/ApiTestPage";
 import ContactPage from "./pages/ContactPage";
-import HelpPage from "./pages/HelpPage";
 import HomePage from "./pages/HomePage";
 import KDramaPage from "./pages/KDramaPage";
 import MediaDetailsPage from "./pages/MediaDetailsPage";
 import MoviesPage from "./pages/MoviesPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import SearchPage from "./pages/SearchPage";
 import TVSeriesPage from "./pages/TVSeriesPage";
 import WatchlistPage from "./pages/WatchlistPage";
@@ -146,16 +150,16 @@ function ApplicationRoutes() {
         />
 
         <Route
-          path="/help"
+          path="/contact"
           element={
-            <HelpPage />
+            <ContactPage />
           }
         />
 
         <Route
-          path="/contact"
+          path="/notifications"
           element={
-            <ContactPage />
+            <NotificationsPage />
           }
         />
 
@@ -284,9 +288,11 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <WatchlistProvider>
-          <ApplicationRoutes />
-        </WatchlistProvider>
+        <NotificationProvider>
+          <WatchlistProvider>
+            <ApplicationRoutes />
+          </WatchlistProvider>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

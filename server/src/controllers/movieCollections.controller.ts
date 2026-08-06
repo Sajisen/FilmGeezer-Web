@@ -1,3 +1,4 @@
+import { setPublicCollectionCacheHeaders } from "../utils/publicCacheHeaders.js";
 import type {
   Request,
   Response,
@@ -12,6 +13,8 @@ export async function getMovieCollectionPage(
   try {
     const collections =
       await getMovieCollections()
+
+    setPublicCollectionCacheHeaders(res);
 
     res.status(200).json({
       status: 'success',

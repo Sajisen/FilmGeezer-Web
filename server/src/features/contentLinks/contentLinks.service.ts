@@ -47,7 +47,7 @@ function getSafePublicId(value: unknown, fallback: string) {
   return sanitized || fallback;
 }
 
-function sanitizeTelegramUrl(value: unknown) {
+export function sanitizeTelegramUrl(value: unknown) {
   const text = getNonEmptyString(value);
 
   if (!text) {
@@ -61,6 +61,9 @@ function sanitizeTelegramUrl(value: unknown) {
     if (
       !normalizedHostname ||
       (url.protocol !== "https:" && url.protocol !== "http:") ||
+      url.username ||
+      url.password ||
+      (url.port && url.port !== "443") ||
       !url.pathname ||
       url.pathname === "/"
     ) {
@@ -69,6 +72,7 @@ function sanitizeTelegramUrl(value: unknown) {
 
     url.protocol = "https:";
     url.hostname = normalizedHostname;
+    url.port = "";
     url.hash = "";
 
     return url.toString();
@@ -77,7 +81,7 @@ function sanitizeTelegramUrl(value: unknown) {
   }
 }
 
-function sanitizeFileSize(value: unknown) {
+export function sanitizeFileSize(value: unknown) {
   const text = getNonEmptyString(value);
 
   if (!text) {

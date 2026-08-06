@@ -27,6 +27,14 @@ const BLOCKED_ANIME_TERMS = [
   "pornographic animation",
   "animated pornography",
 ];
+export function isLowConfidenceAnimationOnly(item: MediaItem) {
+  return (
+    item.genres.length === 1 &&
+    item.genres[0] === ANIMATION_GENRE &&
+    (item.voteCount ?? 0) < 100
+  );
+}
+
 
 const BLOCKED_K_DRAMA_TERMS = [
   "adult film",
@@ -74,6 +82,7 @@ export function isSuitableForPublicAnime(
     candidate.item.genres.includes(
       ANIMATION_GENRE,
     ) &&
+    !isLowConfidenceAnimationOnly(candidate.item) &&
     hasExpectedOrigin(
       candidate,
       "JP",

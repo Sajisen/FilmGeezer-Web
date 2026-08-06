@@ -8,6 +8,6 @@ export interface MovieCollections {
     MediaItem[]
 
   comedy: MediaItem[]
-  dramaRomance: MediaItem[]
+  drama: MediaItem[]
   family: MediaItem[]
 }

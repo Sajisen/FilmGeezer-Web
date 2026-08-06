@@ -26,6 +26,7 @@ import {
 } from "./navigation/NavigationItems";
 
 import ProfileMenu from "./navigation/ProfileMenu";
+import NotificationBell from "../features/notifications/components/NotificationBell";
 
 import {
   useAuth,
@@ -205,6 +206,10 @@ function Navbar() {
             </NavLink>
 
             <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-sm shadow-black/20 sm:flex">
+              {auth.status === "authenticated" ? (
+                <NotificationBell />
+              ) : null}
+
               <NavLink
                 to="/watchlist"
                 aria-label={watchlistLabel}
@@ -255,6 +260,10 @@ function Navbar() {
                 </button>
               )}
             </div>
+
+            {auth.status === "authenticated" ? (
+              <NotificationBell className="sm:hidden" />
+            ) : null}
 
             <button
               type="button"

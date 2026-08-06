@@ -1,0 +1,633 @@
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from "@simplewebauthn/browser";
+
+export interface AdminUser {
+  userId: string;
+  email: string;
+  displayName: string;
+  profileImagePath: string | null;
+  roles: Array<"user" | "admin">;
+}
+
+export type AdminSessionAccessLevel = "full" | "mfa-enrollment";
+
+export interface AdminSessionSummary {
+  accessLevel: AdminSessionAccessLevel;
+  createdAt: string;
+  lastSeenAt: string;
+  recentAuthenticationAt: string;
+  mfaVerifiedAt: string | null;
+  idleExpiresAt: string;
+  expiresAt: string;
+}
+
+export interface AdminSecuritySummary {
+  mfaEnabled: boolean;
+  mfaRequiredByPolicy: boolean;
+  passkeysConfigured: boolean;
+  passkeyCount: number;
+  recoveryCodesRemaining: number;
+  mfaEnabledAt: string | null;
+}
+
+export interface AdminSessionResponse {
+  status: "success";
+  code: "ADMIN_SESSION_ACTIVE" | "ADMIN_MFA_ENROLLMENT_REQUIRED";
+  user: AdminUser;
+  session: AdminSessionSummary;
+  csrfToken: string;
+  security: AdminSecuritySummary;
+}
+
+export interface AdminLoginResponse {
+  status: "success";
+  code: "ADMIN_LOGIN_SUCCEEDED" | "ADMIN_MFA_ENROLLMENT_REQUIRED";
+  message: string;
+  user: AdminUser;
+  session: AdminSessionSummary;
+  csrfToken: string;
+  security: AdminSecuritySummary;
+}
+
+export interface AdminMfaChallengeResponse {
+  status: "success";
+  code: "ADMIN_MFA_CHALLENGE_REQUIRED";
+  message: string;
+  challenge: {
+    expiresAt: string;
+    passkeyAllowed: boolean;
+    totpAllowed: boolean;
+    recoveryAllowed: boolean;
+  };
+}
+
+export type AdminLoginResult =
+  | AdminLoginResponse
+  | AdminMfaChallengeResponse;
+
+export interface AdminMfaStatusResponse {
+  status: "success";
+  code: "ADMIN_MFA_STATUS_READY";
+  security: AdminSecuritySummary & {
+    configured: boolean;
+  };
+}
+
+export interface AdminMfaSetupResponse {
+  status: "success";
+  code: "ADMIN_MFA_SETUP_READY";
+  setup: {
+    setupId: string;
+    secret: string;
+    otpAuthUri: string;
+    qrDataUrl: string;
+    expiresAt: string;
+  };
+}
+
+export interface AdminMfaRecoveryCodesResponse {
+  status: "success";
+  code:
+    | "ADMIN_MFA_ENABLED"
+    | "ADMIN_MFA_RECOVERY_CODES_REGENERATED";
+  message: string;
+  enabledAt?: string;
+  generatedAt?: string;
+  recoveryCodes: string[];
+}
+
+export interface AdminReauthenticationResponse {
+  status: "success";
+  code: "ADMIN_REAUTHENTICATION_SUCCEEDED";
+  message: string;
+  authenticatedAt: string;
+}
+
+export interface AdminOverview {
+  generatedAt: string;
+  users: {
+    total: number;
+    active: number;
+    pending: number;
+    suspended: number;
+  };
+  support: {
+    new: number;
+    inReview: number;
+    resolved: number;
+    spam: number;
+    open: number;
+  };
+  administration: {
+    activeAdministrators: number;
+    activeAdminSessions: number;
+  };
+}
+
+export interface AdminOverviewResponse {
+  status: "success";
+  code: "ADMIN_OVERVIEW_READY";
+  overview: AdminOverview;
+}
+
+export interface AdminErrorPayload {
+  status?: "error";
+  code?: string;
+  message?: string;
+}
+
+export type AdminAuthStatus =
+  | "bootstrapping"
+  | "guest"
+  | "mfa-required"
+  | "mfa-enrollment"
+  | "authenticated";
+
+export interface AdminMfaChallengeState {
+  expiresAt: string;
+  passkeyAllowed: boolean;
+  totpAllowed: boolean;
+  recoveryAllowed: boolean;
+}
+
+export type AdminSupportCategory =
+  | "general"
+  | "bug"
+  | "content"
+  | "account"
+  | "feedback";
+
+export type AdminSupportStatus =
+  | "new"
+  | "in-review"
+  | "resolved"
+  | "spam";
+
+export type AdminSupportSenderRole = "user" | "admin";
+
+export type AdminSupportStatusFilter =
+  | "all"
+  | "open"
+  | AdminSupportStatus;
+
+export type AdminSupportRequesterFilter =
+  | "all"
+  | "account"
+  | "guest";
+
+export interface AdminSupportRequester {
+  userId: string | null;
+  name: string;
+  email: string;
+  linkedToAccount: boolean;
+}
+
+export interface AdminSupportConversationSummary {
+  referenceId: string;
+  category: AdminSupportCategory;
+  subject: string;
+  status: AdminSupportStatus;
+  preview: string;
+  messageCount: number;
+  lastSenderRole: AdminSupportSenderRole;
+  lastMessageAt: string;
+  createdAt: string;
+  requester: AdminSupportRequester;
+}
+
+export interface AdminSupportConversationThread {
+  conversation: AdminSupportConversationSummary & {
+    updatedAt: string;
+    resolvedAt: string | null;
+  };
+  messages: Array<{
+    id: string;
+    senderRole: AdminSupportSenderRole;
+    body: string;
+    createdAt: string;
+  }>;
+  delivery: {
+    channel: "in-app" | "email";
+    available: boolean;
+    message: string;
+  };
+}
+
+export interface AdminSupportListResponse {
+  status: "success";
+  code: "ADMIN_SUPPORT_CONVERSATIONS_READY";
+  items: AdminSupportConversationSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminSupportThreadResponse {
+  status: "success";
+  code: "ADMIN_SUPPORT_CONVERSATION_READY";
+  thread: AdminSupportConversationThread;
+}
+
+export interface AdminSupportMutationResponse {
+  status: "success";
+  code:
+    | "ADMIN_SUPPORT_REPLY_ADDED"
+    | "ADMIN_SUPPORT_STATUS_UPDATED";
+  message: string;
+  thread: AdminSupportConversationThread;
+}
+
+export interface AdminSupportListFilters {
+  page: number;
+  status: AdminSupportStatusFilter;
+  category: "all" | AdminSupportCategory;
+  requester: AdminSupportRequesterFilter;
+  search: string;
+}
+
+
+export type AdminPasskeyAttachment = "platform" | "cross-platform";
+
+export interface AdminPasskeySummary {
+  credentialId: string;
+  label: string;
+  attachment: AdminPasskeyAttachment;
+  deviceType: "singleDevice" | "multiDevice";
+  backedUp: boolean;
+  transports: string[];
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface AdminPasskeysResponse {
+  status: "success";
+  code: "ADMIN_PASSKEYS_READY";
+  configured: boolean;
+  passkeys: AdminPasskeySummary[];
+}
+
+export interface AdminPasskeyRegistrationOptionsResponse {
+  status: "success";
+  code: "ADMIN_PASSKEY_REGISTRATION_READY";
+  challengeId: string;
+  expiresAt: string;
+  options: PublicKeyCredentialCreationOptionsJSON;
+}
+
+export interface AdminPasskeyAuthenticationOptionsResponse {
+  status: "success";
+  code:
+    | "ADMIN_PASSKEY_LOGIN_READY"
+    | "ADMIN_PASSKEY_REAUTHENTICATION_READY";
+  challengeId: string;
+  expiresAt: string;
+  options: PublicKeyCredentialRequestOptionsJSON;
+}
+
+export interface AdminPasskeyRegistrationResponse {
+  status: "success";
+  code: "ADMIN_PASSKEY_REGISTERED";
+  message: string;
+  registeredAt: string;
+  passkey: AdminPasskeySummary;
+  recoveryCodes: string[] | null;
+}
+
+export interface AdminPasskeyRevokeResponse {
+  status: "success";
+  code: "ADMIN_PASSKEY_REVOKED";
+  message: string;
+  revokedAt: string;
+  remainingPasskeys: number;
+  revokedOtherSessions: number;
+}
+
+export type AdminRegistrationCredential = RegistrationResponseJSON;
+export type AdminAuthenticationCredential = AuthenticationResponseJSON;
+
+
+export type AdminManagedUserStatus =
+  | "pending"
+  | "active"
+  | "suspended"
+  | "deactivated"
+  | "deleted";
+
+export type AdminManagedUserRole = "user" | "admin";
+export type AdminManagedUserVerificationFilter =
+  | "all"
+  | "verified"
+  | "unverified";
+export type AdminManagedUserStatusFilter =
+  | "all"
+  | AdminManagedUserStatus;
+export type AdminManagedUserRoleFilter =
+  | "all"
+  | AdminManagedUserRole;
+
+export interface AdminManagedUserSummary {
+  userId: string;
+  email: string;
+  displayName: string;
+  profileImagePath: string | null;
+  status: AdminManagedUserStatus;
+  roles: AdminManagedUserRole[];
+  emailVerified: boolean;
+  activeSessionCount: number;
+  isCurrentAdministrator: boolean;
+  finalAdministratorProtected: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface AdminManagedUserSession {
+  sessionId: string;
+  provider: "local" | "clerk";
+  userAgentSummary: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  recentAuthenticationAt: string | null;
+  expiresAt: string;
+}
+
+export interface AdminManagedUserDetail {
+  user: AdminManagedUserSummary & {
+    emailVerifiedAt: string | null;
+    suspendedAt: string | null;
+    deactivatedAt: string | null;
+    deletedAt: string | null;
+  };
+  identities: Array<{
+    provider: "local" | "clerk";
+    createdAt: string;
+  }>;
+  activeSessions: AdminManagedUserSession[];
+  permissions: {
+    canSuspend: boolean;
+    canReactivate: boolean;
+    canRevokeSessions: boolean;
+    blockedReason: string | null;
+  };
+}
+
+export interface AdminUserListFilters {
+  page: number;
+  status: AdminManagedUserStatusFilter;
+  role: AdminManagedUserRoleFilter;
+  verification: AdminManagedUserVerificationFilter;
+  search: string;
+}
+
+export interface AdminUserListResponse {
+  status: "success";
+  code: "ADMIN_USERS_READY";
+  items: AdminManagedUserSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminUserDetailResponse {
+  status: "success";
+  code: "ADMIN_USER_READY";
+  detail: AdminManagedUserDetail;
+}
+
+export interface AdminUserMutationResponse {
+  status: "success";
+  code:
+    | "ADMIN_USER_SUSPENDED"
+    | "ADMIN_USER_REACTIVATED"
+    | "ADMIN_USER_SESSION_REVOKED"
+    | "ADMIN_USER_SESSIONS_REVOKED";
+  message: string;
+  revokedSessions?: number;
+  detail: AdminManagedUserDetail;
+}
+
+export type AdminContentMediaType = "movie" | "tv";
+export type AdminContentKind = "movie" | "series";
+export type AdminContentStatusFilter = "all" | "active" | "inactive";
+export type AdminContentMediaTypeFilter = "all" | AdminContentMediaType;
+
+export interface AdminContentSummary {
+  mediaType: AdminContentMediaType;
+  tmdbId: number;
+  kind: AdminContentKind;
+  title: string;
+  year: string;
+  active: boolean;
+  sourceCount: number;
+  linkCount: number;
+  revision: number;
+  updatedAt: string | null;
+}
+
+export interface AdminContentMediaSnapshot {
+  mediaType: AdminContentMediaType;
+  tmdbId: number;
+  title: string;
+  year: string;
+  rating: number;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  overview: string;
+}
+
+export interface AdminContentSeriesOption {
+  id: string;
+  url: string;
+  isMain: boolean;
+  active: boolean;
+}
+
+export interface AdminContentMovieQualityLink {
+  url: string;
+  size: string | null;
+}
+
+export interface AdminContentMovieSource {
+  id: string;
+  isMain: boolean;
+  active: boolean;
+  links: {
+    "720p": AdminContentMovieQualityLink | null;
+    "1080p": AdminContentMovieQualityLink | null;
+  };
+}
+
+export interface AdminContentDetail {
+  media: AdminContentMediaSnapshot;
+  exists: boolean;
+  active: boolean;
+  kind: AdminContentKind;
+  revision: number;
+  revisionToken: string;
+  updatedAt: string | null;
+  seriesOptions: AdminContentSeriesOption[];
+  movieSources: AdminContentMovieSource[];
+}
+
+export interface AdminContentListFilters {
+  page: number;
+  mediaType: AdminContentMediaTypeFilter;
+  status: AdminContentStatusFilter;
+  search: string;
+}
+
+export interface AdminContentListResponse {
+  status: "success";
+  code: "ADMIN_CONTENT_ENTRIES_READY";
+  items: AdminContentSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminContentTmdbSearchResponse {
+  status: "success";
+  code: "ADMIN_CONTENT_TMDB_RESULTS_READY";
+  items: AdminContentMediaSnapshot[];
+  pagination: {
+    page: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminContentDetailResponse {
+  status: "success";
+  code: "ADMIN_CONTENT_ENTRY_READY";
+  detail: AdminContentDetail;
+}
+
+export interface AdminContentMutationResponse {
+  status: "success";
+  code: "ADMIN_CONTENT_ENTRY_SAVED" | "ADMIN_CONTENT_STATUS_UPDATED";
+  message: string;
+  detail: AdminContentDetail;
+}
+
+export type AdminContentSaveInput =
+  | {
+      expectedRevision: number;
+      expectedRevisionToken: string;
+      kind: "series";
+      options: AdminContentSeriesOption[];
+    }
+  | {
+      expectedRevision: number;
+      expectedRevisionToken: string;
+      kind: "movie";
+      sources: AdminContentMovieSource[];
+    };
+
+export type AdminAuditCategory =
+  | "authentication"
+  | "security"
+  | "sessions"
+  | "roles"
+  | "support"
+  | "users"
+  | "content";
+
+export type AdminAuditCategoryFilter = "all" | AdminAuditCategory;
+export type AdminAuditOutcome = "success" | "failure";
+export type AdminAuditOutcomeFilter = "all" | AdminAuditOutcome;
+
+export type AdminAuditEventType =
+  | "admin-login-succeeded"
+  | "admin-login-failed"
+  | "admin-logout"
+  | "admin-session-revoked"
+  | "admin-role-granted"
+  | "admin-role-revoked"
+  | "admin-support-replied"
+  | "admin-support-status-updated"
+  | "admin-mfa-challenge-created"
+  | "admin-mfa-challenge-failed"
+  | "admin-mfa-login-succeeded"
+  | "admin-mfa-setup-started"
+  | "admin-mfa-enabled"
+  | "admin-mfa-disabled"
+  | "admin-mfa-recovery-used"
+  | "admin-mfa-recovery-regenerated"
+  | "admin-reauthentication-succeeded"
+  | "admin-reauthentication-failed"
+  | "admin-mfa-reset"
+  | "admin-passkey-registration-started"
+  | "admin-passkey-registered"
+  | "admin-passkey-authentication-succeeded"
+  | "admin-passkey-authentication-failed"
+  | "admin-passkey-revoked"
+  | "admin-passkey-used-for-reauthentication"
+  | "admin-passkey-emergency-reset"
+  | "admin-user-suspended"
+  | "admin-user-reactivated"
+  | "admin-user-session-revoked"
+  | "admin-user-sessions-revoked"
+  | "admin-content-created"
+  | "admin-content-updated"
+  | "admin-content-status-updated";
+
+export type AdminAuditEventFilter = "all" | AdminAuditEventType;
+export type AdminAuditDetailValue = string | number | boolean | null;
+
+export interface AdminAuditIdentity {
+  kind: "user" | "system" | "unknown-user";
+  userId: string | null;
+  email: string | null;
+  displayName: string;
+  profileImagePath: string | null;
+  roles: AdminManagedUserRole[];
+  status: AdminManagedUserStatus | null;
+}
+
+export interface AdminAuditEntry {
+  auditEventId: string;
+  eventType: AdminAuditEventType;
+  category: AdminAuditCategory;
+  outcome: AdminAuditOutcome;
+  actor: AdminAuditIdentity;
+  target: AdminAuditIdentity | null;
+  details: Record<string, AdminAuditDetailValue>;
+  userAgentSummary: string | null;
+  createdAt: string;
+}
+
+export interface AdminAuditListFilters {
+  page: number;
+  category: AdminAuditCategoryFilter;
+  event: AdminAuditEventFilter;
+  outcome: AdminAuditOutcomeFilter;
+  actor: string;
+  target: string;
+  from: string;
+  to: string;
+}
+
+export interface AdminAuditListResponse {
+  status: "success";
+  code: "ADMIN_AUDIT_EVENTS_READY";
+  items: AdminAuditEntry[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}

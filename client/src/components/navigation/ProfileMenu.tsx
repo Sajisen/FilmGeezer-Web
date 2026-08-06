@@ -10,6 +10,7 @@ import {
 } from "react-router";
 
 import {
+  BellIcon,
   ContactIcon,
   InfoIcon,
   LogOutIcon,
@@ -32,6 +33,11 @@ interface MenuLinkDefinition {
 }
 
 const ACCOUNT_LINKS: MenuLinkDefinition[] = [
+  {
+    label: "Notifications",
+    to: "/notifications",
+    icon: BellIcon,
+  },
   {
     label: "Profile",
     to: "/account?section=profile",

@@ -1,6 +1,14 @@
 export type GenreMatchMode = "all" | "any";
 
-export type SearchPreset = "default" | "trending" | "essentials";
+export type SearchPreset =
+  | "default"
+  | "trending"
+  | "essentials"
+  | "sports"
+  | "movie-drama"
+  | "movie-drama-romance"
+  | "tv-comedy-drama"
+  | "anime-romance-drama-comedy";
 
 export type SearchFormat = "all" | "movie" | "tv";
 

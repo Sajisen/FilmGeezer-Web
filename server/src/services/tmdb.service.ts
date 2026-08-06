@@ -75,6 +75,8 @@ export interface TmdbCatalogFilters {
   genres?: string[];
   genreMode?: "all" | "any";
   language?: string;
+  originCountry?: string;
+  excludedGenres?: string[];
   minRating?: number;
   minVoteCount?: number;
   sortBy?:
@@ -113,6 +115,28 @@ const POSTER_FALLBACK_URL = "https://placehold.co/500x750?text=No+Poster";
 
 const BACKDROP_FALLBACK_URL = "https://placehold.co/1280x720?text=No+Backdrop";
 
+const MAX_CONCURRENT_TMDB_REQUESTS = 8;
+let activeTmdbRequests = 0;
+const pendingTmdbRequestSlots: Array<() => void> = [];
+
+async function acquireTmdbRequestSlot() {
+  if (activeTmdbRequests < MAX_CONCURRENT_TMDB_REQUESTS) {
+    activeTmdbRequests += 1;
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    pendingTmdbRequestSlots.push(resolve);
+  });
+
+  activeTmdbRequests += 1;
+}
+
+function releaseTmdbRequestSlot() {
+  activeTmdbRequests = Math.max(0, activeTmdbRequests - 1);
+  pendingTmdbRequestSlots.shift()?.();
+}
+
 export class TmdbRequestError extends Error {
   public readonly status: number;
 
@@ -129,31 +153,36 @@ function getAccessToken() {
 
 async function tmdbFetch<T>(path: string): Promise<T> {
   const token = getAccessToken();
+  await acquireTmdbRequestSlot();
 
-  const response = await fetch(`${TMDB_API_BASE_URL}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      accept: "application/json",
-    },
-  });
+  try {
+    const response = await fetch(`${TMDB_API_BASE_URL}${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        accept: "application/json",
+      },
+    });
 
-  if (!response.ok) {
-    let message = `TMDB request failed with status ${response.status}.`;
+    if (!response.ok) {
+      let message = `TMDB request failed with status ${response.status}.`;
 
-    try {
-      const errorData = (await response.json()) as TmdbErrorResponse;
+      try {
+        const errorData = (await response.json()) as TmdbErrorResponse;
 
-      if (errorData.status_message) {
-        message = errorData.status_message;
+        if (errorData.status_message) {
+          message = errorData.status_message;
+        }
+      } catch {
+        // Keep the default error message if the response is not JSON.
       }
-    } catch {
-      // Keep the default error message if the response is not JSON.
+
+      throw new TmdbRequestError(message, response.status);
     }
 
-    throw new TmdbRequestError(message, response.status);
+    return (await response.json()) as T;
+  } finally {
+    releaseTmdbRequestSlot();
   }
-
-  return (await response.json()) as T;
 }
 
 async function getGenreMap(mediaType: MediaType): Promise<Map<number, string>> {
@@ -892,7 +921,7 @@ export interface TmdbMovieCollectionSources {
   actionAdventureCrimeThriller: TmdbMovieCollectionCandidate[];
 
   comedy: TmdbMovieCollectionCandidate[];
-  dramaRomance: TmdbMovieCollectionCandidate[];
+  drama: TmdbMovieCollectionCandidate[];
   family: TmdbMovieCollectionCandidate[];
 }
 
@@ -970,6 +999,7 @@ function createMovieGenreDiscoverParams(
   definition: MovieGenreCollectionDefinition,
   genreMap: Map<number, string>,
   withoutGenres: string,
+  page: number,
 ) {
   const genreIds = getRequiredMovieGenreIds(genreMap, definition.genreNames);
 
@@ -977,7 +1007,7 @@ function createMovieGenreDiscoverParams(
     include_adult: "false",
     include_video: "false",
     language: "en-US",
-    page: "1",
+    page: String(page),
     sort_by: "popularity.desc",
 
     "vote_average.gte": String(definition.minVoteAverage),
@@ -994,20 +1024,25 @@ function createMovieGenreDiscoverParams(
   return params.toString();
 }
 
-async function getMovieGenreCollectionPage(
+async function getMovieGenreCollectionPages(
   definition: MovieGenreCollectionDefinition,
   genreMap: Map<number, string>,
   withoutGenres: string,
+  pageCount: number,
 ) {
-  const params = createMovieGenreDiscoverParams(
-    definition,
-    genreMap,
-    withoutGenres,
-  );
+  const requests = Array.from({ length: pageCount }, (_, index) => {
+    const params = createMovieGenreDiscoverParams(
+      definition,
+      genreMap,
+      withoutGenres,
+      index + 1,
+    );
 
-  const data = await tmdbFetch<TmdbListResponse>(`/discover/movie?${params}`);
+    return tmdbFetch<TmdbListResponse>(`/discover/movie?${params}`);
+  });
 
-  return data.results;
+  const pages = await Promise.all(requests);
+  return pages.flatMap((page) => page.results);
 }
 
 async function getMovieDiscoverPages(
@@ -1054,61 +1089,61 @@ export async function getTmdbMovieCollectionSources(): Promise<TmdbMovieCollecti
 
     tmdbFetch<TmdbListResponse>("/movie/now_playing?language=en-US&page=1"),
 
-    getMovieDiscoverPages("popularity.desc", 3, withoutGenres),
+    getMovieDiscoverPages("popularity.desc", 5, withoutGenres),
 
-    getMovieDiscoverPages("vote_count.desc", 2, withoutGenres),
+    getMovieDiscoverPages("vote_count.desc", 4, withoutGenres),
 
-    getMovieDiscoverPages("vote_average.desc", 2, withoutGenres),
+    getMovieDiscoverPages("vote_average.desc", 4, withoutGenres),
   ]);
 
   const [
     actionAdventureCrimeThrillerData,
     comedyData,
-    dramaRomanceData,
+    dramaData,
     familyData,
   ] = await Promise.all([
-    getMovieGenreCollectionPage(
+    getMovieGenreCollectionPages(
       {
         genreNames: ["Action", "Adventure", "Crime", "Thriller"],
-
         minVoteAverage: 6.2,
-        minVoteCount: 300,
+        minVoteCount: 180,
       },
       genreMap,
       withoutGenres,
+      3,
     ),
 
-    getMovieGenreCollectionPage(
+    getMovieGenreCollectionPages(
       {
         genreNames: ["Comedy"],
-
-        minVoteAverage: 6.2,
-        minVoteCount: 250,
+        minVoteAverage: 6.1,
+        minVoteCount: 120,
       },
       genreMap,
       withoutGenres,
+      3,
     ),
 
-    getMovieGenreCollectionPage(
+    getMovieGenreCollectionPages(
       {
-        genreNames: ["Drama", "Romance"],
-
-        minVoteAverage: 6.5,
-        minVoteCount: 250,
+        genreNames: ["Drama"],
+        minVoteAverage: 6.3,
+        minVoteCount: 100,
       },
       genreMap,
       withoutGenres,
+      3,
     ),
 
-    getMovieGenreCollectionPage(
+    getMovieGenreCollectionPages(
       {
         genreNames: ["Family"],
-
-        minVoteAverage: 6.2,
-        minVoteCount: 150,
+        minVoteAverage: 6.1,
+        minVoteCount: 80,
       },
       genreMap,
       withoutGenres,
+      3,
     ),
   ]);
 
@@ -1135,7 +1170,7 @@ export async function getTmdbMovieCollectionSources(): Promise<TmdbMovieCollecti
 
     comedy: mapCandidates(comedyData),
 
-    dramaRomance: mapCandidates(dramaRomanceData),
+    drama: mapCandidates(dramaData),
 
     family: mapCandidates(familyData),
   };
@@ -1161,8 +1196,7 @@ export interface TmdbTvCollectionSources {
 
   actionCrimeThriller: TmdbTvCollectionCandidate[];
 
-  comedy: TmdbTvCollectionCandidate[];
-  dramaRomance: TmdbTvCollectionCandidate[];
+  comedyDrama: TmdbTvCollectionCandidate[];
 
   mysteryScienceFiction: TmdbTvCollectionCandidate[];
 }
@@ -1242,6 +1276,7 @@ function createTvGenreDiscoverParams(
   definition: TvGenreCollectionDefinition,
   genreMap: Map<number, string>,
   withoutGenres: string,
+  page: number,
 ) {
   const genreIds = getRequiredTvGenreIds(genreMap, definition.genreNames);
 
@@ -1251,7 +1286,7 @@ function createTvGenreDiscoverParams(
     include_null_first_air_dates: "false",
 
     language: "en-US",
-    page: "1",
+    page: String(page),
     sort_by: "popularity.desc",
 
     "vote_average.gte": String(definition.minVoteAverage),
@@ -1266,20 +1301,25 @@ function createTvGenreDiscoverParams(
   return params.toString();
 }
 
-async function getTvGenreCollectionPage(
+async function getTvGenreCollectionPages(
   definition: TvGenreCollectionDefinition,
   genreMap: Map<number, string>,
   withoutGenres: string,
+  pageCount: number,
 ) {
-  const params = createTvGenreDiscoverParams(
-    definition,
-    genreMap,
-    withoutGenres,
-  );
+  const requests = Array.from({ length: pageCount }, (_, index) => {
+    const params = createTvGenreDiscoverParams(
+      definition,
+      genreMap,
+      withoutGenres,
+      index + 1,
+    );
 
-  const data = await tmdbFetch<TmdbListResponse>(`/discover/tv?${params}`);
+    return tmdbFetch<TmdbListResponse>(`/discover/tv?${params}`);
+  });
 
-  return data.results;
+  const pages = await Promise.all(requests);
+  return pages.flatMap((page) => page.results);
 }
 
 async function getTvDiscoverPages(
@@ -1330,65 +1370,49 @@ export async function getTmdbTvCollectionSources(): Promise<TmdbTvCollectionSour
 
     tmdbFetch<TmdbListResponse>("/tv/on_the_air?language=en-US&page=1"),
 
-    getTvDiscoverPages("popularity.desc", 3, withoutGenres),
+    getTvDiscoverPages("popularity.desc", 5, withoutGenres),
 
-    getTvDiscoverPages("vote_count.desc", 2, withoutGenres),
+    getTvDiscoverPages("vote_count.desc", 4, withoutGenres),
 
-    getTvDiscoverPages("vote_average.desc", 2, withoutGenres),
+    getTvDiscoverPages("vote_average.desc", 4, withoutGenres),
   ]);
 
   const [
     actionCrimeThrillerData,
-    comedyData,
-    dramaRomanceData,
+    comedyDramaData,
     mysteryScienceFictionData,
   ] = await Promise.all([
-    getTvGenreCollectionPage(
+    getTvGenreCollectionPages(
       {
         genreNames: ["Action & Adventure", "Crime", "Mystery"],
-
-        minVoteAverage: 6.3,
-        minVoteCount: 150,
+        minVoteAverage: 6.2,
+        minVoteCount: 80,
       },
-
       genreMap,
       withoutGenres,
+      3,
     ),
 
-    getTvGenreCollectionPage(
+    getTvGenreCollectionPages(
       {
-        genreNames: ["Comedy"],
-
-        minVoteAverage: 6.3,
-        minVoteCount: 120,
+        genreNames: ["Comedy", "Drama"],
+        minVoteAverage: 6.2,
+        minVoteCount: 60,
       },
-
       genreMap,
       withoutGenres,
+      4,
     ),
 
-    getTvGenreCollectionPage(
-      {
-        genreNames: ["Drama"],
-
-        minVoteAverage: 6.5,
-        minVoteCount: 150,
-      },
-
-      genreMap,
-      withoutGenres,
-    ),
-
-    getTvGenreCollectionPage(
+    getTvGenreCollectionPages(
       {
         genreNames: ["Mystery", "Sci-Fi & Fantasy"],
-
-        minVoteAverage: 6.5,
-        minVoteCount: 150,
+        minVoteAverage: 6.3,
+        minVoteCount: 70,
       },
-
       genreMap,
       withoutGenres,
+      3,
     ),
   ]);
 
@@ -1409,9 +1433,7 @@ export async function getTmdbTvCollectionSources(): Promise<TmdbTvCollectionSour
 
     actionCrimeThriller: mapCandidates(actionCrimeThrillerData),
 
-    comedy: mapCandidates(comedyData),
-
-    dramaRomance: mapCandidates(dramaRomanceData),
+    comedyDrama: mapCandidates(comedyDramaData),
 
     mysteryScienceFiction: mapCandidates(mysteryScienceFictionData),
   };
@@ -1446,9 +1468,9 @@ export interface TmdbAnimePrimarySources {
 
   romanceKeywordTv: TmdbAnimeCollectionCandidate[];
 
-  sliceOfLifeMovies: TmdbAnimeCollectionCandidate[];
+  sportsKeywordMovies: TmdbAnimeCollectionCandidate[];
 
-  sliceOfLifeTv: TmdbAnimeCollectionCandidate[];
+  sportsKeywordTv: TmdbAnimeCollectionCandidate[];
 }
 
 const blockedAnimeKeywordNames = [
@@ -1584,7 +1606,7 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
     tvGenreMap,
     blockedKeywordIds,
     romanceKeywordIds,
-    sliceOfLifeKeywordIds,
+    sportsKeywordIds,
   ] = await Promise.all([
     getGenreMap("movie"),
     getGenreMap("tv"),
@@ -1593,7 +1615,19 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
 
     getExactTmdbKeywordIds(["romance", "love story", "romantic comedy"]),
 
-    getExactTmdbKeywordIds(["slice of life"]),
+    getExactTmdbKeywordIds([
+      "sports",
+      "baseball",
+      "basketball",
+      "soccer",
+      "volleyball",
+      "tennis",
+      "boxing",
+      "racing",
+      "swimming",
+      "cycling",
+      "figure skating",
+    ]),
   ]);
 
   const movieAnimationGenreId = findGenreIdByName(movieGenreMap, "Animation");
@@ -1617,8 +1651,8 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
     romanceMovieData,
     romanceTvData,
 
-    sliceOfLifeMovieData,
-    sliceOfLifeTvData,
+    sportsMovieData,
+    sportsTvData,
   ] = await Promise.all([
     tmdbFetch<TmdbListResponse>("/trending/movie/week?language=en-US&page=1"),
 
@@ -1629,9 +1663,9 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
       movieAnimationGenreId,
       blockedKeywordIds,
       "popularity.desc",
-      3,
+      5,
       6,
-      20,
+      15,
     ),
 
     getAnimeDiscoverPages(
@@ -1639,9 +1673,9 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
       tvAnimationGenreId,
       blockedKeywordIds,
       "popularity.desc",
-      3,
+      5,
       6,
-      20,
+      15,
     ),
 
     getAnimeDiscoverPages(
@@ -1649,9 +1683,9 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
       movieAnimationGenreId,
       blockedKeywordIds,
       "vote_count.desc",
-      2,
-      6.5,
-      50,
+      4,
+      6.4,
+      35,
     ),
 
     getAnimeDiscoverPages(
@@ -1659,9 +1693,9 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
       tvAnimationGenreId,
       blockedKeywordIds,
       "vote_count.desc",
-      2,
-      6.5,
-      50,
+      4,
+      6.4,
+      35,
     ),
 
     getAnimeDiscoverPages(
@@ -1669,9 +1703,9 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
       movieAnimationGenreId,
       blockedKeywordIds,
       "popularity.desc",
-      1,
-      6.3,
-      20,
+      2,
+      6.2,
+      15,
       romanceKeywordIds,
     ),
 
@@ -1680,9 +1714,9 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
       tvAnimationGenreId,
       blockedKeywordIds,
       "popularity.desc",
-      1,
-      6.3,
-      20,
+      2,
+      6.2,
+      15,
       romanceKeywordIds,
     ),
 
@@ -1691,10 +1725,10 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
       movieAnimationGenreId,
       blockedKeywordIds,
       "popularity.desc",
-      1,
+      3,
       6.2,
       10,
-      sliceOfLifeKeywordIds,
+      sportsKeywordIds,
     ),
 
     getAnimeDiscoverPages(
@@ -1702,10 +1736,10 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
       tvAnimationGenreId,
       blockedKeywordIds,
       "popularity.desc",
-      1,
+      3,
       6.2,
       10,
-      sliceOfLifeKeywordIds,
+      sportsKeywordIds,
     ),
   ]);
 
@@ -1738,9 +1772,73 @@ export async function getTmdbAnimePrimarySources(): Promise<TmdbAnimePrimarySour
 
     romanceKeywordTv: mapTvCandidates(romanceTvData),
 
-    sliceOfLifeMovies: mapMovieCandidates(sliceOfLifeMovieData),
+    sportsKeywordMovies: mapMovieCandidates(sportsMovieData),
 
-    sliceOfLifeTv: mapTvCandidates(sliceOfLifeTvData),
+    sportsKeywordTv: mapTvCandidates(sportsTvData),
+  };
+}
+
+export async function getTmdbAnimeSportsCatalog(
+  mediaType: MediaType,
+  page: number,
+): Promise<TmdbBrowseResult> {
+  const [genreMap, blockedKeywordIds, sportsKeywordIds] = await Promise.all([
+    getGenreMap(mediaType),
+    getExactTmdbKeywordIds([...blockedAnimeKeywordNames]),
+    getExactTmdbKeywordIds([
+      "sports",
+      "baseball",
+      "basketball",
+      "soccer",
+      "volleyball",
+      "tennis",
+      "boxing",
+      "racing",
+      "swimming",
+      "cycling",
+      "figure skating",
+    ]),
+  ]);
+
+  const animationGenreId = findGenreIdByName(genreMap, "Animation");
+
+  if (animationGenreId === null) {
+    throw new UnknownGenreError("Animation");
+  }
+
+  if (sportsKeywordIds.length === 0) {
+    return {
+      page,
+      totalPages: 0,
+      totalResults: 0,
+      results: [],
+      hasMore: false,
+    };
+  }
+
+  const params = createAnimeDiscoverParams({
+    mediaType,
+    animationGenreId,
+    blockedKeywordIds,
+    sortBy: "popularity.desc",
+    page,
+    minVoteAverage: 6.2,
+    minVoteCount: 10,
+    withKeywordIds: sportsKeywordIds,
+  });
+
+  const data = await tmdbFetch<TmdbListResponse>(
+    `/discover/${mediaType}?${params}`,
+  );
+
+  return {
+    page: data.page,
+    totalPages: data.total_pages,
+    totalResults: data.total_results,
+    results: data.results.map((result) =>
+      mapListResult(result, mediaType, genreMap),
+    ),
+    hasMore: data.page < data.total_pages,
   };
 }
 
@@ -1944,6 +2042,7 @@ async function getKDramaKeywordDiscoverPages(
   minVoteAverage: number,
   minVoteCount: number,
   withoutGenreIds: number[],
+  pageCount = 2,
 ) {
   if (keywordIds.length === 0) {
     return [];
@@ -1952,7 +2051,7 @@ async function getKDramaKeywordDiscoverPages(
   return getKDramaDiscoverPages(
     mediaType,
     "popularity.desc",
-    1,
+    pageCount,
     minVoteAverage,
     minVoteCount,
     withoutGenreIds,
@@ -2086,54 +2185,54 @@ export async function getTmdbKDramaPrimarySources(): Promise<TmdbKDramaPrimarySo
     getKDramaDiscoverPages(
       "movie",
       "popularity.desc",
-      3,
+      5,
       6,
-      20,
+      15,
       movieExcludedGenreIds,
     ),
 
     getKDramaDiscoverPages(
       "tv",
       "popularity.desc",
-      3,
+      5,
       6,
-      20,
+      15,
       tvExcludedGenreIds,
     ),
 
     getKDramaDiscoverPages(
       "movie",
       "vote_count.desc",
-      2,
-      6.3,
-      50,
+      4,
+      6.2,
+      35,
       movieExcludedGenreIds,
     ),
 
     getKDramaDiscoverPages(
       "tv",
       "vote_count.desc",
-      2,
-      6.5,
-      50,
+      4,
+      6.4,
+      35,
       tvExcludedGenreIds,
     ),
 
     getKDramaDiscoverPages(
       "movie",
       "vote_average.desc",
-      2,
-      6.8,
-      100,
+      4,
+      6.7,
+      70,
       movieExcludedGenreIds,
     ),
 
     getKDramaDiscoverPages(
       "tv",
       "vote_average.desc",
-      2,
-      7,
-      80,
+      4,
+      6.9,
+      60,
       tvExcludedGenreIds,
     ),
     getKDramaKeywordDiscoverPages(
@@ -2583,6 +2682,18 @@ export async function getTmdbCatalog(
     return genreId;
   });
 
+  const excludedGenreIds = (filters.excludedGenres ?? []).map(
+    (genreName) => {
+      const genreId = findGenreIdByName(genreMap, genreName);
+
+      if (genreId === null) {
+        throw new UnknownGenreError(genreName);
+      }
+
+      return genreId;
+    },
+  );
+
   function applyRequestedFilters(items: MediaItem[]) {
     return items.filter((item) => {
       if (requestedGenres.length > 0) {
@@ -2668,6 +2779,14 @@ export async function getTmdbCatalog(
     discoverParams.set("with_original_language", language);
   }
 
+  if (filters.originCountry) {
+    discoverParams.set("with_origin_country", filters.originCountry);
+  }
+
+  if (excludedGenreIds.length > 0) {
+    discoverParams.set("without_genres", excludedGenreIds.join("|"));
+  }
+
   if (filters.minRating !== undefined) {
     discoverParams.set("vote_average.gte", String(filters.minRating));
   }
@@ -2745,6 +2864,47 @@ function mapRelatedMediaCandidate(
     source,
     sourceOrder,
   };
+}
+
+export async function getTmdbRecommendationProfileMedia(
+  mediaType: MediaType,
+  tmdbId: number,
+): Promise<MediaDetails> {
+  if (mediaType === "movie") {
+    const movie = await tmdbFetch<TmdbMovieDetails>(
+      `/movie/${tmdbId}?language=en-US`,
+    );
+
+    return mapMovieDetails(movie);
+  }
+
+  const show = await tmdbFetch<TmdbTvDetails>(
+    `/tv/${tmdbId}?language=en-US`,
+  );
+
+  return mapTvDetails(show);
+}
+
+export async function getTmdbRecommendationCandidates(
+  mediaType: MediaType,
+  tmdbId: number,
+): Promise<TmdbRelatedMediaCandidate[]> {
+  const [genreMap, data] = await Promise.all([
+    getGenreMap(mediaType),
+    tmdbFetch<TmdbListResponse>(
+      `/${mediaType}/${tmdbId}/recommendations?language=en-US&page=1`,
+    ),
+  ]);
+
+  return data.results.map((result, index) =>
+    mapRelatedMediaCandidate(
+      result,
+      mediaType,
+      genreMap,
+      "recommendations",
+      index,
+    ),
+  );
 }
 
 export async function getTmdbRelatedMediaCandidates(

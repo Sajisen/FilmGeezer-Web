@@ -104,12 +104,18 @@ export async function deactivateCurrentAccount(
       error instanceof
       AuthAccountDeactivationError
     ) {
+      const finalAdministratorProtected =
+        error.reason ===
+        "final-administrator-protected";
+
       response.status(409).json({
         status: "error",
-        code:
-          "ACCOUNT_DEACTIVATION_UNAVAILABLE",
-        message:
-          "This account can no longer be deactivated from the current session.",
+        code: finalAdministratorProtected
+          ? "FINAL_ADMINISTRATOR_DEACTIVATION_BLOCKED"
+          : "ACCOUNT_DEACTIVATION_UNAVAILABLE",
+        message: finalAdministratorProtected
+          ? "This is the final active FilmGeezer administrator. Grant another trusted account administrator access before deactivating this account."
+          : "This account can no longer be deactivated from the current session.",
       });
 
       return;

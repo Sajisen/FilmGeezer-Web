@@ -324,6 +324,7 @@ export class AuthSessionManagementError extends Error {
 
 export const AUTH_ACCOUNT_DEACTIVATION_REJECTION_REASONS = [
   "account-unavailable",
+  "final-administrator-protected",
 ] as const;
 
 export type AuthAccountDeactivationRejectionReason =
