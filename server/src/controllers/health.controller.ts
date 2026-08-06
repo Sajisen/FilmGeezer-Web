@@ -1,8 +1,19 @@
-import type { Request, Response } from 'express'
+import type {
+  Request,
+  Response,
+} from "express";
 
-export function getHealth(_req: Request, res: Response) {
-  res.status(200).json({
-    status: 'ok',
-    message: 'FilmGeezer API is running',
-  })
+export function getHealth(
+  _request: Request,
+  response: Response,
+): void {
+  response.setHeader(
+    "Cache-Control",
+    "no-store",
+  );
+
+  response.status(200).json({
+    status: "ok",
+    message: "FilmGeezer API is ready",
+  });
 }

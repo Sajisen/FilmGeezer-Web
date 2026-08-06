@@ -216,12 +216,13 @@ export default function WelcomeCelebrationCanvas() {
       return;
     }
 
-    const context = canvas.getContext("2d");
+    const canvasContext = canvas.getContext("2d");
 
-    if (!context) {
+    if (!canvasContext) {
       return;
     }
 
+    const context: CanvasRenderingContext2D = canvasContext;
     const width = window.innerWidth;
     const height = window.innerHeight;
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
