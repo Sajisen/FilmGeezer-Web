@@ -238,6 +238,10 @@ export async function deactivateAccount(
             result.displayName,
           deactivatedAt:
             result.deactivatedAt,
+          idempotencyKey:
+            `account-deactivated/${auth.userId.toHexString()}/${result.deactivatedAt.getTime()}`,
+          userId:
+            auth.userId.toHexString(),
         });
 
       await createAuthAuditEvent({

@@ -316,6 +316,12 @@ async function sendPreparedEmailChangeCode(
           prepared.verificationCode,
         expiresAt:
           prepared.expiresAt,
+        idempotencyKey:
+          `email-change/${prepared.challengeId}/${prepared.sendNumber}`,
+        challengeId:
+          prepared.challengeId,
+        userId:
+          prepared.userId.toHexString(),
       });
 
     await recordEmailChangeDeliveryOutcome({
@@ -1184,6 +1190,10 @@ export async function verifyAccountEmailChange(
         displayName: result.user.displayName,
         newEmail: result.user.email,
         changedAt,
+        idempotencyKey:
+          `email-changed/${auth.userId.toHexString()}/${changedAt.getTime()}`,
+        userId:
+          auth.userId.toHexString(),
       });
 
     await createAuthAuditEvent({

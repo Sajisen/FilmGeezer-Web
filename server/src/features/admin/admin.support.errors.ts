@@ -12,15 +12,6 @@ export class AdminSupportMessageLimitError extends Error {
   }
 }
 
-export class AdminSupportGuestReplyUnavailableError extends Error {
-  constructor() {
-    super(
-      "Guest email delivery is not configured yet. This request cannot receive an administrator reply from FilmGeezer yet.",
-    );
-    this.name = "AdminSupportGuestReplyUnavailableError";
-  }
-}
-
 export class AdminSupportSpamReplyBlockedError extends Error {
   constructor() {
     super("Restore this request from spam before replying.");

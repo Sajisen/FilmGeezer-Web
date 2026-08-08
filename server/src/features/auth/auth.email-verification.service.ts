@@ -9,6 +9,10 @@ import {
   verifyAuthChallengeSecret,
 } from "./auth.challenge.js";
 import {
+  authEmailService,
+  type AuthEmailService,
+} from "./auth.email.js";
+import {
   AuthEmailVerificationError,
   AuthPersistenceError,
   type AuthEmailVerificationRejectionReason,
@@ -74,6 +78,14 @@ export interface VerifiedEmailResult
   verifiedAt: Date;
 }
 
+interface VerifyEmailDependencies {
+  emailService: AuthEmailService;
+}
+
+const defaultDependencies: VerifyEmailDependencies = {
+  emailService: authEmailService,
+};
+
 async function recordVerificationFailure(
   input: {
     userId: ObjectId;
@@ -122,6 +134,7 @@ async function recordVerificationFailure(
 export async function verifyEmailAddress(
   input: EmailVerificationInput,
   requestMetadata: AuthRequestMetadata,
+  dependencies: VerifyEmailDependencies = defaultDependencies,
 ): Promise<VerifiedEmailResult> {
   const verification =
     parseEmailVerificationInput(input);
@@ -510,6 +523,27 @@ export async function verifyEmailAddress(
       throw new AuthPersistenceError(
         "Email verification completed without returning a session.",
       );
+    }
+
+    /*
+     * Account activation and the authenticated session are already committed.
+     * A welcome-email outage must never roll back or invalidate a successful
+     * verification, so this secondary delivery is best-effort and idempotent.
+     */
+    try {
+      await dependencies.emailService.sendWelcomeEmail({
+        recipientEmail: result.user.email,
+        displayName: result.user.displayName,
+        idempotencyKey: `welcome/${result.user.userId}`,
+        userId: result.user.userId,
+      });
+    } catch (emailError) {
+      console.error("[auth-verification] Welcome email delivery failed.", {
+        name:
+          emailError instanceof Error
+            ? emailError.name
+            : "UnknownError",
+      });
     }
 
     return result;

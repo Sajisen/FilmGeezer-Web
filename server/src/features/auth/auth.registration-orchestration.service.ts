@@ -150,6 +150,8 @@ export async function startLocalRegistration(
 
             attemptedAt:
               new Date(),
+            idempotencyKey:
+              `existing-registration/${randomUUID()}`,
           });
       } catch (noticeError) {
         if (
@@ -216,6 +218,12 @@ export async function startLocalRegistration(
         expiresAt:
           preparedRegistration.verification
             .expiresAt,
+        idempotencyKey:
+          `verify-email/${preparedRegistration.verification.challengeId}/1`,
+        challengeId:
+          preparedRegistration.verification.challengeId,
+        userId:
+          preparedRegistration.user.userId,
       });
 
     await recordVerificationDeliveryOutcome({

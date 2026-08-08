@@ -98,6 +98,7 @@ interface PreparedPasswordResetEmail {
   recipientEmail: string;
   displayName: string;
   resetUrl: string;
+  challengeId: string;
   expiresAt: Date;
   sendNumber: number;
   requestedAt: Date;
@@ -346,6 +347,8 @@ export async function requestPasswordReset(
                 generatedChallenge.publicId,
                 generatedChallenge.secret,
               ),
+              challengeId:
+                generatedChallenge.publicId,
               expiresAt:
                 generatedChallenge.expiresAt,
               sendNumber,
@@ -392,6 +395,12 @@ export async function requestPasswordReset(
           preparedEmail.resetUrl,
         expiresAt:
           preparedEmail.expiresAt,
+        idempotencyKey:
+          `password-reset/${preparedEmail.challengeId}/${preparedEmail.sendNumber}`,
+        challengeId:
+          preparedEmail.challengeId,
+        userId:
+          preparedEmail.userId.toHexString(),
       });
 
       await recordPasswordResetRequestOutcome({
