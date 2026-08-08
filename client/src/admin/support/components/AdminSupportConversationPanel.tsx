@@ -222,7 +222,7 @@ export default function AdminSupportConversationPanel({
                 </p>
                 <p className="mt-1 text-sm font-black text-white">
                   {thread.delivery.channel === "in-app"
-                    ? "In-app + email alert"
+                    ? "In-app + grouped email alert"
                     : "Email"}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -330,7 +330,9 @@ export default function AdminSupportConversationPanel({
                   Reply as FilmGeezer support
                 </label>
                 <p className="mt-1 text-xs text-slate-500">
-                  The signed-in requester will see this inside their Contact history.
+                  {conversation.requester.linkedToAccount
+                    ? "Signed-in requesters see each reply immediately in Contact. FilmGeezer waits five minutes after the latest admin message, then sends one grouped email alert."
+                    : "Guest replies are delivered by email, so each administrator reply is sent immediately to the address provided with the request."}
                 </p>
               </div>
               <span className="shrink-0 text-xs font-bold text-slate-600">

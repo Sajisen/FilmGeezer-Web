@@ -275,23 +275,32 @@ export function createAccountSupportReplyTemplate(input: {
   referenceId: string;
   subject: string;
   conversationUrl: string;
+  replyCount: number;
 }): EmailTemplate {
   const emailSubject = `FilmGeezer Support replied — ${input.referenceId}`;
+  const replySummary =
+    input.replyCount === 1
+      ? "a new reply"
+      : `${input.replyCount} new replies`;
+  const title =
+    input.replyCount === 1
+      ? "You have a new support reply"
+      : `You have ${input.replyCount} new support replies`;
 
   return {
     subject: emailSubject,
     html: renderEmailShell({
       eyebrow: "FilmGeezer Support",
-      title: "You have a new support reply",
+      title,
       bodyHtml:
         paragraph(`Hi ${input.displayName},`) +
-        paragraph(`FilmGeezer Support replied to your request “${input.subject}” (${input.referenceId}).`) +
-        paragraph("For privacy, open FilmGeezer to read the reply and continue the conversation.") +
+        paragraph(`FilmGeezer Support posted ${replySummary} in your request “${input.subject}” (${input.referenceId}).`) +
+        paragraph("For privacy, open FilmGeezer to read the conversation and continue from where you left off.") +
         renderButton("Open support conversation", input.conversationUrl),
     }),
     text: [
       `Hi ${input.displayName},`,
-      `FilmGeezer Support replied to “${input.subject}” (${input.referenceId}).`,
+      `FilmGeezer Support posted ${replySummary} in “${input.subject}” (${input.referenceId}).`,
       `Open the conversation: ${input.conversationUrl}`,
     ].join("\n\n"),
   };

@@ -14,6 +14,11 @@ import { initializeNotificationStorage } from "./features/notifications/notifica
 import { initializeAdminStorage } from "./features/admin/admin.indexes.js";
 import { initializeEmailDeliveryStorage } from "./features/email/email.indexes.js";
 import { isTransactionalEmailConfigured } from "./features/email/email.service.js";
+import { initializeSupportEmailAlertStorage } from "./features/email/supportEmailAlert.indexes.js";
+import {
+  startSupportEmailAlertWorker,
+  stopSupportEmailAlertWorker,
+} from "./features/email/supportEmailAlert.worker.js";
 import { isAdminWebAuthnConfigured } from "./features/admin/admin.passkey.config.js";
 
 const { PORT, HOST } = env;
@@ -45,6 +50,7 @@ async function initializeApplicationStorage(): Promise<void> {
     initializeNotificationStorage(),
     initializeAdminStorage(),
     initializeEmailDeliveryStorage(),
+    initializeSupportEmailAlertStorage(),
   ]);
 }
 
@@ -85,6 +91,7 @@ async function startServer(): Promise<void> {
   );
 
   server = app.listen(PORT, HOST, () => {
+    startSupportEmailAlertWorker();
     console.log("FilmGeezer API is running");
     console.log(`Local:   http://localhost:${PORT}`);
     console.log(`Listening on all network interfaces at port ${PORT}`);
@@ -92,6 +99,17 @@ async function startServer(): Promise<void> {
 }
 
 async function closeApplicationResources(): Promise<void> {
+  try {
+    await stopSupportEmailAlertWorker();
+  } catch (workerError) {
+    console.error(
+      "Support email alert worker could not be stopped cleanly.",
+      describeError(workerError),
+    );
+
+    process.exitCode = 1;
+  }
+
   try {
     await closeMongoConnection();
   } catch (databaseError) {
