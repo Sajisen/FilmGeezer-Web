@@ -222,8 +222,8 @@ export default function AdminSupportConversationPanel({
                 </p>
                 <p className="mt-1 text-sm font-black text-white">
                   {thread.delivery.channel === "in-app"
-                    ? "FilmGeezer conversation"
-                    : "Email required"}
+                    ? "In-app + email alert"
+                    : "Email"}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
                   {thread.delivery.message}
@@ -367,12 +367,12 @@ export default function AdminSupportConversationPanel({
                 <p className="text-sm font-black text-amber-100">
                   {conversation.status === "spam"
                     ? "Replies are disabled while this request is marked as spam."
-                    : "Guest email delivery is not configured yet."}
+                    : "Transactional email is unavailable in this environment."}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
                   {conversation.status === "spam"
                     ? "Restore the request to New or In review before responding."
-                    : "You may review and classify this request, but FilmGeezer will not create a response the guest cannot receive. Transactional email remains a later production milestone."}
+                    : "You may review and classify this request, but FilmGeezer will not create a response unless a verified transactional email provider is configured."}
                 </p>
               </div>
             </div>

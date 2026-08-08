@@ -1,7 +1,24 @@
+import { ObjectId } from "mongodb";
 import { env } from "../../config/env.js";
-
+import {
+  createAccountDeactivatedNoticeTemplate,
+  createEmailChangedNoticeTemplate,
+  createEmailChangeVerificationTemplate,
+  createEmailVerificationTemplate,
+  createExistingAccountRegistrationNoticeTemplate,
+  createPasswordResetTemplate,
+  createWelcomeTemplate,
+} from "../email/email.templates.js";
+import {
+  TransactionalEmailConfigurationError,
+  TransactionalEmailDeliveryError,
+} from "../email/email.errors.js";
+import {
+  sendTransactionalEmail,
+} from "../email/email.service.js";
 import {
   AuthEmailConfigurationError,
+  AuthEmailDeliveryError,
 } from "./auth.errors.js";
 
 export interface SendEmailVerificationInput {
@@ -9,11 +26,15 @@ export interface SendEmailVerificationInput {
   displayName: string;
   verificationCode: string;
   expiresAt: Date;
+  idempotencyKey: string;
+  challengeId: string;
+  userId?: string | null;
 }
 
 export interface SendExistingAccountRegistrationNoticeInput {
   recipientEmail: string;
   attemptedAt: Date;
+  idempotencyKey: string;
 }
 
 export interface SendPasswordResetInput {
@@ -21,6 +42,9 @@ export interface SendPasswordResetInput {
   displayName: string;
   resetUrl: string;
   expiresAt: Date;
+  idempotencyKey: string;
+  challengeId: string;
+  userId?: string | null;
 }
 
 export interface SendEmailChangeVerificationInput {
@@ -28,6 +52,9 @@ export interface SendEmailChangeVerificationInput {
   displayName: string;
   verificationCode: string;
   expiresAt: Date;
+  idempotencyKey: string;
+  challengeId: string;
+  userId?: string | null;
 }
 
 export interface SendEmailChangedNoticeInput {
@@ -35,178 +62,233 @@ export interface SendEmailChangedNoticeInput {
   displayName: string;
   newEmail: string;
   changedAt: Date;
+  idempotencyKey: string;
+  userId: string;
 }
-
 
 export interface SendAccountDeactivatedNoticeInput {
   recipientEmail: string;
   displayName: string;
   deactivatedAt: Date;
+  idempotencyKey: string;
+  userId: string;
+}
+
+export interface SendWelcomeEmailInput {
+  recipientEmail: string;
+  displayName: string;
+  idempotencyKey: string;
+  userId: string;
 }
 
 export interface AuthEmailService {
-  sendEmailVerification(
-    input: SendEmailVerificationInput,
-  ): Promise<void>;
-
+  sendEmailVerification(input: SendEmailVerificationInput): Promise<void>;
   sendExistingAccountRegistrationNotice(
     input: SendExistingAccountRegistrationNoticeInput,
   ): Promise<void>;
-
-  sendPasswordReset(
-    input: SendPasswordResetInput,
-  ): Promise<void>;
-
+  sendPasswordReset(input: SendPasswordResetInput): Promise<void>;
   sendEmailChangeVerification(
     input: SendEmailChangeVerificationInput,
   ): Promise<void>;
-
-  sendEmailChangedNotice(
-    input: SendEmailChangedNoticeInput,
-  ): Promise<void>;
-
+  sendEmailChangedNotice(input: SendEmailChangedNoticeInput): Promise<void>;
   sendAccountDeactivatedNotice(
     input: SendAccountDeactivatedNoticeInput,
   ): Promise<void>;
+  sendWelcomeEmail(input: SendWelcomeEmailInput): Promise<void>;
 }
 
-function assertDevelopmentEmailAdapter(): void {
-  if (env.NODE_ENV === "production") {
-    throw new AuthEmailConfigurationError(
-      "The development email adapter cannot run in production.",
-    );
+function mapEmailError(error: unknown): never {
+  if (error instanceof TransactionalEmailConfigurationError) {
+    throw new AuthEmailConfigurationError(error.message, { cause: error });
+  }
+
+  if (error instanceof TransactionalEmailDeliveryError) {
+    throw new AuthEmailDeliveryError(error.message, { cause: error });
+  }
+
+  throw new AuthEmailDeliveryError(
+    "The FilmGeezer authentication email could not be submitted.",
+    { cause: error },
+  );
+}
+
+function buildSourceUserId(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new ObjectId(value);
+  } catch {
+    return null;
   }
 }
 
-export const developmentAuthEmailService:
-  AuthEmailService = {
-    async sendEmailVerification(
-      input: SendEmailVerificationInput,
-    ): Promise<void> {
-      assertDevelopmentEmailAdapter();
+export const authEmailService: AuthEmailService = {
+  async sendEmailVerification(input) {
+    const template = createEmailVerificationTemplate(input);
 
-      console.log(
-        [
-          "",
-          "==================================================",
-          "FilmGeezer development verification email",
-          "==================================================",
-          `Recipient: ${input.recipientEmail}`,
-          `Verification code: ${input.verificationCode}`,
-          `Expires at: ${input.expiresAt.toISOString()}`,
-          "==================================================",
-          "",
-        ].join("\n"),
-      );
-    },
+    try {
+      await sendTransactionalEmail({
+        kind: "verify-email",
+        recipientEmail: input.recipientEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        idempotencyKey: input.idempotencyKey,
+        source: {
+          type: "auth-challenge",
+          id: input.challengeId,
+          userId: buildSourceUserId(input.userId),
+        },
+      });
+    } catch (error) {
+      mapEmailError(error);
+    }
+  },
 
-    async sendExistingAccountRegistrationNotice(
-      input: SendExistingAccountRegistrationNoticeInput,
-    ): Promise<void> {
-      assertDevelopmentEmailAdapter();
+  async sendExistingAccountRegistrationNotice(input) {
+    const template = createExistingAccountRegistrationNoticeTemplate({
+      attemptedAt: input.attemptedAt,
+      signInUrl: `${env.CLIENT_APP_ORIGIN}/login`,
+    });
 
-      console.log(
-        [
-          "",
-          "==================================================",
-          "FilmGeezer existing-account registration notice",
-          "==================================================",
-          `Recipient: ${input.recipientEmail}`,
-          "A registration attempt used this email address.",
-          "The account was not changed and no verification code was created.",
-          "Use Sign in to continue. A pending account can resume verification after a successful password check.",
-          `Attempted at: ${input.attemptedAt.toISOString()}`,
-          "==================================================",
-          "",
-        ].join("\n"),
-      );
-    },
+    try {
+      await sendTransactionalEmail({
+        kind: "existing-account-registration-notice",
+        recipientEmail: input.recipientEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        idempotencyKey: input.idempotencyKey,
+        source: {
+          type: "account-event",
+          id: input.idempotencyKey,
+          userId: null,
+        },
+      });
+    } catch (error) {
+      mapEmailError(error);
+    }
+  },
 
-    async sendPasswordReset(
-      input: SendPasswordResetInput,
-    ): Promise<void> {
-      assertDevelopmentEmailAdapter();
+  async sendPasswordReset(input) {
+    const template = createPasswordResetTemplate(input);
 
-      console.log(
-        [
-          "",
-          "==================================================",
-          "FilmGeezer development password-reset email",
-          "==================================================",
-          `Recipient: ${input.recipientEmail}`,
-          `Display name: ${input.displayName}`,
-          `Reset link: ${input.resetUrl}`,
-          `Expires at: ${input.expiresAt.toISOString()}`,
-          "This link is single-use. FilmGeezer will revoke every active session after a successful reset.",
-          "==================================================",
-          "",
-        ].join("\n"),
-      );
-    },
+    try {
+      await sendTransactionalEmail({
+        kind: "password-reset",
+        recipientEmail: input.recipientEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        idempotencyKey: input.idempotencyKey,
+        source: {
+          type: "auth-challenge",
+          id: input.challengeId,
+          userId: buildSourceUserId(input.userId),
+        },
+      });
+    } catch (error) {
+      mapEmailError(error);
+    }
+  },
 
-    async sendEmailChangeVerification(
-      input: SendEmailChangeVerificationInput,
-    ): Promise<void> {
-      assertDevelopmentEmailAdapter();
+  async sendEmailChangeVerification(input) {
+    const template = createEmailChangeVerificationTemplate(input);
 
-      console.log(
-        [
-          "",
-          "==================================================",
-          "FilmGeezer development email-change verification",
-          "==================================================",
-          `Recipient: ${input.recipientEmail}`,
-          `Display name: ${input.displayName}`,
-          `Verification code: ${input.verificationCode}`,
-          `Expires at: ${input.expiresAt.toISOString()}`,
-          "The current account email remains unchanged until this code is verified.",
-          "==================================================",
-          "",
-        ].join("\n"),
-      );
-    },
+    try {
+      await sendTransactionalEmail({
+        kind: "email-change-verification",
+        recipientEmail: input.recipientEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        idempotencyKey: input.idempotencyKey,
+        source: {
+          type: "auth-challenge",
+          id: input.challengeId,
+          userId: buildSourceUserId(input.userId),
+        },
+      });
+    } catch (error) {
+      mapEmailError(error);
+    }
+  },
 
-    async sendEmailChangedNotice(
-      input: SendEmailChangedNoticeInput,
-    ): Promise<void> {
-      assertDevelopmentEmailAdapter();
+  async sendEmailChangedNotice(input) {
+    const template = createEmailChangedNoticeTemplate(input);
 
-      console.log(
-        [
-          "",
-          "==================================================",
-          "FilmGeezer development email-changed notice",
-          "==================================================",
-          `Recipient: ${input.recipientEmail}`,
-          `Display name: ${input.displayName}`,
-          `New email: ${input.newEmail}`,
-          `Changed at: ${input.changedAt.toISOString()}`,
-          "If this change was unexpected, contact FilmGeezer support immediately.",
-          "==================================================",
-          "",
-        ].join("\n"),
-      );
-    },
+    try {
+      await sendTransactionalEmail({
+        kind: "email-changed-notice",
+        recipientEmail: input.recipientEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        idempotencyKey: input.idempotencyKey,
+        source: {
+          type: "account-event",
+          id: input.idempotencyKey,
+          userId: buildSourceUserId(input.userId),
+        },
+      });
+    } catch (error) {
+      mapEmailError(error);
+    }
+  },
 
-    async sendAccountDeactivatedNotice(
-      input: SendAccountDeactivatedNoticeInput,
-    ): Promise<void> {
-      assertDevelopmentEmailAdapter();
+  async sendAccountDeactivatedNotice(input) {
+    const template = createAccountDeactivatedNoticeTemplate(input);
 
-      console.log(
-        [
-          "",
-          "==================================================",
-          "FilmGeezer development account-deactivated notice",
-          "==================================================",
-          `Recipient: ${input.recipientEmail}`,
-          `Display name: ${input.displayName}`,
-          `Deactivated at: ${input.deactivatedAt.toISOString()}`,
-          "Every active FilmGeezer session was signed out.",
-          "The account data was not permanently deleted. Contact FilmGeezer support for a controlled recovery request.",
-          "==================================================",
-          "",
-        ].join("\n"),
-      );
-    },
-  };
+    try {
+      await sendTransactionalEmail({
+        kind: "account-deactivated-notice",
+        recipientEmail: input.recipientEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        idempotencyKey: input.idempotencyKey,
+        source: {
+          type: "account-event",
+          id: input.idempotencyKey,
+          userId: buildSourceUserId(input.userId),
+        },
+      });
+    } catch (error) {
+      mapEmailError(error);
+    }
+  },
+
+  async sendWelcomeEmail(input) {
+    const template = createWelcomeTemplate({
+      displayName: input.displayName,
+      publicAppUrl: env.CLIENT_APP_ORIGIN,
+    });
+
+    try {
+      await sendTransactionalEmail({
+        kind: "welcome",
+        recipientEmail: input.recipientEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        idempotencyKey: input.idempotencyKey,
+        source: {
+          type: "user-welcome",
+          id: input.userId,
+          userId: buildSourceUserId(input.userId),
+        },
+      });
+    } catch (error) {
+      mapEmailError(error);
+    }
+  },
+};
+
+/*
+ * Kept as a compatibility export for existing dependency-injection tests.
+ * The generic transactional service automatically uses the development
+ * console adapter outside production and Resend in production.
+ */
+export const developmentAuthEmailService = authEmailService;

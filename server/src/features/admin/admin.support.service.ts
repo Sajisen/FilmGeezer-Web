@@ -8,15 +8,26 @@ import {
 import { initializeContactStorage } from "../contact/contact.indexes.js";
 import { initializeNotificationStorage } from "../notifications/notification.indexes.js";
 import { createSupportReplyNotification } from "../notifications/notification.service.js";
+import {
+  findLatestEmailDeliveryForSource,
+} from "../email/email.repository.js";
+import {
+  isTransactionalEmailConfigured,
+} from "../email/email.service.js";
+import {
+  sendSupportReplyEmail,
+} from "../email/email.support.js";
 import type {
   ContactMessageDocument,
   ContactThreadMessageDocument,
 } from "../contact/contact.types.js";
+import {
+  findActiveUserById,
+} from "../auth/repositories/authUser.repository.js";
 import { initializeAdminStorage } from "./admin.indexes.js";
 import { createAdminAuditEvent } from "./admin.repository.js";
 import {
   AdminSupportConversationNotFoundError,
-  AdminSupportGuestReplyUnavailableError,
   AdminSupportMessageLimitError,
   AdminSupportPersistenceError,
   AdminSupportSpamReplyBlockedError,
@@ -129,19 +140,67 @@ async function loadThreadFromDocument(
       resolvedAt: conversation.resolvedAt,
     },
     messages,
-    delivery: linkedToAccount
-      ? {
-          channel: "in-app",
-          available: true,
-          message:
-            "Administrator replies appear in the requester’s FilmGeezer Contact conversation.",
-        }
-      : {
-          channel: "email",
-          available: false,
-          message:
-            "Transactional guest-email delivery is not configured yet. Do not create a reply that the requester cannot receive.",
-        },
+    delivery: await createReplyDeliverySummary({
+      linkedToAccount,
+      storedMessages,
+    }),
+  };
+}
+
+async function createReplyDeliverySummary(input: {
+  linkedToAccount: boolean;
+  storedMessages: ContactThreadMessageDocument[];
+}): Promise<AdminSupportConversationThread["delivery"]> {
+  const emailConfigured = isTransactionalEmailConfigured();
+  const latestAdminMessage = [...input.storedMessages]
+    .reverse()
+    .find((message) => message.senderRole === "admin");
+
+  let latestEmailStatus: string | null = null;
+
+  if (latestAdminMessage) {
+    const delivery = await findLatestEmailDeliveryForSource({
+      sourceType: "support-reply",
+      sourceId: latestAdminMessage._id.toHexString(),
+    });
+
+    latestEmailStatus = delivery?.status ?? null;
+  }
+
+  const problemStatuses = new Set([
+    "failed",
+    "bounced",
+    "complained",
+    "suppressed",
+  ]);
+
+  if (input.linkedToAccount) {
+    return {
+      channel: "in-app",
+      available: true,
+      message:
+        latestEmailStatus && problemStatuses.has(latestEmailStatus)
+          ? "The in-app reply is available, but the latest email alert reported a delivery problem."
+          : "Replies appear in the FilmGeezer Contact conversation and a transactional email alert is also submitted when available.",
+    };
+  }
+
+  if (!emailConfigured) {
+    return {
+      channel: "email",
+      available: false,
+      message:
+        "Transactional email is not configured, so this guest cannot receive an administrator reply yet.",
+    };
+  }
+
+  return {
+    channel: "email",
+    available: true,
+    message:
+      latestEmailStatus && problemStatuses.has(latestEmailStatus)
+        ? "The latest guest email reported a delivery problem. Review the Resend delivery log before sending another reply."
+        : "Guest replies are delivered by transactional email to the address supplied with the support request.",
   };
 }
 
@@ -215,8 +274,17 @@ export async function replyToAdminSupportConversation(
     const session = client.startSession();
     const createdAt = new Date();
 
+    let deliveryPreparation: {
+      messageId: ObjectId;
+      userId: ObjectId | null;
+      recipientEmail: string;
+      displayName: string;
+      subject: string;
+      replyBody: string;
+    };
+
     try {
-      await session.withTransaction(async () => {
+      const transactionResult = await session.withTransaction(async () => {
         const conversation = await findAdminSupportConversation(
           referenceId,
           session,
@@ -226,11 +294,7 @@ export async function replyToAdminSupportConversation(
           throw new AdminSupportConversationNotFoundError();
         }
 
-        const targetUserId = conversation.userId;
-
-        if (!targetUserId) {
-          throw new AdminSupportGuestReplyUnavailableError();
-        }
+        const targetUserId = conversation.userId ?? null;
 
         if (conversation.status === "spam") {
           throw new AdminSupportSpamReplyBlockedError();
@@ -264,16 +328,18 @@ export async function replyToAdminSupportConversation(
           throw new AdminSupportMessageLimitError();
         }
 
-        await createSupportReplyNotification(
-          {
-            userId: targetUserId,
-            messageId: message._id,
-            referenceId,
-            subject: conversation.subject,
-            createdAt,
-          },
-          session,
-        );
+        if (targetUserId) {
+          await createSupportReplyNotification(
+            {
+              userId: targetUserId,
+              messageId: message._id,
+              referenceId,
+              subject: conversation.subject,
+              createdAt,
+            },
+            session,
+          );
+        }
 
         await createAdminAuditEvent(
           {
@@ -288,21 +354,75 @@ export async function replyToAdminSupportConversation(
               previousStatus: conversation.status,
               nextStatus: "in-review",
               messageLength: parsedInput.message.length,
+              deliveryChannel: targetUserId ? "in-app-and-email" : "email",
             },
             createdAt,
           },
           session,
         );
+
+        return {
+          messageId: message._id,
+          userId: targetUserId,
+          recipientEmail: conversation.email,
+          displayName: conversation.name,
+          subject: conversation.subject,
+          replyBody: parsedInput.message,
+        };
       });
+
+      if (!transactionResult) {
+        throw new AdminSupportPersistenceError(
+          "The support reply completed without returning delivery details.",
+        );
+      }
+
+      deliveryPreparation = transactionResult;
     } finally {
       await session.endSession();
+    }
+
+    try {
+      let recipientEmail = deliveryPreparation.recipientEmail;
+      let displayName = deliveryPreparation.displayName;
+
+      if (deliveryPreparation.userId) {
+        const currentUser = await findActiveUserById(
+          deliveryPreparation.userId,
+        );
+
+        if (currentUser) {
+          recipientEmail = currentUser.emailDisplay;
+          displayName = currentUser.displayName;
+        }
+      }
+
+      await sendSupportReplyEmail({
+        ...deliveryPreparation,
+        recipientEmail,
+        displayName,
+        referenceId,
+      });
+    } catch (deliveryError) {
+      /*
+       * The support reply and any in-app notification are already committed.
+       * Throwing here would encourage the administrator to resend the reply and
+       * could duplicate the conversation. Delivery state is recorded separately
+       * in email_deliveries and surfaced when the thread is reloaded.
+       */
+      console.error("[admin-support] Transactional reply email failed.", {
+        name:
+          deliveryError instanceof Error
+            ? deliveryError.name
+            : "UnknownError",
+        referenceId,
+      });
     }
 
     return getAdminSupportConversation(referenceId);
   } catch (error) {
     if (
       error instanceof AdminSupportConversationNotFoundError ||
-      error instanceof AdminSupportGuestReplyUnavailableError ||
       error instanceof AdminSupportMessageLimitError ||
       error instanceof AdminSupportSpamReplyBlockedError
     ) {

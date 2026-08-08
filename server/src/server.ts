@@ -12,6 +12,8 @@ import { initializePreferencesStorage } from "./features/preferences/preferences
 import { initializeContactStorage } from "./features/contact/contact.indexes.js";
 import { initializeNotificationStorage } from "./features/notifications/notification.indexes.js";
 import { initializeAdminStorage } from "./features/admin/admin.indexes.js";
+import { initializeEmailDeliveryStorage } from "./features/email/email.indexes.js";
+import { isTransactionalEmailConfigured } from "./features/email/email.service.js";
 import { isAdminWebAuthnConfigured } from "./features/admin/admin.passkey.config.js";
 
 const { PORT, HOST } = env;
@@ -42,6 +44,7 @@ async function initializeApplicationStorage(): Promise<void> {
     initializeContactStorage(),
     initializeNotificationStorage(),
     initializeAdminStorage(),
+    initializeEmailDeliveryStorage(),
   ]);
 }
 
@@ -72,6 +75,13 @@ async function startServer(): Promise<void> {
     isAdminWebAuthnConfigured()
       ? `Administrator passkeys are ready for ${env.ADMIN_WEBAUTHN_ORIGIN}.`
       : "Administrator passkeys are disabled until ADMIN_WEBAUTHN_RP_ID and ADMIN_WEBAUTHN_ORIGIN are configured.",
+  );
+  console.log(
+    isTransactionalEmailConfigured()
+      ? env.NODE_ENV === "production"
+        ? `Transactional email is ready through Resend as ${env.RESEND_FROM_EMAIL}.`
+        : "Transactional email is using the development console adapter."
+      : "Transactional email is not configured.",
   );
 
   server = app.listen(PORT, HOST, () => {

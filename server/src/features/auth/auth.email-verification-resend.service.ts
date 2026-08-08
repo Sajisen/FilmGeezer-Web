@@ -465,6 +465,12 @@ export async function resendEmailVerificationCode(
         expiresAt:
           preparedResend
             .expiresAt,
+        idempotencyKey:
+          `verify-email/${preparedResend.challengeId}/${preparedResend.sendNumber}`,
+        challengeId:
+          preparedResend.challengeId,
+        userId:
+          preparedResend.userId.toHexString(),
       });
 
     await recordResendDeliveryOutcome({

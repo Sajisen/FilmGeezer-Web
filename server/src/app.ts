@@ -31,6 +31,7 @@ import contactRoutes from "./routes/contact.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import adminAuthRoutes from "./routes/adminAuth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import resendWebhookRoutes from "./routes/resendWebhook.routes.js";
 
 import {
   handleHttpError,
@@ -39,6 +40,16 @@ import {
 const app = express();
 
 app.disable("x-powered-by");
+
+/*
+ * Resend signs the exact raw request body. Mount the webhook before CORS
+ * and every JSON parser so verification is not broken by parsing and
+ * re-serialization. The endpoint has no browser session or CSRF surface.
+ */
+app.use(
+  "/api/webhooks/resend",
+  resendWebhookRoutes,
+);
 
 /*
  * Railway terminates TLS and forwards requests to the service through one

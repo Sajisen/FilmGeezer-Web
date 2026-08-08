@@ -7,7 +7,6 @@ import { z } from "zod";
 
 import {
   AdminSupportConversationNotFoundError,
-  AdminSupportGuestReplyUnavailableError,
   AdminSupportMessageLimitError,
   AdminSupportPersistenceError,
   AdminSupportSpamReplyBlockedError,
@@ -69,14 +68,6 @@ function sendSupportError(
     return true;
   }
 
-  if (error instanceof AdminSupportGuestReplyUnavailableError) {
-    response.status(409).json({
-      status: "error",
-      code: "ADMIN_SUPPORT_GUEST_DELIVERY_UNAVAILABLE",
-      message: error.message,
-    });
-    return true;
-  }
 
   if (error instanceof AdminSupportMessageLimitError) {
     response.status(409).json({

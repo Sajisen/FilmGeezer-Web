@@ -82,6 +82,43 @@ const optionalUrlSchema = z.preprocess(
   z.string().url().optional(),
 );
 
+
+const optionalEmailAddressSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim().toLowerCase();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  z.string().email().optional(),
+);
+
+const optionalResendApiKeySchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  z.string().min(20).startsWith("re_").optional(),
+);
+
+const optionalResendWebhookSecretSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  },
+  z.string().min(20).startsWith("whsec_").optional(),
+);
+
 const optionalWebAuthnRpIdSchema = z.preprocess(
   (value) => {
     if (typeof value !== "string") {
@@ -217,6 +254,12 @@ const environmentSchema = z
       );
     }, "ADMIN_WEBAUTHN_ORIGIN must be an http(s) origin without a path, query, or fragment."),
 
+
+    RESEND_API_KEY: optionalResendApiKeySchema,
+    RESEND_WEBHOOK_SECRET: optionalResendWebhookSecretSchema,
+    RESEND_FROM_EMAIL: optionalEmailAddressSchema,
+    RESEND_REPLY_TO_EMAIL: optionalEmailAddressSchema,
+
     PROFILE_IMAGE_STORAGE_DRIVER: z
       .enum(["local", "railway-bucket"])
       .default("local"),
@@ -348,6 +391,25 @@ const environmentSchema = z
           path: ["ADMIN_WEBAUTHN_ORIGIN"],
           message: "Production administrator WebAuthn must use HTTPS.",
         });
+      }
+    }
+
+
+    if (value.NODE_ENV === "production") {
+      const requiredEmailConfiguration = [
+        ["RESEND_API_KEY", value.RESEND_API_KEY],
+        ["RESEND_FROM_EMAIL", value.RESEND_FROM_EMAIL],
+        ["RESEND_REPLY_TO_EMAIL", value.RESEND_REPLY_TO_EMAIL],
+      ] as const;
+
+      for (const [name, configuredValue] of requiredEmailConfiguration) {
+        if (!configuredValue) {
+          context.addIssue({
+            code: "custom",
+            path: [name],
+            message: `${name} is required for production transactional email.`,
+          });
+        }
       }
     }
 
