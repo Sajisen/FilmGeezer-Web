@@ -17,13 +17,19 @@ import {
 import {
   sendSupportReplyEmail,
 } from "../email/email.support.js";
+import {
+  initializeSupportEmailAlertStorage,
+} from "../email/supportEmailAlert.indexes.js";
+import {
+  findSupportEmailAlertByConversationId,
+} from "../email/supportEmailAlert.repository.js";
+import {
+  queueAccountSupportReplyEmailAlert,
+} from "../email/supportEmailAlert.service.js";
 import type {
   ContactMessageDocument,
   ContactThreadMessageDocument,
 } from "../contact/contact.types.js";
-import {
-  findActiveUserById,
-} from "../auth/repositories/authUser.repository.js";
 import { initializeAdminStorage } from "./admin.indexes.js";
 import { createAdminAuditEvent } from "./admin.repository.js";
 import {
@@ -88,6 +94,7 @@ async function ensureStorage(): Promise<void> {
     initializeContactStorage(),
     initializeNotificationStorage(),
     initializeAdminStorage(),
+    initializeSupportEmailAlertStorage(),
   ]);
 }
 
@@ -141,6 +148,7 @@ async function loadThreadFromDocument(
     },
     messages,
     delivery: await createReplyDeliverySummary({
+      conversationId: conversation._id,
       linkedToAccount,
       storedMessages,
     }),
@@ -148,6 +156,7 @@ async function loadThreadFromDocument(
 }
 
 async function createReplyDeliverySummary(input: {
+  conversationId: ObjectId;
   linkedToAccount: boolean;
   storedMessages: ContactThreadMessageDocument[];
 }): Promise<AdminSupportConversationThread["delivery"]> {
@@ -175,13 +184,21 @@ async function createReplyDeliverySummary(input: {
   ]);
 
   if (input.linkedToAccount) {
+    const alertState = await findSupportEmailAlertByConversationId(
+      input.conversationId,
+    );
+    const emailAlertPending =
+      Boolean(alertState && alertState.pendingMessageCount > 0);
+
     return {
       channel: "in-app",
       available: true,
       message:
         latestEmailStatus && problemStatuses.has(latestEmailStatus)
-          ? "The in-app reply is available, but the latest email alert reported a delivery problem."
-          : "Replies appear in the FilmGeezer Contact conversation and a transactional email alert is also submitted when available.",
+          ? "The in-app reply is available, but the latest grouped email alert reported a delivery problem."
+          : emailAlertPending
+            ? "Replies are available in-app immediately. FilmGeezer groups nearby administrator replies into one email alert after a short quiet period."
+            : "Replies are available in-app immediately. Email alerts are grouped per conversation to avoid sending several messages while an administrator is still replying.",
     };
   }
 
@@ -339,6 +356,17 @@ export async function replyToAdminSupportConversation(
             },
             session,
           );
+
+          await queueAccountSupportReplyEmailAlert(
+            {
+              conversationId: conversation._id,
+              userId: targetUserId,
+              referenceId,
+              messageId: message._id,
+              createdAt,
+            },
+            session,
+          );
         }
 
         await createAdminAuditEvent(
@@ -354,7 +382,9 @@ export async function replyToAdminSupportConversation(
               previousStatus: conversation.status,
               nextStatus: "in-review",
               messageLength: parsedInput.message.length,
-              deliveryChannel: targetUserId ? "in-app-and-email" : "email",
+              deliveryChannel: targetUserId
+                ? "in-app-and-grouped-email"
+                : "email",
             },
             createdAt,
           },
@@ -383,26 +413,12 @@ export async function replyToAdminSupportConversation(
     }
 
     try {
-      let recipientEmail = deliveryPreparation.recipientEmail;
-      let displayName = deliveryPreparation.displayName;
-
-      if (deliveryPreparation.userId) {
-        const currentUser = await findActiveUserById(
-          deliveryPreparation.userId,
-        );
-
-        if (currentUser) {
-          recipientEmail = currentUser.emailDisplay;
-          displayName = currentUser.displayName;
-        }
+      if (!deliveryPreparation.userId) {
+        await sendSupportReplyEmail({
+          ...deliveryPreparation,
+          referenceId,
+        });
       }
-
-      await sendSupportReplyEmail({
-        ...deliveryPreparation,
-        recipientEmail,
-        displayName,
-        referenceId,
-      });
     } catch (deliveryError) {
       /*
        * The support reply and any in-app notification are already committed.

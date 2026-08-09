@@ -11,7 +11,7 @@ import { useTvCollections } from "../hooks/useTvCollections";
 import { createCollectionRowAllocator } from "../utils/collectionRows";
 import { excludeMediaItems } from "../utils/recommendations";
 import { buildSearchHref } from "../utils/searchLinks";
-import tvSeriesBanner from "../assets/images/tvseries-banner.png";
+import tvSeriesBanner from "../assets/images/tvseries-banner.webp";
 
 const CURATED_ROW_LIMIT = 28;
 

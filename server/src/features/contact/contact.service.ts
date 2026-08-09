@@ -8,6 +8,13 @@ import {
 import { getMongoClient } from "../../config/database.js";
 
 import {
+  initializeSupportEmailAlertStorage,
+} from "../email/supportEmailAlert.indexes.js";
+import {
+  cancelAccountSupportReplyEmailAlert,
+} from "../email/supportEmailAlert.service.js";
+
+import {
   CONTACT_MESSAGE_SCHEMA_VERSION,
   CONTACT_RECENT_CONVERSATION_LIMIT,
   CONTACT_THREAD_MESSAGE_LIMIT,
@@ -296,7 +303,10 @@ export async function replyToContactConversation(
   const parsedInput = contactReplySchema.parse(input);
 
   try {
-    await initializeContactStorage();
+    await Promise.all([
+      initializeContactStorage(),
+      initializeSupportEmailAlertStorage(),
+    ]);
 
     const conversation = await findOwnedContactConversation(
       userId,
@@ -339,6 +349,22 @@ export async function replyToContactConversation(
           },
           session,
         );
+
+        if (appended) {
+          /*
+           * A user who replies in-app has already seen the conversation. Any
+           * still-pending grouped email alert for earlier administrator
+           * messages is no longer useful, so cancel it in the same transaction.
+           */
+          await cancelAccountSupportReplyEmailAlert(
+            {
+              conversationId: conversation._id,
+              userId,
+              cancelledAt: createdAt,
+            },
+            session,
+          );
+        }
       });
 
       if (!appended) {

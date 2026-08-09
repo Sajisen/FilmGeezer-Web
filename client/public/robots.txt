@@ -1,0 +1,38 @@
+# FilmGeezer crawler policy
+#
+# Search and user-directed AI retrieval are welcome.
+# Training-only crawlers from OpenAI and Anthropic are intentionally excluded;
+# their search/user retrieval crawlers remain allowed below.
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+# Keep Gemini training/grounding eligibility available.
+User-agent: Google-Extended
+Allow: /
+
+# Training-only crawlers are not required for FilmGeezer to appear in
+# ChatGPT Search or Claude web search.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+# All other well-behaved public crawlers may access the public site.
+User-agent: *
+Allow: /
+
+Sitemap: https://filmgeezer.site/sitemap.xml

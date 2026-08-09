@@ -17,8 +17,12 @@ export async function sendSupportReplyEmail(input: {
   referenceId: string;
   subject: string;
   replyBody: string;
+  replyCount?: number;
+  idempotencyKey?: string;
 }): Promise<void> {
-  const idempotencyKey = `support-reply/${input.messageId.toHexString()}`;
+  const idempotencyKey =
+    input.idempotencyKey ??
+    `support-reply/${input.messageId.toHexString()}`;
   const source = {
     type: "support-reply" as const,
     id: input.messageId.toHexString(),
@@ -34,6 +38,8 @@ export async function sendSupportReplyEmail(input: {
       referenceId: input.referenceId,
       subject: input.subject,
       conversationUrl: conversationUrl.toString(),
+      replyCount: Math.max(1, input.replyCount ?? 1),
+      publicAppUrl: env.CLIENT_APP_ORIGIN,
     });
 
     await sendTransactionalEmail({
@@ -56,6 +62,7 @@ export async function sendSupportReplyEmail(input: {
     subject: input.subject,
     replyBody: input.replyBody,
     contactUrl,
+    publicAppUrl: env.CLIENT_APP_ORIGIN,
   });
 
   await sendTransactionalEmail({

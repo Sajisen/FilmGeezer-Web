@@ -101,52 +101,112 @@ function RouteAccessibility() {
 
     dismissActiveBrowserInput();
 
-    const animationFrame =
+    let observer:
+      MutationObserver | null =
+      null;
+
+    let animationFrame = 0;
+
+    let handledReadyMain = false;
+
+    function synchronizeMain(): boolean {
+      const main =
+        document.querySelector<HTMLElement>(
+          "main",
+        );
+
+      if (!main) {
+        return false;
+      }
+
+      main.id =
+        "main-content";
+
+      main.tabIndex = -1;
+
+      if (
+        main.dataset
+          .routeLoading === "true"
+      ) {
+        return false;
+      }
+
+      if (handledReadyMain) {
+        return true;
+      }
+
+      handledReadyMain = true;
+
+      if (
+        isFirstRenderRef.current
+      ) {
+        isFirstRenderRef.current =
+          false;
+
+        return true;
+      }
+
+      main.focus({
+        preventScroll: true,
+      });
+
+      const pageHeading =
+        main.querySelector<HTMLElement>(
+          "h1",
+        );
+
+      const headingText =
+        pageHeading
+          ?.textContent
+          ?.trim();
+
+      setAnnouncement(
+        headingText ||
+          getFallbackAnnouncement(
+            location.pathname,
+          ),
+      );
+
+      return true;
+    }
+
+    animationFrame =
       window.requestAnimationFrame(
         () => {
-          const main =
-            document.querySelector<HTMLElement>(
-              "main",
+          if (synchronizeMain()) {
+            return;
+          }
+
+          const root =
+            document.getElementById(
+              "root",
             );
 
-          if (!main) {
+          if (!root) {
             return;
           }
 
-          main.id =
-            "main-content";
+          observer =
+            new MutationObserver(
+              () => {
+                if (
+                  synchronizeMain()
+                ) {
+                  observer?.disconnect();
+                  observer = null;
+                }
+              },
+            );
 
-          main.tabIndex = -1;
-
-          if (
-            isFirstRenderRef.current
-          ) {
-            isFirstRenderRef.current =
-              false;
-
-            return;
-          }
-
-          main.focus({
-            preventScroll: true,
+          observer.observe(root, {
+            childList: true,
+            subtree: true,
           });
 
-          const pageHeading =
-            main.querySelector<HTMLElement>(
-              "h1",
-            );
-
-          const headingText =
-            pageHeading
-              ?.textContent
-              ?.trim();
-
-          setAnnouncement(
-            headingText ||
-              getFallbackAnnouncement(
-                location.pathname,
-              ),
-          );
+          if (synchronizeMain()) {
+            observer.disconnect();
+            observer = null;
+          }
         },
       );
 
@@ -154,6 +214,8 @@ function RouteAccessibility() {
       window.cancelAnimationFrame(
         animationFrame,
       );
+
+      observer?.disconnect();
     };
   }, [
     location.pathname,

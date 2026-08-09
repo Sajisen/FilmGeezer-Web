@@ -147,7 +147,7 @@ function Navbar() {
             className="inline-flex shrink-0 items-center gap-2.5 justify-self-start rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
             <img
-              src="/filmgeezer-logo7.png"
+              src="/filmgeezer-logo-v1.webp"
               alt=""
               className="h-8 w-8 rounded-xl object-cover shadow-lg shadow-sky-950/35 sm:h-9 sm:w-9"
             />

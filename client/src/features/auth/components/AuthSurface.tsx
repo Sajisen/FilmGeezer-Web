@@ -401,7 +401,7 @@ function AuthSurface({
           <div className="relative">
             <div className="inline-flex items-center gap-3">
               <img
-                src="/filmgeezer-logo7.png"
+                src="/filmgeezer-logo-v1.webp"
                 alt=""
                 className="h-11 w-11 rounded-2xl object-cover shadow-lg shadow-sky-950/40"
               />
@@ -436,7 +436,7 @@ function AuthSurface({
           <div className="sticky top-0 z-20 flex items-center justify-between border-b border-white/8 bg-[radial-gradient(circle_at_left,rgba(14,165,233,0.2),transparent_48%),linear-gradient(to_bottom,rgba(15,23,42,0.98),rgba(15,23,42,0.94))] px-4 py-3 backdrop-blur lg:justify-end lg:border-b-0 lg:bg-gradient-to-b lg:from-slate-900 lg:via-slate-900/95 lg:to-transparent lg:px-5 lg:pb-2 lg:pt-4">
             <div className="inline-flex items-center gap-3 lg:hidden">
               <img
-                src="/filmgeezer-logo7.png"
+                src="/filmgeezer-logo-v1.webp"
                 alt=""
                 className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-sky-950/40"
               />

@@ -1,4 +1,7 @@
 import {
+  lazy,
+} from "react";
+import {
   BrowserRouter,
   Route,
   Routes,
@@ -10,7 +13,15 @@ import Navbar from "./components/Navbar";
 
 import BackToTopButton from "./components/navigation/BackToTopButton";
 import RouteAccessibility from "./components/navigation/RouteAccessibility";
+import RouteContentBoundary from "./components/navigation/RouteContentBoundary";
+import RouteMetadata from "./components/navigation/RouteMetadata";
+import {
+  PublicRouteErrorState,
+  PublicRouteLoadingState,
+} from "./components/navigation/PublicRouteState";
 import ScrollToTop from "./components/navigation/ScrollToTop";
+
+import { DocumentMetadataProvider } from "./features/metadata/documentMetadataContext";
 
 import {
   AuthProvider,
@@ -31,20 +42,53 @@ import {
   readAuthRouteState,
 } from "./features/auth/authNavigation";
 
-import AboutPage from "./pages/AboutPage";
-import AccountPage from "./pages/AccountPage";
-import AnimePage from "./pages/AnimePage";
-import ApiTestPage from "./pages/ApiTestPage";
-import ContactPage from "./pages/ContactPage";
 import HomePage from "./pages/HomePage";
-import KDramaPage from "./pages/KDramaPage";
-import MediaDetailsPage from "./pages/MediaDetailsPage";
-import MoviesPage from "./pages/MoviesPage";
 import NotFoundPage from "./pages/NotFoundPage";
-import NotificationsPage from "./pages/NotificationsPage";
-import SearchPage from "./pages/SearchPage";
-import TVSeriesPage from "./pages/TVSeriesPage";
-import WatchlistPage from "./pages/WatchlistPage";
+
+const AboutPage = lazy(
+  () => import("./pages/AboutPage"),
+);
+const AccountPage = lazy(
+  () => import("./pages/AccountPage"),
+);
+const AnimePage = lazy(
+  () => import("./pages/AnimePage"),
+);
+const ApiTestPage = lazy(
+  () => import("./pages/ApiTestPage"),
+);
+const ContactPage = lazy(
+  () => import("./pages/ContactPage"),
+);
+const KDramaPage = lazy(
+  () => import("./pages/KDramaPage"),
+);
+const MediaDetailsPage = lazy(
+  () =>
+    import("./pages/MediaDetailsPage"),
+);
+const MoviesPage = lazy(
+  () => import("./pages/MoviesPage"),
+);
+const NotificationsPage = lazy(
+  () =>
+    import("./pages/NotificationsPage"),
+);
+const PrivacyPage = lazy(
+  () => import("./pages/PrivacyPage"),
+);
+const SearchPage = lazy(
+  () => import("./pages/SearchPage"),
+);
+const TermsPage = lazy(
+  () => import("./pages/TermsPage"),
+);
+const TVSeriesPage = lazy(
+  () => import("./pages/TVSeriesPage"),
+);
+const WatchlistPage = lazy(
+  () => import("./pages/WatchlistPage"),
+);
 
 function ApplicationRoutes() {
   const location =
@@ -65,8 +109,15 @@ function ApplicationRoutes() {
     ) &&
     !backgroundLocation;
 
+  const routeBoundaryKey =
+    backgroundLocation
+      ? `${backgroundLocation.pathname}${backgroundLocation.search}`
+      : `${location.pathname}${location.search}`;
+
   return (
     <>
+      <RouteMetadata />
+
       {!isDirectAuthRoute && (
         <>
           <a
@@ -82,150 +133,174 @@ function ApplicationRoutes() {
         </>
       )}
 
-      <Routes
-        location={
-          backgroundLocation ??
-          location
+      <RouteContentBoundary
+        resetKey={routeBoundaryKey}
+        loadingFallback={
+          <PublicRouteLoadingState />
+        }
+        errorFallback={
+          <PublicRouteErrorState />
         }
       >
-        <Route
-          path="/"
-          element={<HomePage />}
-        />
-
-        <Route
-          path="/movies"
-          element={
-            <MoviesPage />
+        <Routes
+          location={
+            backgroundLocation ??
+            location
           }
-        />
+        >
+          <Route
+            path="/"
+            element={<HomePage />}
+          />
 
-        <Route
-          path="/tv"
-          element={
-            <TVSeriesPage />
-          }
-        />
+          <Route
+            path="/movies"
+            element={
+              <MoviesPage />
+            }
+          />
 
-        <Route
-          path="/anime"
-          element={
-            <AnimePage />
-          }
-        />
+          <Route
+            path="/tv"
+            element={
+              <TVSeriesPage />
+            }
+          />
 
-        <Route
-          path="/k-drama"
-          element={
-            <KDramaPage />
-          }
-        />
+          <Route
+            path="/anime"
+            element={
+              <AnimePage />
+            }
+          />
 
-        <Route
-          path="/search"
-          element={
-            <SearchPage />
-          }
-        />
+          <Route
+            path="/k-drama"
+            element={
+              <KDramaPage />
+            }
+          />
 
-        <Route
-          path="/media/:mediaType/:tmdbId"
-          element={
-            <MediaDetailsPage />
-          }
-        />
+          <Route
+            path="/search"
+            element={
+              <SearchPage />
+            }
+          />
 
-        <Route
-          path="/watchlist"
-          element={
-            <WatchlistPage />
-          }
-        />
+          <Route
+            path="/media/:mediaType/:tmdbId"
+            element={
+              <MediaDetailsPage />
+            }
+          />
 
-        <Route
-          path="/account"
-          element={
-            <AccountPage />
-          }
-        />
+          <Route
+            path="/watchlist"
+            element={
+              <WatchlistPage />
+            }
+          />
 
-        <Route
-          path="/contact"
-          element={
-            <ContactPage />
-          }
-        />
+          <Route
+            path="/account"
+            element={
+              <AccountPage />
+            }
+          />
 
-        <Route
-          path="/notifications"
-          element={
-            <NotificationsPage />
-          }
-        />
+          <Route
+            path="/contact"
+            element={
+              <ContactPage />
+            }
+          />
 
-        <Route
-          path="/about"
-          element={
-            <AboutPage />
-          }
-        />
+          <Route
+            path="/notifications"
+            element={
+              <NotificationsPage />
+            }
+          />
 
-        <Route
-          path="/api-test"
-          element={
-            <ApiTestPage />
-          }
-        />
+          <Route
+            path="/about"
+            element={
+              <AboutPage />
+            }
+          />
 
-        <Route
-          path="/login"
-          element={
-            <AuthRoute mode="login" />
-          }
-        />
+          <Route
+            path="/privacy"
+            element={
+              <PrivacyPage />
+            }
+          />
 
-        <Route
-          path="/register"
-          element={
-            <AuthRoute mode="register" />
-          }
-        />
+          <Route
+            path="/terms"
+            element={
+              <TermsPage />
+            }
+          />
 
-        <Route
-          path="/registration-pending"
-          element={
-            <AuthRoute mode="registration-pending" />
-          }
-        />
+          <Route
+            path="/api-test"
+            element={
+              <ApiTestPage />
+            }
+          />
 
-        <Route
-          path="/verify-email"
-          element={
-            <AuthRoute mode="verify-email" />
-          }
-        />
+          <Route
+            path="/login"
+            element={
+              <AuthRoute mode="login" />
+            }
+          />
 
-        <Route
-          path="/forgot-password"
-          element={
-            <AuthRoute mode="forgot-password" />
-          }
-        />
+          <Route
+            path="/register"
+            element={
+              <AuthRoute mode="register" />
+            }
+          />
 
-        <Route
-          path="/reset-password/:challengeId"
-          element={
-            <AuthRoute mode="reset-password" />
-          }
-        />
+          <Route
+            path="/registration-pending"
+            element={
+              <AuthRoute mode="registration-pending" />
+            }
+          />
 
-        <Route
-          path="*"
-          element={
-            <NotFoundPage />
-          }
-        />
-      </Routes>
+          <Route
+            path="/verify-email"
+            element={
+              <AuthRoute mode="verify-email" />
+            }
+          />
+
+          <Route
+            path="/forgot-password"
+            element={
+              <AuthRoute mode="forgot-password" />
+            }
+          />
+
+          <Route
+            path="/reset-password/:challengeId"
+            element={
+              <AuthRoute mode="reset-password" />
+            }
+          />
+
+          <Route
+            path="*"
+            element={
+              <NotFoundPage />
+            }
+          />
+        </Routes>
+      </RouteContentBoundary>
 
       {!isDirectAuthRoute && (
         <>
@@ -264,7 +339,6 @@ function ApplicationRoutes() {
             }
           />
 
-
           <Route
             path="/forgot-password"
             element={
@@ -290,7 +364,9 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <WatchlistProvider>
-            <ApplicationRoutes />
+            <DocumentMetadataProvider>
+              <ApplicationRoutes />
+            </DocumentMetadataProvider>
           </WatchlistProvider>
         </NotificationProvider>
       </AuthProvider>

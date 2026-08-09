@@ -1,8 +1,18 @@
-import { Router } from 'express'
-import { getHealth } from '../controllers/health.controller.js'
+import { Router } from "express";
 
-const router = Router()
+import {
+  getLivenessHealth,
+  getReadinessHealth,
+} from "../controllers/health.controller.js";
 
-router.get('/health', getHealth)
+const router = Router();
 
-export default router
+/*
+ * /health remains the Railway deployment readiness endpoint for backwards
+ * compatibility. /health/ready is the explicit equivalent for operators.
+ */
+router.get("/health", getReadinessHealth);
+router.get("/health/ready", getReadinessHealth);
+router.get("/health/live", getLivenessHealth);
+
+export default router;

@@ -12,6 +12,10 @@ import {
 } from "../auth/auth.constants.js";
 
 import {
+  sendPasswordChangedNoticeEmail,
+} from "../auth/auth.email.js";
+
+import {
   AuthCurrentPasswordInvalidError,
   AuthPasswordReuseError,
   AuthPersistenceError,
@@ -577,8 +581,12 @@ export async function changeAccountPassword(
   const session =
     client.startSession();
 
+  let result:
+    AccountPasswordChangeResult | null =
+      null;
+
   try {
-    const result =
+    result =
       await session.withTransaction(
         async () => {
           const user =
@@ -689,8 +697,6 @@ export async function changeAccountPassword(
         "Password change completed without returning a result.",
       );
     }
-
-    return result;
   } catch (error) {
     if (
       error instanceof
@@ -708,4 +714,41 @@ export async function changeAccountPassword(
   } finally {
     await session.endSession();
   }
+
+  const completedResult = result;
+
+  if (!completedResult) {
+    throw new AuthPersistenceError(
+      "Password change completed without a usable result.",
+    );
+  }
+
+  try {
+    await sendPasswordChangedNoticeEmail({
+      recipientEmail: auth.email,
+      displayName: auth.displayName,
+      changedAt,
+      idempotencyKey:
+        `password-changed-notice/${passwordChangedAuditId.toHexString()}`,
+      userId:
+        auth.userId.toHexString(),
+    });
+  } catch (error) {
+    /*
+     * The credential mutation has already committed. Provider availability
+     * must never roll back a successful password change or invalidate the
+     * freshly rotated session.
+     */
+    console.error(
+      "[account-password] Password-change security email could not be submitted.",
+      {
+        name:
+          error instanceof Error
+            ? error.name
+            : "UnknownError",
+      },
+    );
+  }
+
+  return completedResult;
 }

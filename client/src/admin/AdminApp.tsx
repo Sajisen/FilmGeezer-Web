@@ -1,4 +1,7 @@
 import {
+  lazy,
+} from "react";
+import {
   BrowserRouter,
   Navigate,
   Route,
@@ -8,15 +11,27 @@ import {
 import { getAdminRouterBasename } from "./adminRuntime";
 import { AdminAuthProvider } from "./auth/AdminAuthProvider";
 import { useAdminAuth } from "./auth/adminAuthContext";
+import AdminRouteMetadata from "./components/AdminRouteMetadata";
 import AdminShell from "./components/AdminShell";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminMfaEnrollmentPage from "./pages/AdminMfaEnrollmentPage";
 import AdminOverviewPage from "./pages/AdminOverviewPage";
-import AdminSecurityPage from "./pages/AdminSecurityPage";
-import AdminSupportPage from "./pages/AdminSupportPage";
-import AdminUsersPage from "./pages/AdminUsersPage";
-import AdminContentPage from "./pages/AdminContentPage";
-import AdminAuditPage from "./pages/AdminAuditPage";
+
+const AdminAuditPage = lazy(
+  () => import("./pages/AdminAuditPage"),
+);
+const AdminContentPage = lazy(
+  () => import("./pages/AdminContentPage"),
+);
+const AdminSecurityPage = lazy(
+  () => import("./pages/AdminSecurityPage"),
+);
+const AdminSupportPage = lazy(
+  () => import("./pages/AdminSupportPage"),
+);
+const AdminUsersPage = lazy(
+  () => import("./pages/AdminUsersPage"),
+);
 
 function AdminBootstrapScreen() {
   return (
@@ -24,7 +39,7 @@ function AdminBootstrapScreen() {
       <div className="rounded-[1.75rem] border border-white/[0.08] bg-slate-900/55 px-8 py-7 text-center shadow-2xl shadow-black/20 backdrop-blur-xl">
         <span className="mx-auto grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-sky-300/20 bg-sky-400/10 shadow-lg shadow-sky-950/30">
           <img
-            src="/filmgeezer-logo7.png"
+            src="/filmgeezer-logo-v1.webp"
             alt=""
             className="h-full w-full object-cover"
           />
@@ -76,6 +91,7 @@ function ProtectedAdminRoutes() {
 export default function AdminApp() {
   return (
     <BrowserRouter basename={getAdminRouterBasename()}>
+      <AdminRouteMetadata />
       <AdminAuthProvider>
         <ProtectedAdminRoutes />
       </AdminAuthProvider>

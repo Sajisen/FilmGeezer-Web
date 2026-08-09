@@ -1,6 +1,4 @@
-import type {
-  Server,
-} from "node:http";
+import type { Server } from "node:http";
 
 import app from "./app.js";
 import { closeMongoConnection } from "./config/database.js";
@@ -9,132 +7,220 @@ import { env } from "./config/env.js";
 import { initializeAuthStorage } from "./features/auth/auth.indexes.js";
 import { initializeWatchlistStorage } from "./features/watchlist/watchlist.indexes.js";
 import { initializePreferencesStorage } from "./features/preferences/preferences.indexes.js";
+import { initializeEmailPreferencesStorage } from "./features/emailPreferences/emailPreferences.indexes.js";
 import { initializeContactStorage } from "./features/contact/contact.indexes.js";
 import { initializeNotificationStorage } from "./features/notifications/notification.indexes.js";
 import { initializeAdminStorage } from "./features/admin/admin.indexes.js";
 import { initializeEmailDeliveryStorage } from "./features/email/email.indexes.js";
 import { isTransactionalEmailConfigured } from "./features/email/email.service.js";
+import { initializeSupportEmailAlertStorage } from "./features/email/supportEmailAlert.indexes.js";
+import {
+  startSupportEmailAlertWorker,
+  stopSupportEmailAlertWorker,
+} from "./features/email/supportEmailAlert.worker.js";
 import { isAdminWebAuthnConfigured } from "./features/admin/admin.passkey.config.js";
+import {
+  describeErrorForLog,
+  logger,
+} from "./utils/logger.js";
 
 const { PORT, HOST } = env;
 
+const HTTP_REQUEST_TIMEOUT_MILLISECONDS = 60_000;
+const HTTP_HEADERS_TIMEOUT_MILLISECONDS = 15_000;
+const HTTP_KEEP_ALIVE_TIMEOUT_MILLISECONDS = 5_000;
+const HTTP_MAX_HEADERS_COUNT = 100;
+const SHUTDOWN_GRACE_PERIOD_MILLISECONDS = 10_000;
+
 let server: Server | null = null;
 let isShuttingDown = false;
-
-function describeError(error: unknown) {
-  return {
-    name:
-      error instanceof Error
-        ? error.name
-        : "UnknownError",
-
-    message:
-      env.NODE_ENV === "development" &&
-      error instanceof Error
-        ? error.message
-        : undefined,
-  };
-}
 
 async function initializeApplicationStorage(): Promise<void> {
   await Promise.all([
     initializeAuthStorage(),
     initializeWatchlistStorage(),
     initializePreferencesStorage(),
+    initializeEmailPreferencesStorage(),
     initializeContactStorage(),
     initializeNotificationStorage(),
     initializeAdminStorage(),
     initializeEmailDeliveryStorage(),
+    initializeSupportEmailAlertStorage(),
   ]);
+}
+
+function configureHttpServer(activeServer: Server): void {
+  activeServer.requestTimeout = HTTP_REQUEST_TIMEOUT_MILLISECONDS;
+  activeServer.headersTimeout = HTTP_HEADERS_TIMEOUT_MILLISECONDS;
+  activeServer.keepAliveTimeout = HTTP_KEEP_ALIVE_TIMEOUT_MILLISECONDS;
+  activeServer.maxHeadersCount = HTTP_MAX_HEADERS_COUNT;
 }
 
 async function startServer(): Promise<void> {
   try {
     await initializeApplicationStorage();
   } catch (error) {
-    console.error(
-      "FilmGeezer application storage could not be initialized.",
-      describeError(error),
-    );
+    logger.error("server.storage_initialization_failed", {
+      error: describeErrorForLog(error),
+    });
 
     try {
       await closeMongoConnection();
     } catch (databaseError) {
-      console.error(
-        "MongoDB connection could not be closed after startup failure.",
-        describeError(databaseError),
-      );
+      logger.error("server.startup_database_close_failed", {
+        error: describeErrorForLog(databaseError),
+      });
     }
 
     process.exitCode = 1;
     return;
   }
 
-  console.log("FilmGeezer application storage is ready.");
-  console.log(
-    isAdminWebAuthnConfigured()
-      ? `Administrator passkeys are ready for ${env.ADMIN_WEBAUTHN_ORIGIN}.`
-      : "Administrator passkeys are disabled until ADMIN_WEBAUTHN_RP_ID and ADMIN_WEBAUTHN_ORIGIN are configured.",
-  );
-  console.log(
-    isTransactionalEmailConfigured()
-      ? env.NODE_ENV === "production"
-        ? `Transactional email is ready through Resend as ${env.RESEND_FROM_EMAIL}.`
-        : "Transactional email is using the development console adapter."
-      : "Transactional email is not configured.",
-  );
+  if (isShuttingDown) {
+    logger.info("server.startup_aborted", {
+      reason: "shutdown-in-progress",
+    });
+    return;
+  }
 
-  server = app.listen(PORT, HOST, () => {
-    console.log("FilmGeezer API is running");
-    console.log(`Local:   http://localhost:${PORT}`);
-    console.log(`Listening on all network interfaces at port ${PORT}`);
+  logger.info("server.storage_ready");
+  logger.info("server.admin_passkeys", {
+    configured: isAdminWebAuthnConfigured(),
+    origin: isAdminWebAuthnConfigured()
+      ? env.ADMIN_WEBAUTHN_ORIGIN
+      : undefined,
   });
+  logger.info("server.transactional_email", {
+    configured: isTransactionalEmailConfigured(),
+    adapter:
+      isTransactionalEmailConfigured() && env.NODE_ENV === "production"
+        ? "resend"
+        : isTransactionalEmailConfigured()
+          ? "development-console"
+          : "disabled",
+  });
+
+  const activeServer = app.listen(PORT, HOST, () => {
+    if (isShuttingDown) {
+      return;
+    }
+
+    startSupportEmailAlertWorker();
+
+    logger.info("server.started", {
+      host: HOST,
+      port: PORT,
+      requestTimeoutMilliseconds: HTTP_REQUEST_TIMEOUT_MILLISECONDS,
+      headersTimeoutMilliseconds: HTTP_HEADERS_TIMEOUT_MILLISECONDS,
+      keepAliveTimeoutMilliseconds: HTTP_KEEP_ALIVE_TIMEOUT_MILLISECONDS,
+      maxHeadersCount: HTTP_MAX_HEADERS_COUNT,
+    });
+  });
+
+  configureHttpServer(activeServer);
+  server = activeServer;
 }
 
 async function closeApplicationResources(): Promise<void> {
   try {
+    await stopSupportEmailAlertWorker();
+  } catch (workerError) {
+    logger.error("server.worker_shutdown_failed", {
+      worker: "support-email-alert",
+      error: describeErrorForLog(workerError),
+    });
+
+    process.exitCode = 1;
+  }
+
+  try {
     await closeMongoConnection();
   } catch (databaseError) {
-    console.error(
-      "MongoDB connection could not be closed cleanly.",
-      describeError(databaseError),
-    );
+    logger.error("server.database_shutdown_failed", {
+      error: describeErrorForLog(databaseError),
+    });
 
     process.exitCode = 1;
   }
 }
 
-async function shutdown(signal: string): Promise<void> {
+async function shutdown(
+  reason: string,
+  requestedExitCode = 0,
+): Promise<void> {
   if (isShuttingDown) {
     return;
   }
 
   isShuttingDown = true;
-  console.log(`${signal} received. Closing FilmGeezer API...`);
+
+  if (requestedExitCode !== 0) {
+    process.exitCode = requestedExitCode;
+  }
+
+  logger.info("server.shutdown_started", {
+    reason,
+    gracePeriodMilliseconds: SHUTDOWN_GRACE_PERIOD_MILLISECONDS,
+  });
 
   const activeServer = server;
 
-  if (!activeServer) {
+  const forceShutdownTimer = setTimeout(() => {
+    logger.error("server.shutdown_forced", {
+      reason,
+      gracePeriodMilliseconds: SHUTDOWN_GRACE_PERIOD_MILLISECONDS,
+    });
+
+    activeServer?.closeAllConnections();
+    process.exit(process.exitCode ?? 1);
+  }, SHUTDOWN_GRACE_PERIOD_MILLISECONDS);
+
+  forceShutdownTimer.unref();
+
+  try {
+    if (activeServer) {
+      await new Promise<void>((resolve) => {
+        activeServer.close((serverError) => {
+          if (serverError) {
+            logger.error("server.http_shutdown_failed", {
+              error: describeErrorForLog(serverError),
+            });
+
+            process.exitCode = 1;
+          }
+
+          resolve();
+        });
+
+        activeServer.closeIdleConnections();
+      });
+    }
+
     await closeApplicationResources();
-    return;
+  } finally {
+    clearTimeout(forceShutdownTimer);
   }
 
-  await new Promise<void>((resolve) => {
-    activeServer.close((serverError) => {
-      if (serverError) {
-        console.error(
-          "HTTP server could not be closed cleanly.",
-          describeError(serverError),
-        );
+  logger.info("server.shutdown_completed", {
+    reason,
+    exitCode: process.exitCode ?? 0,
+  });
+}
 
-        process.exitCode = 1;
-      }
-
-      resolve();
-    });
+function handleFatalProcessError(
+  event: "uncaughtException" | "unhandledRejection",
+  error: unknown,
+): void {
+  logger.error("server.fatal_process_error", {
+    event,
+    error: describeErrorForLog(error),
   });
 
-  await closeApplicationResources();
+  if (isShuttingDown) {
+    process.exit(1);
+  }
+
+  void shutdown(event, 1);
 }
 
 process.once("SIGINT", () => {
@@ -143,6 +229,14 @@ process.once("SIGINT", () => {
 
 process.once("SIGTERM", () => {
   void shutdown("SIGTERM");
+});
+
+process.on("uncaughtException", (error) => {
+  handleFatalProcessError("uncaughtException", error);
+});
+
+process.on("unhandledRejection", (reason) => {
+  handleFatalProcessError("unhandledRejection", reason);
 });
 
 void startServer();

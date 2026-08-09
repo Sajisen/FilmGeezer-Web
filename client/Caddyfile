@@ -3,6 +3,9 @@
     persist_config off
     auto_https off
 
+    # Keep Caddy's own low-volume runtime logs structured for Railway.
+    # Do not enable site-level HTTP access logging: Railway already provides
+    # native HTTP request logs.
     log {
         format json
     }
@@ -13,29 +16,65 @@
 }
 
 :{$PORT:3000} {
-    log {
-        format json
-    }
-
     @health path /health
     respond @health "ok" 200
+
+    # The administrator hostname is intentionally private from crawler
+    # discovery, even though the same Railway service serves both hostnames.
+    @adminRobots {
+        host admin.filmgeezer.site
+        path /robots.txt
+    }
+    header @adminRobots Content-Type "text/plain; charset=utf-8"
+    respond @adminRobots "User-agent: *\nDisallow: /\n" 200
+
+    @adminDiscoveryFiles {
+        host admin.filmgeezer.site
+        path /sitemap.xml /llms.txt /llms-full.txt
+    }
+    respond @adminDiscoveryFiles 404
+
+    # Keep one public canonical host. This prevents the www hostname from
+    # becoming a duplicate copy of the public FilmGeezer site.
+    @wwwHost host www.filmgeezer.site
+    redir @wwwHost https://filmgeezer.site{uri} 308
 
     root * dist
     encode gzip
 
-    @assets path /assets/*
-    header @assets Cache-Control "public, max-age=31536000, immutable"
+    @immutableAssets {
+        path /assets/* /filmgeezer-logo-v1.webp /filmgeezer-icon-64.png /filmgeezer-icon-180.png /filmgeezer-social-512.png
+    }
+    header @immutableAssets Cache-Control "public, max-age=31536000, immutable"
 
-    @application not path /assets/*
+    @application {
+        not path /assets/* /filmgeezer-logo-v1.webp /filmgeezer-icon-64.png /filmgeezer-icon-180.png /filmgeezer-social-512.png
+    }
     header @application Cache-Control "no-cache"
+
+    # The same Railway frontend service also serves admin.filmgeezer.site.
+    # Search-engine controls are not a security boundary, but the admin
+    # application should never be intentionally indexed.
+    @adminHost host admin.filmgeezer.site
+    header @adminHost X-Robots-Tag "noindex, nofollow"
+
+    # These routes are user-specific, authentication-related, generated search
+    # results, or development utilities rather than useful public landing pages.
+    @nonIndexableRoutes path /search* /watchlist* /account* /notifications* /login* /register* /registration-pending* /verify-email* /forgot-password* /reset-password* /api-test*
+    header @nonIndexableRoutes X-Robots-Tag "noindex, nofollow"
 
     header {
         -Server
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
         X-Frame-Options "DENY"
+        Strict-Transport-Security "max-age=31536000"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
     }
 
-    try_files {path} /index.html
+    # Stable public routes receive generated HTML shells with their own
+    # title/description/canonical metadata. Dynamic/private SPA routes still
+    # fall back to index.html.
+    try_files {path}.html {path} /index.html
     file_server
 }

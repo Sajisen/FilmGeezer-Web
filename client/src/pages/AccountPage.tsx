@@ -21,6 +21,7 @@ import AccountHero from "../features/account/components/AccountHero";
 import AccountNavigation from "../features/account/components/AccountNavigation";
 import ChangePasswordPanel from "../features/account/components/ChangePasswordPanel";
 import EmailChangePanel from "../features/account/components/EmailChangePanel";
+import EmailPreferencesPanel from "../features/account/components/EmailPreferencesPanel";
 import ProfileEditor from "../features/account/components/ProfileEditor";
 import RecentPasswordDialog from "../features/account/components/RecentPasswordDialog";
 import SessionManager from "../features/account/components/SessionManager";
@@ -949,24 +950,30 @@ function AccountPage() {
               )}
 
               {activeTab === "account" && (
-                <AccountControls
-                  isSigningOutCurrent={isSigningOutCurrent}
-                  currentSignOutError={currentSignOutError}
-                  onSignOutCurrent={() => {
-                    void handleSignOutCurrentDevice();
-                  }}
-                  isSigningOutAll={isSigningOutAll}
-                  onSignOutAll={() => {
-                    beginSensitiveAction(
-                      "sign-out-all",
-                    );
-                  }}
-                  onDeactivate={() => {
-                    beginSensitiveAction(
-                      "deactivate-account",
-                    );
-                  }}
-                />
+                <div className="w-full space-y-4">
+                  <EmailPreferencesPanel
+                    csrfToken={csrfToken}
+                  />
+
+                  <AccountControls
+                    isSigningOutCurrent={isSigningOutCurrent}
+                    currentSignOutError={currentSignOutError}
+                    onSignOutCurrent={() => {
+                      void handleSignOutCurrentDevice();
+                    }}
+                    isSigningOutAll={isSigningOutAll}
+                    onSignOutAll={() => {
+                      beginSensitiveAction(
+                        "sign-out-all",
+                      );
+                    }}
+                    onDeactivate={() => {
+                      beginSensitiveAction(
+                        "deactivate-account",
+                      );
+                    }}
+                  />
+                </div>
               )}
               </section>
             </div>

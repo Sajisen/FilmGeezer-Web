@@ -11,7 +11,7 @@ import { usePersonalRecommendations } from "../hooks/usePersonalRecommendations"
 import { createCollectionRowAllocator } from "../utils/collectionRows";
 import { excludeMediaItems } from "../utils/recommendations";
 import { buildSearchHref } from "../utils/searchLinks";
-import kdramaBanner from "../assets/images/kdrama-banner.png";
+import kdramaBanner from "../assets/images/kdrama-banner.webp";
 
 const CURATED_ROW_LIMIT = 28;
 
