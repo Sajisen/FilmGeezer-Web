@@ -11,6 +11,7 @@ import {
 import { getAdminRouterBasename } from "./adminRuntime";
 import { AdminAuthProvider } from "./auth/AdminAuthProvider";
 import { useAdminAuth } from "./auth/adminAuthContext";
+import AdminRouteMetadata from "./components/AdminRouteMetadata";
 import AdminShell from "./components/AdminShell";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminMfaEnrollmentPage from "./pages/AdminMfaEnrollmentPage";
@@ -90,6 +91,7 @@ function ProtectedAdminRoutes() {
 export default function AdminApp() {
   return (
     <BrowserRouter basename={getAdminRouterBasename()}>
+      <AdminRouteMetadata />
       <AdminAuthProvider>
         <ProtectedAdminRoutes />
       </AdminAuthProvider>

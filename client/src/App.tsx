@@ -14,6 +14,7 @@ import Navbar from "./components/Navbar";
 import BackToTopButton from "./components/navigation/BackToTopButton";
 import RouteAccessibility from "./components/navigation/RouteAccessibility";
 import RouteContentBoundary from "./components/navigation/RouteContentBoundary";
+import RouteMetadata from "./components/navigation/RouteMetadata";
 import {
   PublicRouteErrorState,
   PublicRouteLoadingState,
@@ -107,6 +108,8 @@ function ApplicationRoutes() {
 
   return (
     <>
+      <RouteMetadata />
+
       {!isDirectAuthRoute && (
         <>
           <a
