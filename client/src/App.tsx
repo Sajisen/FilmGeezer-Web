@@ -21,6 +21,8 @@ import {
 } from "./components/navigation/PublicRouteState";
 import ScrollToTop from "./components/navigation/ScrollToTop";
 
+import { DocumentMetadataProvider } from "./features/metadata/documentMetadataContext";
+
 import {
   AuthProvider,
 } from "./features/auth/AuthProvider";
@@ -362,7 +364,9 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <WatchlistProvider>
-            <ApplicationRoutes />
+            <DocumentMetadataProvider>
+              <ApplicationRoutes />
+            </DocumentMetadataProvider>
           </WatchlistProvider>
         </NotificationProvider>
       </AuthProvider>

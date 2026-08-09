@@ -11,6 +11,7 @@ import type { MediaDetails, MediaItem } from "../types/media";
 import type { ProviderLinksPayload } from "../types/providerLink";
 import { getLanguageName } from "../utils/language";
 import MediaDetailsContainer from "../components/details/MediaDetailsContainer";
+import MediaDetailsMetadata from "../components/details/MediaDetailsMetadata";
 import MediaTrailerSection from "../components/details/MediaTrailerSection";
 import WatchAvailabilitySection from "../components/details/WatchAvailabilitySection";
 import FeaturedCharactersSection from "../components/details/FeaturedCharactersSection";
@@ -492,7 +493,10 @@ function MediaDetailsPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-slate-950 text-white">
+    <>
+      <MediaDetailsMetadata media={selectedMedia} />
+
+      <main className="min-h-screen overflow-x-clip bg-slate-950 text-white">
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0">
           <img
@@ -750,7 +754,8 @@ function MediaDetailsPage() {
           moreLikeThisState.isReady
         }
       />
-    </main>
+      </main>
+    </>
   );
 }
 

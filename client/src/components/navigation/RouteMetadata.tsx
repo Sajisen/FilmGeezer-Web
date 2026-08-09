@@ -2,17 +2,20 @@ import { useEffect } from "react";
 import { useLocation } from "react-router";
 
 import { readAuthRouteState } from "../../features/auth/authNavigation";
-
-const PUBLIC_SITE_ORIGIN = "https://filmgeezer.site";
-const SOCIAL_IMAGE_URL =
-  "https://filmgeezer.site/filmgeezer-social-512.png";
-const WEBSITE_STRUCTURED_DATA_ID =
-  "filmgeezer-website-structured-data";
-
-const DEFAULT_TITLE =
-  "FilmGeezer — Movies, TV, Anime & K-Drama Discovery";
-const DEFAULT_DESCRIPTION =
-  "Discover movies, TV series, anime, and K-dramas with FilmGeezer.";
+import {
+  useDocumentMetadataContext,
+  type DocumentMetadataOverride,
+  type DocumentStructuredData,
+} from "../../features/metadata/documentMetadataContext";
+import {
+  applyDocumentMetadata,
+  DEFAULT_DOCUMENT_DESCRIPTION,
+  DEFAULT_DOCUMENT_TITLE,
+  PUBLIC_SITE_ORIGIN,
+  SOCIAL_IMAGE_URL,
+  WEBSITE_STRUCTURED_DATA_ID,
+  syncManagedStructuredData,
+} from "./documentMetadata";
 
 type RouteMetadataDefinition = {
   title: string;
@@ -22,8 +25,8 @@ type RouteMetadataDefinition = {
 
 const STATIC_PUBLIC_ROUTES: Record<string, RouteMetadataDefinition> = {
   "/": {
-    title: DEFAULT_TITLE,
-    description: DEFAULT_DESCRIPTION,
+    title: DEFAULT_DOCUMENT_TITLE,
+    description: DEFAULT_DOCUMENT_DESCRIPTION,
     indexable: true,
   },
   "/movies": {
@@ -156,144 +159,87 @@ function getRouteMetadata(pathname: string): RouteMetadataDefinition {
       title: "Title details | FilmGeezer",
       description:
         "Explore title details, trailers, episodes, availability, and recommendations on FilmGeezer.",
-      indexable: true,
+      indexable: false,
     };
   }
 
   return {
     title: "Page not found | FilmGeezer",
-    description: DEFAULT_DESCRIPTION,
+    description: DEFAULT_DOCUMENT_DESCRIPTION,
     indexable: false,
   };
 }
 
-function upsertMetaByName(name: string, content: string): void {
-  let element = document.head.querySelector<HTMLMetaElement>(
-    `meta[name="${name}"]`,
-  );
-
-  if (!element) {
-    element = document.createElement("meta");
-    element.name = name;
-    document.head.append(element);
-  }
-
-  element.content = content;
+function createWebsiteStructuredData(): DocumentStructuredData {
+  return {
+    id: WEBSITE_STRUCTURED_DATA_ID,
+    value: {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": `${PUBLIC_SITE_ORIGIN}/#website`,
+      url: `${PUBLIC_SITE_ORIGIN}/`,
+      name: "FilmGeezer",
+      alternateName: ["Film Geezer", "filmgeezer.site"],
+      description: DEFAULT_DOCUMENT_DESCRIPTION,
+      inLanguage: "en",
+    },
+  };
 }
 
-function upsertMetaByProperty(property: string, content: string): void {
-  let element = document.head.querySelector<HTMLMetaElement>(
-    `meta[property="${property}"]`,
-  );
-
-  if (!element) {
-    element = document.createElement("meta");
-    element.setAttribute("property", property);
-    document.head.append(element);
-  }
-
-  element.content = content;
-}
-
-function upsertCanonical(href: string | null): void {
-  let element = document.head.querySelector<HTMLLinkElement>(
-    'link[rel="canonical"]',
-  );
-
-  if (!href) {
-    element?.remove();
-    return;
-  }
-
-  if (!element) {
-    element = document.createElement("link");
-    element.rel = "canonical";
-    document.head.append(element);
-  }
-
-  element.href = href;
-}
-
-function buildCanonicalUrl(pathname: string): string {
-  return new URL(normalizePathname(pathname), PUBLIC_SITE_ORIGIN).toString();
-}
-
-function syncWebsiteStructuredData(enabled: boolean): void {
-  const existing = document.getElementById(WEBSITE_STRUCTURED_DATA_ID);
-
-  if (!enabled) {
-    existing?.remove();
-    return;
-  }
-
-  const script =
-    existing instanceof HTMLScriptElement
-      ? existing
-      : document.createElement("script");
-
-  script.id = WEBSITE_STRUCTURED_DATA_ID;
-  script.type = "application/ld+json";
-  script.text = JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": `${PUBLIC_SITE_ORIGIN}/#website`,
-    url: `${PUBLIC_SITE_ORIGIN}/`,
-    name: "FilmGeezer",
-    alternateName: ["Film Geezer", "filmgeezer.site"],
-    description: DEFAULT_DESCRIPTION,
-    inLanguage: "en",
-  });
-
-  if (!existing) {
-    document.head.append(script);
-  }
+function overrideMatchesPath(
+  metadataOverride: DocumentMetadataOverride | null,
+  pathname: string,
+): metadataOverride is DocumentMetadataOverride {
+  return metadataOverride?.pathname === pathname;
 }
 
 export default function RouteMetadata() {
   const location = useLocation();
   const authRouteState = readAuthRouteState(location.state);
+  const { metadataOverride } = useDocumentMetadataContext();
 
   const effectivePathname =
     authRouteState.backgroundLocation?.pathname ?? location.pathname;
 
   useEffect(() => {
     const normalizedPathname = normalizePathname(effectivePathname);
-    const metadata = getRouteMetadata(normalizedPathname);
-    const canonicalUrl = metadata.indexable
-      ? buildCanonicalUrl(normalizedPathname)
+    const routeMetadata = getRouteMetadata(normalizedPathname);
+    const matchingOverride = overrideMatchesPath(
+      metadataOverride,
+      normalizedPathname,
+    )
+      ? metadataOverride
       : null;
 
-    document.title = metadata.title;
+    const title = matchingOverride?.title ?? routeMetadata.title;
+    const description =
+      matchingOverride?.description ?? routeMetadata.description;
+    const indexable =
+      matchingOverride?.indexable ?? routeMetadata.indexable;
+    const canonicalPath =
+      matchingOverride?.canonicalPath ??
+      (routeMetadata.indexable ? normalizedPathname : null);
 
-    upsertMetaByName("description", metadata.description);
-    upsertMetaByName(
-      "robots",
-      metadata.indexable
-        ? "index, follow, max-image-preview:large"
-        : "noindex, nofollow",
-    );
+    applyDocumentMetadata({
+      title,
+      description,
+      indexable,
+      canonicalPath,
+      imageUrl: matchingOverride?.imageUrl ?? SOCIAL_IMAGE_URL,
+      imageAlt: matchingOverride?.imageAlt ?? "FilmGeezer logo",
+      twitterCard: matchingOverride?.twitterCard ?? "summary",
+    });
 
-    upsertMetaByProperty("og:type", "website");
-    upsertMetaByProperty("og:site_name", "FilmGeezer");
-    upsertMetaByProperty("og:title", metadata.title);
-    upsertMetaByProperty("og:description", metadata.description);
-    upsertMetaByProperty(
-      "og:url",
-      canonicalUrl ?? `${PUBLIC_SITE_ORIGIN}/`,
-    );
-    upsertMetaByProperty("og:image", SOCIAL_IMAGE_URL);
-    upsertMetaByProperty("og:image:width", "512");
-    upsertMetaByProperty("og:image:height", "512");
-    upsertMetaByProperty("og:image:alt", "FilmGeezer logo");
+    const structuredData: DocumentStructuredData[] = [];
 
-    upsertMetaByName("twitter:card", "summary");
-    upsertMetaByName("twitter:title", metadata.title);
-    upsertMetaByName("twitter:description", metadata.description);
-    upsertMetaByName("twitter:image", SOCIAL_IMAGE_URL);
+    if (matchingOverride?.structuredData) {
+      structuredData.push(matchingOverride.structuredData);
+    } else if (normalizedPathname === "/") {
+      structuredData.push(createWebsiteStructuredData());
+    }
 
-    upsertCanonical(canonicalUrl);
-    syncWebsiteStructuredData(normalizedPathname === "/");
-  }, [effectivePathname]);
+    syncManagedStructuredData(structuredData);
+  }, [effectivePathname, metadataOverride]);
 
   return null;
 }
