@@ -11,6 +11,7 @@ import {
 } from "react-router";
 
 import ProfileAvatar from "../../components/ProfileAvatar";
+import RouteContentBoundary from "../../components/navigation/RouteContentBoundary";
 import { getPublicAppOrigin } from "../adminRuntime";
 import { useAdminAuth } from "../auth/adminAuthContext";
 import AdminIcon, { type AdminIconName } from "./AdminIcon";
@@ -75,6 +76,53 @@ const ROUTE_TITLES: Array<{ prefix: string; title: string }> = [
   { prefix: "/settings", title: "Administrator security" },
   { prefix: "/", title: "Operations overview" },
 ];
+
+function AdminRouteLoadingState() {
+  return (
+    <section
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className="flex min-h-56 items-center justify-center rounded-3xl border border-white/[0.07] bg-slate-950/25 px-6 text-center"
+    >
+      <div className="flex max-w-sm flex-col items-center">
+        <span
+          aria-hidden="true"
+          className="h-9 w-9 animate-spin rounded-full border-[3px] border-sky-300 border-t-transparent motion-reduce:animate-none"
+        />
+        <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-sky-300">
+          Loading workspace
+        </p>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Preparing this administrator view…
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function AdminRouteErrorState() {
+  return (
+    <section className="rounded-3xl border border-red-300/15 bg-red-400/[0.045] p-6 shadow-2xl shadow-black/15 sm:p-8">
+      <p className="text-[0.64rem] font-black uppercase tracking-[0.2em] text-red-200">
+        Workspace unavailable
+      </p>
+      <h1 className="mt-3 text-2xl font-black tracking-tight text-white">
+        This administrator view could not be loaded.
+      </h1>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+        A deployed application file may have changed or the connection may have been interrupted. Reload the administrator application before retrying the operation.
+      </p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="mt-6 inline-flex min-h-10 items-center justify-center rounded-xl bg-sky-400 px-4 text-xs font-black text-slate-950 transition hover:bg-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+      >
+        Reload administration
+      </button>
+    </section>
+  );
+}
 
 function AdminMark() {
   return (
@@ -247,7 +295,7 @@ export default function AdminShell({
 }: {
   children?: ReactNode;
 }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { user, security, signOut } = useAdminAuth();
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -394,7 +442,17 @@ export default function AdminShell({
         </header>
 
         <main className="mx-auto min-h-[calc(100vh-4.5rem)] max-w-[1520px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-10 xl:py-9">
-          {children ?? <Outlet />}
+          <RouteContentBoundary
+            resetKey={`${pathname}${search}`}
+            loadingFallback={
+              <AdminRouteLoadingState />
+            }
+            errorFallback={
+              <AdminRouteErrorState />
+            }
+          >
+            {children ?? <Outlet />}
+          </RouteContentBoundary>
         </main>
       </div>
     </div>

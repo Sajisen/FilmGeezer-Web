@@ -1,4 +1,7 @@
 import {
+  lazy,
+} from "react";
+import {
   BrowserRouter,
   Navigate,
   Route,
@@ -12,11 +15,22 @@ import AdminShell from "./components/AdminShell";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminMfaEnrollmentPage from "./pages/AdminMfaEnrollmentPage";
 import AdminOverviewPage from "./pages/AdminOverviewPage";
-import AdminSecurityPage from "./pages/AdminSecurityPage";
-import AdminSupportPage from "./pages/AdminSupportPage";
-import AdminUsersPage from "./pages/AdminUsersPage";
-import AdminContentPage from "./pages/AdminContentPage";
-import AdminAuditPage from "./pages/AdminAuditPage";
+
+const AdminAuditPage = lazy(
+  () => import("./pages/AdminAuditPage"),
+);
+const AdminContentPage = lazy(
+  () => import("./pages/AdminContentPage"),
+);
+const AdminSecurityPage = lazy(
+  () => import("./pages/AdminSecurityPage"),
+);
+const AdminSupportPage = lazy(
+  () => import("./pages/AdminSupportPage"),
+);
+const AdminUsersPage = lazy(
+  () => import("./pages/AdminUsersPage"),
+);
 
 function AdminBootstrapScreen() {
   return (
