@@ -153,7 +153,9 @@ const defaultLogFormat =
   rawNodeEnvironment === "development" ? "pretty" : "json";
 
 const defaultHttpAccessLogMode =
-  rawNodeEnvironment === "test" ? "off" : "mutations";
+  rawNodeEnvironment === "development"
+    ? "operational"
+    : "off";
 
 const logLevelSchema = z.enum([
   "debug",
@@ -168,6 +170,7 @@ const logFormatSchema = z.enum(["pretty", "json"]);
 const httpAccessLogModeSchema = z.enum([
   "off",
   "errors",
+  "operational",
   "mutations",
   "all",
 ]);
