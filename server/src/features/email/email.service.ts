@@ -2,6 +2,11 @@ import { Resend } from "resend";
 
 import { env } from "../../config/env.js";
 import {
+  FILMGEEZER_EMAIL_LOGO_BASE64,
+  FILMGEEZER_EMAIL_LOGO_CONTENT_ID,
+  FILMGEEZER_EMAIL_LOGO_FILENAME,
+} from "./email.brand.js";
+import {
   TransactionalEmailConfigurationError,
   TransactionalEmailDeliveryError,
   TransactionalEmailPersistenceError,
@@ -150,6 +155,13 @@ export async function sendTransactionalEmail(
         subject: message.subject,
         html: message.html,
         text: message.text,
+        attachments: [
+          {
+            filename: FILMGEEZER_EMAIL_LOGO_FILENAME,
+            content: FILMGEEZER_EMAIL_LOGO_BASE64,
+            contentId: FILMGEEZER_EMAIL_LOGO_CONTENT_ID,
+          },
+        ],
         tags: [
           {
             name: "app",

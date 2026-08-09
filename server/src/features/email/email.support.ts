@@ -39,6 +39,7 @@ export async function sendSupportReplyEmail(input: {
       subject: input.subject,
       conversationUrl: conversationUrl.toString(),
       replyCount: Math.max(1, input.replyCount ?? 1),
+      publicAppUrl: env.CLIENT_APP_ORIGIN,
     });
 
     await sendTransactionalEmail({
@@ -61,6 +62,7 @@ export async function sendSupportReplyEmail(input: {
     subject: input.subject,
     replyBody: input.replyBody,
     contactUrl,
+    publicAppUrl: env.CLIENT_APP_ORIGIN,
   });
 
   await sendTransactionalEmail({

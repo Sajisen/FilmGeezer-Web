@@ -12,6 +12,10 @@ import {
 } from "./auth.challenge.js";
 
 import {
+  sendPasswordResetCompletedNoticeEmail,
+} from "./auth.email.js";
+
+import {
   AuthPasswordResetError,
   AuthPasswordReuseError,
   type AuthPasswordResetRejectionReason,
@@ -314,8 +318,12 @@ export async function resetLocalPassword(
   const client = await getMongoClient();
   const session = client.startSession();
 
+  let transactionResult:
+    PasswordResetResult | null =
+      null;
+
   try {
-    const transactionResult =
+    transactionResult =
       await session.withTransaction(
         async () => {
           const challengeWasConsumed =
@@ -375,7 +383,8 @@ export async function resetLocalPassword(
               {
                 userId: user._id,
                 revokedAt: resetAt,
-                reason: "password-changed",
+                reason:
+                  "password-changed",
               },
               session,
             );
@@ -402,7 +411,8 @@ export async function resetLocalPassword(
               auditEventId:
                 passwordAuditEventId,
               userId: user._id,
-              eventType: "password-changed",
+              eventType:
+                "password-changed",
               outcome: "success",
               details: {
                 source: "password-reset",
@@ -415,7 +425,8 @@ export async function resetLocalPassword(
           return {
             resetAt,
             sessionsRevoked,
-          } satisfies PasswordResetResult;
+          } satisfies
+            PasswordResetResult;
         },
         PASSWORD_RESET_TRANSACTION_OPTIONS,
       );
@@ -425,12 +436,12 @@ export async function resetLocalPassword(
         "Password reset completed without returning a result.",
       );
     }
-
-    return transactionResult;
   } catch (error) {
     if (
-      error instanceof AuthPasswordResetError ||
-      error instanceof AuthPersistenceError
+      error instanceof
+        AuthPasswordResetError ||
+      error instanceof
+        AuthPersistenceError
     ) {
       throw error;
     }
@@ -444,4 +455,43 @@ export async function resetLocalPassword(
   } finally {
     await session.endSession();
   }
+
+  const completedReset =
+    transactionResult;
+
+  if (!completedReset) {
+    throw new AuthPersistenceError(
+      "Password reset completed without a usable result.",
+    );
+  }
+
+  try {
+    await sendPasswordResetCompletedNoticeEmail({
+      recipientEmail:
+        user.emailDisplay,
+      displayName:
+        user.displayName,
+      resetAt,
+      idempotencyKey:
+        `password-reset-completed-notice/${resetAuditEventId.toHexString()}`,
+      userId:
+        user._id.toHexString(),
+    });
+  } catch (error) {
+    /*
+     * The credential reset has already committed. Provider availability must
+     * never reverse a successful reset or reopen the consumed reset token.
+     */
+    console.error(
+      "[auth-password-reset] Reset-completed security email could not be submitted.",
+      {
+        name:
+          error instanceof Error
+            ? error.name
+            : "UnknownError",
+      },
+    );
+  }
+
+  return completedReset;
 }
