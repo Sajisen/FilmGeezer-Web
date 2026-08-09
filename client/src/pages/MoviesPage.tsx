@@ -11,7 +11,7 @@ import { usePersonalRecommendations } from "../hooks/usePersonalRecommendations"
 import { createCollectionRowAllocator } from "../utils/collectionRows";
 import { excludeMediaItems } from "../utils/recommendations";
 import { buildSearchHref } from "../utils/searchLinks";
-import moviesBanner from "../assets/images/movies-banner.png";
+import moviesBanner from "../assets/images/movies-banner.webp";
 
 const CURATED_ROW_LIMIT = 28;
 

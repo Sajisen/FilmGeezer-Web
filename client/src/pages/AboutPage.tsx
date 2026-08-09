@@ -15,7 +15,7 @@ function AboutPage() {
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(8,47,73,0.72),rgba(15,23,42,0.94)_55%,rgba(15,23,42,0.86))] p-6 shadow-2xl shadow-black/25 sm:p-9 lg:p-12">
           <div className="flex items-center gap-3">
             <img
-              src="/filmgeezer-logo7.png"
+              src="/filmgeezer-logo-v1.webp"
               alt=""
               className="h-11 w-11 rounded-xl object-cover shadow-lg shadow-sky-950/35"
             />

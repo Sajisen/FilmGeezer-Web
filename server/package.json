@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "optimize:client-banners": "node scripts/optimize-client-banners.mjs",
     "start": "node dist/server.js",
     "preadmin:grant": "npm run build",
     "admin:grant": "node dist/scripts/grantAdmin.js",

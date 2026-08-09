@@ -39,7 +39,7 @@ function AdminBootstrapScreen() {
       <div className="rounded-[1.75rem] border border-white/[0.08] bg-slate-900/55 px-8 py-7 text-center shadow-2xl shadow-black/20 backdrop-blur-xl">
         <span className="mx-auto grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-sky-300/20 bg-sky-400/10 shadow-lg shadow-sky-950/30">
           <img
-            src="/filmgeezer-logo7.png"
+            src="/filmgeezer-logo-v1.webp"
             alt=""
             className="h-full w-full object-cover"
           />

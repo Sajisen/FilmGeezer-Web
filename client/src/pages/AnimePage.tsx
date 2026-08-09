@@ -11,7 +11,7 @@ import { usePersonalRecommendations } from "../hooks/usePersonalRecommendations"
 import { createCollectionRowAllocator } from "../utils/collectionRows";
 import { excludeMediaItems } from "../utils/recommendations";
 import { buildSearchHref } from "../utils/searchLinks";
-import animeBanner from "../assets/images/anime-banner.png";
+import animeBanner from "../assets/images/anime-banner.webp";
 
 const CURATED_ROW_LIMIT = 28;
 

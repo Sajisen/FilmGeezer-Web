@@ -128,7 +128,7 @@ function AdminMark() {
   return (
     <span className="relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-2xl border border-sky-300/20 bg-sky-400/10 shadow-lg shadow-sky-950/30">
       <img
-        src="/filmgeezer-logo7.png"
+        src="/filmgeezer-logo-v1.webp"
         alt=""
         className="h-full w-full object-cover"
       />

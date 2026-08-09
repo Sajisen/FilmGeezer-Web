@@ -7,7 +7,7 @@ import ErrorState from "../components/states/ErrorState";
 import CollectionRowsSkeleton from "../components/skeletons/CollectionRowsSkeleton";
 import { useHomeCollections } from "../hooks/useHomeCollections";
 import { buildSearchHref } from "../utils/searchLinks";
-import homeBanner from "../assets/images/home-banner2.png";
+import homeBanner from "../assets/images/home-banner2.webp";
 
 function HomePage() {
   const { collections, isLoading, errorMessage, reload } = useHomeCollections();
