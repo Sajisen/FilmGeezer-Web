@@ -26,6 +26,7 @@ import accountRoutes from "./routes/account.routes.js";
 import watchlistRoutes from "./routes/watchlist.routes.js";
 import profileImageRoutes from "./routes/profileImage.routes.js";
 import accountPreferencesRoutes from "./routes/accountPreferences.routes.js";
+import accountEmailPreferencesRoutes from "./routes/accountEmailPreferences.routes.js";
 import recommendationsRoutes from "./routes/recommendations.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
@@ -117,6 +118,11 @@ app.use(
 app.use(
   "/api/account/preferences",
   accountPreferencesRoutes,
+);
+
+app.use(
+  "/api/account/email-preferences",
+  accountEmailPreferencesRoutes,
 );
 
 app.use(

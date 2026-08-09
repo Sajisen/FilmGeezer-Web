@@ -39,7 +39,7 @@ export const ACCOUNT_SECTIONS = [
   {
     id: "account",
     label: "Account",
-    description: "Sign-out and account controls",
+    description: "Email preferences and account controls",
     icon: "account",
   },
 ] as const satisfies readonly AccountSectionDefinition[];

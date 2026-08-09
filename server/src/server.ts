@@ -9,6 +9,7 @@ import { env } from "./config/env.js";
 import { initializeAuthStorage } from "./features/auth/auth.indexes.js";
 import { initializeWatchlistStorage } from "./features/watchlist/watchlist.indexes.js";
 import { initializePreferencesStorage } from "./features/preferences/preferences.indexes.js";
+import { initializeEmailPreferencesStorage } from "./features/emailPreferences/emailPreferences.indexes.js";
 import { initializeContactStorage } from "./features/contact/contact.indexes.js";
 import { initializeNotificationStorage } from "./features/notifications/notification.indexes.js";
 import { initializeAdminStorage } from "./features/admin/admin.indexes.js";
@@ -46,6 +47,7 @@ async function initializeApplicationStorage(): Promise<void> {
     initializeAuthStorage(),
     initializeWatchlistStorage(),
     initializePreferencesStorage(),
+    initializeEmailPreferencesStorage(),
     initializeContactStorage(),
     initializeNotificationStorage(),
     initializeAdminStorage(),
