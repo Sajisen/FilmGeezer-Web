@@ -4,9 +4,8 @@
     auto_https off
 
     # Keep Caddy's own low-volume runtime logs structured for Railway.
-    # Do not enable the site-level `log` directive below: Railway already
-    # provides native HTTP request logs, so duplicating every static request
-    # into application stdout would add noise without useful new information.
+    # Do not enable site-level HTTP access logging: Railway already provides
+    # native HTTP request logs.
     log {
         format json
     }
@@ -20,16 +19,21 @@
     @health path /health
     respond @health "ok" 200
 
+    # Keep one public canonical host. This prevents the www hostname from
+    # becoming a duplicate copy of the public FilmGeezer site.
+    @wwwHost host www.filmgeezer.site
+    redir @wwwHost https://filmgeezer.site{uri} 308
+
     root * dist
     encode gzip
 
     @immutableAssets {
-        path /assets/* /filmgeezer-logo-v1.webp /filmgeezer-icon-64.png /filmgeezer-icon-180.png
+        path /assets/* /filmgeezer-logo-v1.webp /filmgeezer-icon-64.png /filmgeezer-icon-180.png /filmgeezer-social-512.png
     }
     header @immutableAssets Cache-Control "public, max-age=31536000, immutable"
 
     @application {
-        not path /assets/* /filmgeezer-logo-v1.webp /filmgeezer-icon-64.png /filmgeezer-icon-180.png
+        not path /assets/* /filmgeezer-logo-v1.webp /filmgeezer-icon-64.png /filmgeezer-icon-180.png /filmgeezer-social-512.png
     }
     header @application Cache-Control "no-cache"
 
@@ -53,6 +57,9 @@
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
     }
 
-    try_files {path} /index.html
+    # Stable public routes receive generated HTML shells with their own
+    # title/description/canonical metadata. Dynamic/private SPA routes still
+    # fall back to index.html.
+    try_files {path}.html {path} /index.html
     file_server
 }

@@ -4,6 +4,11 @@ import { useLocation } from "react-router";
 import { readAuthRouteState } from "../../features/auth/authNavigation";
 
 const PUBLIC_SITE_ORIGIN = "https://filmgeezer.site";
+const SOCIAL_IMAGE_URL =
+  "https://filmgeezer.site/filmgeezer-social-512.png";
+const WEBSITE_STRUCTURED_DATA_ID =
+  "filmgeezer-website-structured-data";
+
 const DEFAULT_TITLE =
   "FilmGeezer — Movies, TV, Anime & K-Drama Discovery";
 const DEFAULT_DESCRIPTION =
@@ -36,13 +41,13 @@ const STATIC_PUBLIC_ROUTES: Record<string, RouteMetadataDefinition> = {
   "/anime": {
     title: "Anime | FilmGeezer",
     description:
-      "Discover trending, recommended, and curated anime movies and series on FilmGeezer.",
+      "Discover anime movies and series, trending titles, essentials, and recommendations on FilmGeezer.",
     indexable: true,
   },
   "/k-drama": {
     title: "K-Drama | FilmGeezer",
     description:
-      "Discover trending, recommended, and curated Korean dramas on FilmGeezer.",
+      "Discover Korean movies and series, trending K-dramas, essentials, and recommendations on FilmGeezer.",
     indexable: true,
   },
   "/about": {
@@ -54,19 +59,19 @@ const STATIC_PUBLIC_ROUTES: Record<string, RouteMetadataDefinition> = {
   "/contact": {
     title: "Contact FilmGeezer",
     description:
-      "Contact FilmGeezer support or continue an existing signed-in support conversation.",
+      "Contact FilmGeezer Support or continue an existing signed-in support conversation.",
     indexable: true,
   },
   "/privacy": {
     title: "Privacy Policy | FilmGeezer",
     description:
-      "Learn how FilmGeezer handles account, security, Watchlist, preference, profile-image, and support data.",
+      "Learn how FilmGeezer handles account information, Watchlists, preferences, profile images, support messages, and security data.",
     indexable: true,
   },
   "/terms": {
     title: "Terms of Use | FilmGeezer",
     description:
-      "Read the terms that apply when using FilmGeezer and its entertainment-discovery features.",
+      "Read the rules for using FilmGeezer and its movie, TV, anime, and K-drama discovery features.",
     indexable: true,
   },
   "/search": {
@@ -213,6 +218,37 @@ function buildCanonicalUrl(pathname: string): string {
   return new URL(normalizePathname(pathname), PUBLIC_SITE_ORIGIN).toString();
 }
 
+function syncWebsiteStructuredData(enabled: boolean): void {
+  const existing = document.getElementById(WEBSITE_STRUCTURED_DATA_ID);
+
+  if (!enabled) {
+    existing?.remove();
+    return;
+  }
+
+  const script =
+    existing instanceof HTMLScriptElement
+      ? existing
+      : document.createElement("script");
+
+  script.id = WEBSITE_STRUCTURED_DATA_ID;
+  script.type = "application/ld+json";
+  script.text = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${PUBLIC_SITE_ORIGIN}/#website`,
+    url: `${PUBLIC_SITE_ORIGIN}/`,
+    name: "FilmGeezer",
+    alternateName: ["Film Geezer", "filmgeezer.site"],
+    description: DEFAULT_DESCRIPTION,
+    inLanguage: "en",
+  });
+
+  if (!existing) {
+    document.head.append(script);
+  }
+}
+
 export default function RouteMetadata() {
   const location = useLocation();
   const authRouteState = readAuthRouteState(location.state);
@@ -221,9 +257,10 @@ export default function RouteMetadata() {
     authRouteState.backgroundLocation?.pathname ?? location.pathname;
 
   useEffect(() => {
-    const metadata = getRouteMetadata(effectivePathname);
+    const normalizedPathname = normalizePathname(effectivePathname);
+    const metadata = getRouteMetadata(normalizedPathname);
     const canonicalUrl = metadata.indexable
-      ? buildCanonicalUrl(effectivePathname)
+      ? buildCanonicalUrl(normalizedPathname)
       : null;
 
     document.title = metadata.title;
@@ -244,12 +281,18 @@ export default function RouteMetadata() {
       "og:url",
       canonicalUrl ?? `${PUBLIC_SITE_ORIGIN}/`,
     );
+    upsertMetaByProperty("og:image", SOCIAL_IMAGE_URL);
+    upsertMetaByProperty("og:image:width", "512");
+    upsertMetaByProperty("og:image:height", "512");
+    upsertMetaByProperty("og:image:alt", "FilmGeezer logo");
 
     upsertMetaByName("twitter:card", "summary");
     upsertMetaByName("twitter:title", metadata.title);
     upsertMetaByName("twitter:description", metadata.description);
+    upsertMetaByName("twitter:image", SOCIAL_IMAGE_URL);
 
     upsertCanonical(canonicalUrl);
+    syncWebsiteStructuredData(normalizedPathname === "/");
   }, [effectivePathname]);
 
   return null;
