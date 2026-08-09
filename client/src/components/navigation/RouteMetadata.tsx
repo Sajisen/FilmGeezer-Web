@@ -57,6 +57,18 @@ const STATIC_PUBLIC_ROUTES: Record<string, RouteMetadataDefinition> = {
       "Contact FilmGeezer support or continue an existing signed-in support conversation.",
     indexable: true,
   },
+  "/privacy": {
+    title: "Privacy Policy | FilmGeezer",
+    description:
+      "Learn how FilmGeezer handles account, security, Watchlist, preference, profile-image, and support data.",
+    indexable: true,
+  },
+  "/terms": {
+    title: "Terms of Use | FilmGeezer",
+    description:
+      "Read the terms that apply when using FilmGeezer and its entertainment-discovery features.",
+    indexable: true,
+  },
   "/search": {
     title: "Search | FilmGeezer",
     description:

@@ -72,8 +72,14 @@ const NotificationsPage = lazy(
   () =>
     import("./pages/NotificationsPage"),
 );
+const PrivacyPage = lazy(
+  () => import("./pages/PrivacyPage"),
+);
 const SearchPage = lazy(
   () => import("./pages/SearchPage"),
+);
+const TermsPage = lazy(
+  () => import("./pages/TermsPage"),
 );
 const TVSeriesPage = lazy(
   () => import("./pages/TVSeriesPage"),
@@ -219,6 +225,20 @@ function ApplicationRoutes() {
             path="/about"
             element={
               <AboutPage />
+            }
+          />
+
+          <Route
+            path="/privacy"
+            element={
+              <PrivacyPage />
+            }
+          />
+
+          <Route
+            path="/terms"
+            element={
+              <TermsPage />
             }
           />
 
