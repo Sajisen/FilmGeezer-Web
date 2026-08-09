@@ -1,9 +1,7 @@
 import express from "express";
 import cors from "cors";
 
-import {
-  isAllowedCorsOrigin,
-} from "./config/cors.js";
+import { isAllowedCorsOrigin } from "./config/cors.js";
 import { env } from "./config/env.js";
 
 import healthRoutes from "./routes/health.routes.js";
@@ -34,23 +32,16 @@ import adminAuthRoutes from "./routes/adminAuth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import resendWebhookRoutes from "./routes/resendWebhook.routes.js";
 
+import { handleHttpError } from "./middleware/httpError.middleware.js";
+import { attachRequestContext } from "./middleware/requestContext.middleware.js";
 import {
-  handleHttpError,
-} from "./middleware/httpError.middleware.js";
+  applyFilmGeezerApiPolicyHeaders,
+  applyStandardSecurityHeaders,
+} from "./middleware/securityHeaders.middleware.js";
 
 const app = express();
 
 app.disable("x-powered-by");
-
-/*
- * Resend signs the exact raw request body. Mount the webhook before CORS
- * and every JSON parser so verification is not broken by parsing and
- * re-serialization. The endpoint has no browser session or CSRF surface.
- */
-app.use(
-  "/api/webhooks/resend",
-  resendWebhookRoutes,
-);
 
 /*
  * Railway terminates TLS and forwards requests to the service through one
@@ -62,23 +53,33 @@ if (env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
+/*
+ * Correlation and security headers do not consume or transform request bodies,
+ * so they are safe to run before the raw-body Resend webhook boundary.
+ */
+app.use(attachRequestContext);
+app.use(applyStandardSecurityHeaders);
+app.use(applyFilmGeezerApiPolicyHeaders);
+
+/*
+ * Resend signs the exact raw request body. Mount the webhook before CORS
+ * and every JSON parser so verification is not broken by parsing and
+ * re-serialization. The endpoint has no browser session or CSRF surface.
+ */
+app.use(
+  "/api/webhooks/resend",
+  resendWebhookRoutes,
+);
+
 app.use(
   cors({
-    origin: (
-      origin,
-      callback,
-    ) => {
+    origin: (origin, callback) => {
       callback(
         null,
-        !origin ||
-          isAllowedCorsOrigin(
-            origin,
-          ),
+        !origin || isAllowedCorsOrigin(origin),
       );
     },
-
-    credentials:
-      true,
+    credentials: true,
   }),
 );
 
@@ -173,6 +174,7 @@ app.use("/api", seasonDetailsRoutes);
 app.use("/api", moreLikeThisRoutes);
 
 app.use((_request, response) => {
+  response.setHeader("Cache-Control", "no-store");
   response.status(404).json({
     status: "error",
     message: "Route not found",

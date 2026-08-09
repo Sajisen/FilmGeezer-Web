@@ -8,6 +8,7 @@ import { env } from "./env.js";
 const SERVER_SELECTION_TIMEOUT_MS = 8_000;
 const CONNECTION_WAIT_TIMEOUT_MS = 5_000;
 const MAX_IDLE_TIME_MS = 60_000;
+const DATABASE_HEALTH_CHECK_TIMEOUT_MS = 2_500;
 
 let mongoClient: MongoClient | null = null;
 let mongoClientPromise: Promise<MongoClient> | null = null;
@@ -79,6 +80,20 @@ export function getContentDatabase() {
 
 export function getWebDatabase() {
   return getDatabase(env.MONGODB_WEB_DB_NAME);
+}
+
+
+export async function checkDatabaseReadiness(): Promise<void> {
+  const client = await getMongoClient();
+
+  await client
+    .db(env.MONGODB_WEB_DB_NAME)
+    .command(
+      { ping: 1 },
+      {
+        timeoutMS: DATABASE_HEALTH_CHECK_TIMEOUT_MS,
+      },
+    );
 }
 
 export async function closeMongoConnection() {

@@ -1,7 +1,15 @@
 import type {
   ErrorRequestHandler,
 } from "express";
-import { env } from "../config/env.js";
+
+import {
+  getRequestId,
+  getSafeRequestPath,
+} from "./requestContext.middleware.js";
+import {
+  describeErrorForLog,
+  logger,
+} from "../utils/logger.js";
 
 interface RequestBodyError extends SyntaxError {
   status?: number;
@@ -15,45 +23,22 @@ function isRequestBodyError(
   return error instanceof SyntaxError;
 }
 
-function serializeDevelopmentError(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      cause:
-        error.cause instanceof Error
-          ? {
-              name: error.cause.name,
-              message: error.cause.message,
-              stack: error.cause.stack,
-            }
-          : undefined,
-    };
-  }
-
-  return {
-    name: "UnknownError",
-    message: String(error),
-    stack: undefined,
-    cause: undefined,
-  };
-}
-
 export const handleHttpError: ErrorRequestHandler = (
   error,
   request,
   response,
   next,
 ) => {
+  const requestId = getRequestId(request);
+  const path = getSafeRequestPath(request);
+
   if (response.headersSent) {
-    if (env.NODE_ENV === "development") {
-      console.error("[http] Error raised after the response was sent", {
-        method: request.method,
-        path: request.originalUrl,
-        ...serializeDevelopmentError(error),
-      });
-    }
+    logger.error("http.error_after_headers_sent", {
+      requestId,
+      method: request.method,
+      path,
+      error: describeErrorForLog(error),
+    });
 
     next(error);
     return;
@@ -87,20 +72,12 @@ export const handleHttpError: ErrorRequestHandler = (
     return;
   }
 
-  console.error(
-    "[http] Unhandled request error",
-    env.NODE_ENV === "development"
-      ? {
-          method: request.method,
-          path: request.originalUrl,
-          ...serializeDevelopmentError(error),
-        }
-      : {
-          method: request.method,
-          path: request.originalUrl,
-          name: error instanceof Error ? error.name : "UnknownError",
-        },
-  );
+  logger.error("http.unhandled_error", {
+    requestId,
+    method: request.method,
+    path,
+    error: describeErrorForLog(error),
+  });
 
   response.status(500).json({
     status: "error",

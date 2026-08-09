@@ -139,6 +139,39 @@ const optionalWebAuthnRpIdSchema = z.preprocess(
     .optional(),
 );
 
+
+const rawNodeEnvironment = process.env.NODE_ENV?.trim().toLowerCase();
+
+const defaultLogLevel =
+  rawNodeEnvironment === "production"
+    ? "info"
+    : rawNodeEnvironment === "test"
+      ? "warn"
+      : "debug";
+
+const defaultLogFormat =
+  rawNodeEnvironment === "development" ? "pretty" : "json";
+
+const defaultHttpAccessLogMode =
+  rawNodeEnvironment === "test" ? "off" : "mutations";
+
+const logLevelSchema = z.enum([
+  "debug",
+  "info",
+  "warn",
+  "error",
+  "silent",
+]);
+
+const logFormatSchema = z.enum(["pretty", "json"]);
+
+const httpAccessLogModeSchema = z.enum([
+  "off",
+  "errors",
+  "mutations",
+  "all",
+]);
+
 const booleanEnvironmentSchema = z.preprocess(
   (value) => {
     if (typeof value === "boolean") {
@@ -173,6 +206,13 @@ const environmentSchema = z
     PORT: z.coerce.number().int().min(1).max(65_535).default(5000),
 
     HOST: z.string().trim().min(1).default("0.0.0.0"),
+
+    LOG_LEVEL: logLevelSchema.default(defaultLogLevel),
+
+    LOG_FORMAT: logFormatSchema.default(defaultLogFormat),
+
+    HTTP_ACCESS_LOG_MODE:
+      httpAccessLogModeSchema.default(defaultHttpAccessLogMode),
 
     CLIENT_APP_ORIGIN: z
       .string()
