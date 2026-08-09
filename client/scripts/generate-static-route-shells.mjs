@@ -16,20 +16,23 @@ const routes = [
     pathname: "/movies",
     output: "movies.html",
     title: "Movies | FilmGeezer",
+    heading: "Discover Movies on FilmGeezer",
     description:
-      "Discover trending, recommended, and curated movies on FilmGeezer.",
+      "Explore movie discovery collections, trending titles, essentials, and recommendations on FilmGeezer.",
   },
   {
     pathname: "/tv",
     output: "tv.html",
     title: "TV Series | FilmGeezer",
+    heading: "Discover TV Series on FilmGeezer",
     description:
-      "Discover trending, recommended, and curated TV series on FilmGeezer.",
+      "Explore TV series discovery collections, trending titles, essentials, and recommendations on FilmGeezer.",
   },
   {
     pathname: "/anime",
     output: "anime.html",
     title: "Anime | FilmGeezer",
+    heading: "Discover Anime on FilmGeezer",
     description:
       "Discover anime movies and series, trending titles, essentials, and recommendations on FilmGeezer.",
   },
@@ -37,6 +40,7 @@ const routes = [
     pathname: "/k-drama",
     output: "k-drama.html",
     title: "K-Drama | FilmGeezer",
+    heading: "Discover K-Drama on FilmGeezer",
     description:
       "Discover Korean movies and series, trending K-dramas, essentials, and recommendations on FilmGeezer.",
   },
@@ -44,6 +48,7 @@ const routes = [
     pathname: "/about",
     output: "about.html",
     title: "About | FilmGeezer",
+    heading: "About FilmGeezer",
     description:
       "Learn about FilmGeezer and its movie, TV, anime, and K-drama discovery experience.",
   },
@@ -51,6 +56,7 @@ const routes = [
     pathname: "/contact",
     output: "contact.html",
     title: "Contact FilmGeezer",
+    heading: "Contact FilmGeezer",
     description:
       "Contact FilmGeezer Support or continue an existing signed-in support conversation.",
   },
@@ -58,6 +64,7 @@ const routes = [
     pathname: "/privacy",
     output: "privacy.html",
     title: "Privacy Policy | FilmGeezer",
+    heading: "FilmGeezer Privacy Policy",
     description:
       "Learn how FilmGeezer handles account information, Watchlists, preferences, profile images, support messages, and security data.",
   },
@@ -65,6 +72,7 @@ const routes = [
     pathname: "/terms",
     output: "terms.html",
     title: "Terms of Use | FilmGeezer",
+    heading: "FilmGeezer Terms of Use",
     description:
       "Read the rules for using FilmGeezer and its movie, TV, anime, and K-drama discovery features.",
   },
@@ -125,6 +133,49 @@ function removeWebsiteStructuredData(html) {
   return html.replace(pattern, "");
 }
 
+
+const STATIC_FALLBACK_PATTERN =
+  /<!-- FILMGEEZER_STATIC_FALLBACK_START -->[\s\S]*?<!-- FILMGEEZER_STATIC_FALLBACK_END -->/u;
+
+function buildStaticFallback(route) {
+  return `<!-- FILMGEEZER_STATIC_FALLBACK_START -->
+      <main
+        data-filmgeezer-static-fallback
+        style="min-height:100vh;background:#020617;color:#f8fafc;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:48px 24px"
+      >
+        <div style="max-width:860px;margin:0 auto">
+          <p style="color:#38bdf8;font-weight:700;letter-spacing:.08em">
+            FILMGEEZER
+          </p>
+          <h1 style="font-size:clamp(2rem,5vw,3.5rem);line-height:1.05;margin:16px 0">
+            ${escapeHtmlAttribute(route.heading)}
+          </h1>
+          <p style="max-width:700px;color:#cbd5e1;line-height:1.7">
+            ${escapeHtmlAttribute(route.description)}
+          </p>
+          <nav aria-label="FilmGeezer public pages" style="margin-top:28px">
+            <a href="/" style="color:#7dd3fc;margin-right:18px">Home</a>
+            <a href="/movies" style="color:#7dd3fc;margin-right:18px">Movies</a>
+            <a href="/tv" style="color:#7dd3fc;margin-right:18px">TV Series</a>
+            <a href="/anime" style="color:#7dd3fc;margin-right:18px">Anime</a>
+            <a href="/k-drama" style="color:#7dd3fc;margin-right:18px">K-Drama</a>
+            <a href="/about" style="color:#7dd3fc">About</a>
+          </nav>
+          <p style="margin-top:32px;color:#64748b;font-size:.875rem">
+            JavaScript enables the full interactive FilmGeezer experience.
+          </p>
+        </div>
+      </main>
+      <!-- FILMGEEZER_STATIC_FALLBACK_END -->`;
+}
+
+function replaceStaticFallback(html, route) {
+  return html.replace(
+    STATIC_FALLBACK_PATTERN,
+    buildStaticFallback(route),
+  );
+}
+
 function buildRouteShell(baseHtml, route) {
   const canonicalUrl = `https://filmgeezer.site${route.pathname}`;
 
@@ -150,6 +201,7 @@ function buildRouteShell(baseHtml, route) {
   );
   html = replaceCanonical(html, canonicalUrl);
   html = removeWebsiteStructuredData(html);
+  html = replaceStaticFallback(html, route);
 
   return html;
 }

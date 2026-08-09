@@ -19,6 +19,21 @@
     @health path /health
     respond @health "ok" 200
 
+    # The administrator hostname is intentionally private from crawler
+    # discovery, even though the same Railway service serves both hostnames.
+    @adminRobots {
+        host admin.filmgeezer.site
+        path /robots.txt
+    }
+    header @adminRobots Content-Type "text/plain; charset=utf-8"
+    respond @adminRobots "User-agent: *\nDisallow: /\n" 200
+
+    @adminDiscoveryFiles {
+        host admin.filmgeezer.site
+        path /sitemap.xml /llms.txt /llms-full.txt
+    }
+    respond @adminDiscoveryFiles 404
+
     # Keep one public canonical host. This prevents the www hostname from
     # becoming a duplicate copy of the public FilmGeezer site.
     @wwwHost host www.filmgeezer.site

@@ -1,0 +1,26 @@
+# FilmGeezer
+
+> FilmGeezer is a public entertainment discovery website for movies, TV series, anime, and K-dramas.
+
+Canonical site: https://filmgeezer.site/
+
+## Primary public pages
+
+- [Home](https://filmgeezer.site/) — FilmGeezer discovery home.
+- [Movies](https://filmgeezer.site/movies) — movie discovery and recommendations.
+- [TV Series](https://filmgeezer.site/tv) — TV discovery and recommendations.
+- [Anime](https://filmgeezer.site/anime) — anime movie and series discovery.
+- [K-Drama](https://filmgeezer.site/k-drama) — Korean movie and series discovery.
+- [About](https://filmgeezer.site/about) — what FilmGeezer is and its data-source credits.
+- [Contact & Support](https://filmgeezer.site/contact) — FilmGeezer support.
+- [Privacy](https://filmgeezer.site/privacy) — privacy information.
+- [Terms](https://filmgeezer.site/terms) — terms of use.
+
+## Notes
+
+- FilmGeezer title-detail URLs use `/media/movie/{tmdbId}` or `/media/tv/{tmdbId}`.
+- `/search`, `/watchlist`, `/account`, `/notifications`, authentication routes, and the administrator application are not intended as public reference/index pages.
+- Entertainment data uses TMDB; streaming-provider availability shown through TMDB is powered by JustWatch. Selected anime character information may be supplemented by AniList.
+
+For a longer machine-readable overview, see:
+https://filmgeezer.site/llms-full.txt

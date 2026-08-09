@@ -85,10 +85,12 @@ function Footer() {
         </div>
 
         <div className="mt-10 border-t border-white/[0.08] pt-5">
-          <div className="grid gap-3 text-xs leading-5 text-slate-500 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-x-7">
-            <p>© {new Date().getFullYear()} FilmGeezer</p>
-
-            <p className="md:text-center">
+          <div className="flex flex-col gap-3 text-xs leading-5 text-slate-500 md:flex-row md:items-center md:justify-between md:gap-8">
+            <p>
+              © {new Date().getFullYear()} FilmGeezer
+              <span aria-hidden="true" className="mx-2 text-slate-700">
+                •
+              </span>
               Created by{" "}
               <span className="font-medium text-slate-400">
                 Sajitha | Sajisen
@@ -96,8 +98,11 @@ function Footer() {
             </p>
 
             <p className="md:text-right">
-              Movie & TV information uses TMDB. Streaming availability is
-              powered by JustWatch.
+              Movie & TV data by TMDB
+              <span aria-hidden="true" className="mx-2 text-slate-700">
+                •
+              </span>
+              Streaming availability by JustWatch
             </p>
           </div>
         </div>

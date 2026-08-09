@@ -81,7 +81,38 @@
     <title>FilmGeezer — Movies, TV, Anime & K-Drama Discovery</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- FILMGEEZER_STATIC_FALLBACK_START -->
+      <main
+        data-filmgeezer-static-fallback
+        style="min-height:100vh;background:#020617;color:#f8fafc;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:48px 24px"
+      >
+        <div style="max-width:860px;margin:0 auto">
+          <p style="color:#38bdf8;font-weight:700;letter-spacing:.08em">
+            FILMGEEZER
+          </p>
+          <h1 style="font-size:clamp(2rem,5vw,3.5rem);line-height:1.05;margin:16px 0">
+            Movies, TV Series, Anime &amp; K-Drama Discovery
+          </h1>
+          <p style="max-width:700px;color:#cbd5e1;line-height:1.7">
+            Discover movies, TV series, anime, and K-dramas with FilmGeezer.
+            Explore dedicated category pages, title details, recommendations,
+            and entertainment information.
+          </p>
+          <nav aria-label="FilmGeezer public pages" style="margin-top:28px">
+            <a href="/movies" style="color:#7dd3fc;margin-right:18px">Movies</a>
+            <a href="/tv" style="color:#7dd3fc;margin-right:18px">TV Series</a>
+            <a href="/anime" style="color:#7dd3fc;margin-right:18px">Anime</a>
+            <a href="/k-drama" style="color:#7dd3fc;margin-right:18px">K-Drama</a>
+            <a href="/about" style="color:#7dd3fc">About</a>
+          </nav>
+          <p style="margin-top:32px;color:#64748b;font-size:.875rem">
+            JavaScript enables the full interactive FilmGeezer experience.
+          </p>
+        </div>
+      </main>
+      <!-- FILMGEEZER_STATIC_FALLBACK_END -->
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

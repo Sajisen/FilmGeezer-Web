@@ -6,7 +6,7 @@ import {
   useDocumentMetadataContext,
   type DocumentMetadataOverride,
   type DocumentStructuredData,
-} from "../../features/metadata/documentMetadataContext";
+} from "../../features/metadata/documentMetadataState";
 import {
   applyDocumentMetadata,
   DEFAULT_DOCUMENT_DESCRIPTION,
@@ -227,6 +227,9 @@ export default function RouteMetadata() {
       canonicalPath,
       imageUrl: matchingOverride?.imageUrl ?? SOCIAL_IMAGE_URL,
       imageAlt: matchingOverride?.imageAlt ?? "FilmGeezer logo",
+      imageWidth: matchingOverride?.imageWidth ?? 512,
+      imageHeight: matchingOverride?.imageHeight ?? 512,
+      openGraphType: matchingOverride?.openGraphType ?? "website",
       twitterCard: matchingOverride?.twitterCard ?? "summary",
     });
 

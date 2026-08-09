@@ -1,0 +1,119 @@
+# FilmGeezer — public reference
+
+FilmGeezer is an entertainment discovery application available at
+https://filmgeezer.site/.
+
+The preferred brand name is **FilmGeezer**. The spaced form **Film Geezer**
+refers to the same service.
+
+## What FilmGeezer helps users do
+
+FilmGeezer helps people discover:
+
+- Movies
+- TV series
+- Anime movies and series
+- K-dramas and Korean movies
+
+Public category pages provide discovery collections and can include trending,
+curated, essential, and personalized rows depending on the signed-in user's
+settings and available recommendation signals.
+
+Individual title pages can provide information such as:
+
+- title and release information
+- overview and genres
+- trailers and videos
+- TV seasons and episodes when relevant
+- provider availability
+- featured characters
+- related titles
+- FilmGeezer content links when available
+
+## Canonical public pages
+
+Home:
+https://filmgeezer.site/
+
+Movies:
+https://filmgeezer.site/movies
+
+TV Series:
+https://filmgeezer.site/tv
+
+Anime:
+https://filmgeezer.site/anime
+
+K-Drama:
+https://filmgeezer.site/k-drama
+
+About:
+https://filmgeezer.site/about
+
+Contact & Support:
+https://filmgeezer.site/contact
+
+Privacy:
+https://filmgeezer.site/privacy
+
+Terms:
+https://filmgeezer.site/terms
+
+Title-detail URL patterns:
+
+https://filmgeezer.site/media/movie/{tmdbId}
+https://filmgeezer.site/media/tv/{tmdbId}
+
+## Public versus private/utility routes
+
+The following areas are user-specific or utility surfaces and should not be
+treated as public reference pages:
+
+- `/search`
+- `/watchlist`
+- `/account`
+- `/notifications`
+- sign-in, registration, verification, and password-reset routes
+- `admin.filmgeezer.site`
+
+The administrator application is private and intentionally excluded from public
+crawler discovery.
+
+## Accounts and personalization
+
+Users may create FilmGeezer accounts. Signed-in features can include a larger
+Watchlist, entertainment preferences, personalized recommendations, profile
+images, notifications, support conversations, session management, and email
+preferences.
+
+A temporary guest Watchlist can also exist in the user's browser.
+
+## Data sources and attribution
+
+FilmGeezer uses TMDB for movie and TV information and imagery. FilmGeezer is
+not endorsed or certified by TMDB.
+
+Streaming-provider availability supplied through TMDB is powered by JustWatch.
+
+Selected anime character information may be supplemented by AniList.
+
+External providers and linked services remain separate from FilmGeezer.
+
+## Search and crawler policy
+
+FilmGeezer welcomes normal search indexing and user-directed AI retrieval.
+
+OpenAI OAI-SearchBot, ChatGPT-User, Anthropic Claude-SearchBot, Claude-User,
+Googlebot, and Google-Extended are explicitly allowed by the public
+`robots.txt`.
+
+Training-only GPTBot and ClaudeBot are intentionally disallowed. This does not
+disable OpenAI's OAI-SearchBot or Anthropic's Claude search/user retrieval bots.
+
+## Contact
+
+FilmGeezer Support:
+https://filmgeezer.site/contact
+
+Human support mailbox:
+support@filmgeezer.site

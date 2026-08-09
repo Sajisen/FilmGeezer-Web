@@ -1,4 +1,4 @@
-import type { DocumentStructuredData } from "../../features/metadata/documentMetadataContext";
+import type { DocumentStructuredData } from "../../features/metadata/documentMetadataState";
 
 export const PUBLIC_SITE_ORIGIN = "https://filmgeezer.site";
 export const SOCIAL_IMAGE_URL =
@@ -21,6 +21,9 @@ type ApplyDocumentMetadataInput = {
   canonicalPath: string | null;
   imageUrl?: string;
   imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  openGraphType?: "website" | "video.movie" | "video.tv_show";
   twitterCard?: "summary" | "summary_large_image";
 };
 
@@ -82,6 +85,9 @@ export function applyDocumentMetadata({
   canonicalPath,
   imageUrl = SOCIAL_IMAGE_URL,
   imageAlt = "FilmGeezer logo",
+  imageWidth,
+  imageHeight,
+  openGraphType = "website",
   twitterCard = "summary",
 }: ApplyDocumentMetadataInput): void {
   const canonicalUrl = canonicalPath
@@ -98,7 +104,7 @@ export function applyDocumentMetadata({
       : "noindex, nofollow",
   );
 
-  upsertMetaByProperty("og:type", "website");
+  upsertMetaByProperty("og:type", openGraphType);
   upsertMetaByProperty("og:site_name", "FilmGeezer");
   upsertMetaByProperty("og:title", title);
   upsertMetaByProperty("og:description", description);
@@ -108,6 +114,23 @@ export function applyDocumentMetadata({
   );
   upsertMetaByProperty("og:image", imageUrl);
   upsertMetaByProperty("og:image:alt", imageAlt);
+
+  const imageWidthElement =
+    document.head.querySelector<HTMLMetaElement>(
+      'meta[property="og:image:width"]',
+    );
+  const imageHeightElement =
+    document.head.querySelector<HTMLMetaElement>(
+      'meta[property="og:image:height"]',
+    );
+
+  if (imageWidth && imageHeight) {
+    upsertMetaByProperty("og:image:width", String(imageWidth));
+    upsertMetaByProperty("og:image:height", String(imageHeight));
+  } else {
+    imageWidthElement?.remove();
+    imageHeightElement?.remove();
+  }
 
   upsertMetaByName("twitter:card", twitterCard);
   upsertMetaByName("twitter:title", title);
@@ -120,18 +143,27 @@ export function applyDocumentMetadata({
 function upsertStructuredData(
   structuredData: DocumentStructuredData,
 ): void {
-  let script = document.getElementById(structuredData.id);
+  const existingElement = document.getElementById(structuredData.id);
 
-  if (!(script instanceof HTMLScriptElement)) {
-    script?.remove();
+  if (
+    existingElement &&
+    !(existingElement instanceof HTMLScriptElement)
+  ) {
+    existingElement.remove();
+  }
 
-    script = document.createElement("script");
+  const script =
+    existingElement instanceof HTMLScriptElement
+      ? existingElement
+      : document.createElement("script");
+
+  if (!script.isConnected) {
     script.id = structuredData.id;
     script.type = "application/ld+json";
     document.head.append(script);
   }
 
-  script.text = JSON.stringify(structuredData.value);
+  script.textContent = JSON.stringify(structuredData.value);
 }
 
 export function syncManagedStructuredData(

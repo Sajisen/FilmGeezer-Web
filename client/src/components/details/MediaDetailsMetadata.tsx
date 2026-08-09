@@ -9,7 +9,7 @@ import {
 import {
   useDocumentMetadataOverride,
   type DocumentMetadataOverride,
-} from "../../features/metadata/documentMetadataContext";
+} from "../../features/metadata/documentMetadataState";
 import type { MediaDetails } from "../../types/media";
 
 const MAX_DESCRIPTION_LENGTH = 158;
@@ -119,6 +119,14 @@ function MediaDetailsMetadata({ media }: { media: MediaDetails }) {
         : media.posterUrl
           ? `Poster for ${media.title}`
           : "FilmGeezer logo",
+      ...(imageUrl === SOCIAL_IMAGE_URL
+        ? {
+            imageWidth: 512,
+            imageHeight: 512,
+          }
+        : {}),
+      openGraphType:
+        media.mediaType === "movie" ? "video.movie" : "video.tv_show",
       twitterCard:
         media.backdropUrl || media.posterUrl
           ? "summary_large_image"
