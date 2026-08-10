@@ -8,9 +8,11 @@ interface MoreLikeThisState {
   errorMessage: string;
 }
 
+const EMPTY_MEDIA_ITEMS: MediaItem[] = [];
+
 const initialState: MoreLikeThisState = {
   requestKey: "",
-  items: [],
+  items: EMPTY_MEDIA_ITEMS,
   errorMessage: "",
 };
 
@@ -70,7 +72,7 @@ export function useMoreLikeThis(mediaType: MediaType, tmdbId: number) {
   const isLoading = state.requestKey !== requestKey;
 
   return {
-    items: isLoading ? [] : state.items,
+    items: isLoading ? EMPTY_MEDIA_ITEMS : state.items,
     isLoading,
     errorMessage: isLoading ? "" : state.errorMessage,
     retry,
