@@ -47,7 +47,10 @@ export function PublicRouteErrorState() {
       className="min-h-[58vh] py-10 text-white sm:py-14"
     >
       <ContentContainer>
-        <section className="mx-auto max-w-2xl rounded-3xl border border-red-300/15 bg-red-400/[0.045] p-6 shadow-2xl shadow-black/15 sm:p-8">
+        <section
+          role="alert"
+          className="mx-auto max-w-2xl rounded-3xl border border-red-300/15 bg-red-400/[0.045] p-6 shadow-2xl shadow-black/15 sm:p-8"
+        >
           <p className="text-xs font-black uppercase tracking-[0.18em] text-red-200">
             Page unavailable
           </p>

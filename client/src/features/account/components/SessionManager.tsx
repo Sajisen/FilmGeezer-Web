@@ -133,9 +133,13 @@ function SessionManager({
     );
 
   useEffect(() => {
-    if (!openMenuReference) {
+    const menuReference = openMenuReference;
+
+    if (!menuReference) {
       return;
     }
+
+    const stableMenuReference: string = menuReference;
 
     function handlePointerDown(
       event: PointerEvent,
@@ -153,15 +157,12 @@ function SessionManager({
       event: KeyboardEvent,
     ) {
       if (event.key === "Escape") {
-        const menuReference =
-          openMenuReference;
+        const menuTrigger = menuTriggerRefs.current.get(stableMenuReference);
 
         setOpenMenuReference(null);
 
         window.setTimeout(() => {
-          menuTriggerRefs.current
-            .get(menuReference)
-            ?.focus();
+          menuTrigger?.focus();
         }, 0);
       }
     }

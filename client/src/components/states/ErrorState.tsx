@@ -10,7 +10,7 @@ function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <div className="rounded-2xl border border-red-400/20 bg-red-500/10 p-6 text-white">
+    <div role="alert" className="rounded-2xl border border-red-400/20 bg-red-500/10 p-6 text-white">
       <h3 className="font-bold">{title}</h3>
 
       <p className="mt-2 text-sm leading-6 text-red-100/80">{message}</p>
@@ -19,7 +19,7 @@ function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          className="mt-5 rounded-full bg-red-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-400"
+          className="mt-5 min-h-11 rounded-full bg-red-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
         >
           Try Again
         </button>
