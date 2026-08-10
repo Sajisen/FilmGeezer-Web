@@ -25,6 +25,12 @@ body {
   outline-offset: 3px;
 }
 
+/* Banner search uses the surrounding search shell as its single focus indicator. */
+.banner-search-input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
 ::selection {
   background-color: rgb(14 165 233 / 35%);
   color: #ffffff;
