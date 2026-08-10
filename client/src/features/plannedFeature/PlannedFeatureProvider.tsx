@@ -1,11 +1,12 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react'
+
+import { useModalAccessibility } from '../../hooks/useModalAccessibility'
 
 import {
   PlannedFeatureContext,
@@ -24,11 +25,12 @@ export function PlannedFeatureProvider({
       null,
     )
 
+  const dialogRef =
+    useRef<HTMLElement>(null)
+
   const closeButtonRef =
     useRef<HTMLButtonElement>(null)
 
-  const previouslyFocusedElementRef =
-    useRef<HTMLElement | null>(null)
 
   const showPlannedFeature = useCallback(
     (
@@ -44,77 +46,12 @@ export function PlannedFeatureProvider({
     setNotice(null)
   }, [])
 
-  useEffect(() => {
-    if (!notice) {
-      return
-    }
-
-    previouslyFocusedElementRef.current =
-      document.activeElement as
-        | HTMLElement
-        | null
-
-    const previousOverflow =
-      document.body.style.overflow
-
-    const previousPaddingRight =
-      document.body.style.paddingRight
-
-    const scrollbarWidth =
-      window.innerWidth -
-      document.documentElement.clientWidth
-
-    document.body.style.overflow =
-      'hidden'
-
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight =
-        `${scrollbarWidth}px`
-    }
-
-    closeButtonRef.current?.focus()
-
-    function handleKeyDown(
-      event: KeyboardEvent,
-    ) {
-      if (event.key === 'Escape') {
-        closeNotice()
-        return
-      }
-
-      if (event.key === 'Tab') {
-        event.preventDefault()
-        closeButtonRef.current?.focus()
-      }
-    }
-
-    document.addEventListener(
-      'keydown',
-      handleKeyDown,
-    )
-
-    return () => {
-      document.body.style.overflow =
-        previousOverflow
-
-      document.body.style.paddingRight =
-        previousPaddingRight
-
-      document.removeEventListener(
-        'keydown',
-        handleKeyDown,
-      )
-
-      const previouslyFocusedElement =
-        previouslyFocusedElementRef.current
-
-      if (
-        previouslyFocusedElement?.isConnected
-      ) {
-        previouslyFocusedElement.focus()
-      }
-    }
-  }, [closeNotice, notice])
+  useModalAccessibility({
+    isOpen: notice !== null,
+    dialogRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: closeNotice,
+  })
 
   const contextValue = useMemo(
     () => ({
@@ -140,6 +77,7 @@ export function PlannedFeatureProvider({
           />
 
           <section
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="planned-feature-title"

@@ -102,6 +102,29 @@ function getMediaTypeLabel(mediaType: MediaDetails["mediaType"]) {
   return mediaType === "movie" ? "Movie" : "TV Series";
 }
 
+function haveSameMediaItems(
+  leftItems: MediaItem[],
+  rightItems: MediaItem[],
+): boolean {
+  if (leftItems === rightItems) {
+    return true;
+  }
+
+  if (leftItems.length !== rightItems.length) {
+    return false;
+  }
+
+  return leftItems.every((leftItem, index) => {
+    const rightItem = rightItems[index];
+
+    return (
+      rightItem !== undefined &&
+      leftItem.mediaType === rightItem.mediaType &&
+      leftItem.tmdbId === rightItem.tmdbId
+    );
+  });
+}
+
 function getBrowseFallbackPath(media: MediaDetails) {
   const normalizedGenres = media.genres.map((genre) =>
     genre.toLocaleLowerCase(),
@@ -333,10 +356,20 @@ function MediaDetailsPage() {
 
   const handleMoreLikeThisItemsChange = useCallback(
     (items: MediaItem[], isReady: boolean) => {
-      setMoreLikeThisState({
-        mediaKey: currentMediaKey,
-        items,
-        isReady,
+      setMoreLikeThisState((currentState) => {
+        if (
+          currentState.mediaKey === currentMediaKey &&
+          currentState.isReady === isReady &&
+          haveSameMediaItems(currentState.items, items)
+        ) {
+          return currentState;
+        }
+
+        return {
+          mediaKey: currentMediaKey,
+          items,
+          isReady,
+        };
       });
     },
     [currentMediaKey],

@@ -7,6 +7,8 @@ import {
 import { createPortal } from "react-dom";
 import { NavLink } from "react-router";
 
+import { useModalAccessibility } from "../../hooks/useModalAccessibility";
+
 import ProfileAvatar from "../ProfileAvatar";
 import {
   ArrowRightIcon,
@@ -55,7 +57,6 @@ function MobileNavigationDrawer({
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
-  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const closeTimerRef = useRef<number | null>(null);
 
   const requestClose = useCallback(() => {
@@ -129,78 +130,12 @@ useEffect(() => {
   };
 }, []);
 
-  useEffect(() => {
-    previouslyFocusedElementRef.current =
-      document.activeElement as HTMLElement | null;
-
-    const previousOverflow = document.body.style.overflow;
-    const previousPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth =
-      window.innerWidth - document.documentElement.clientWidth;
-
-    document.body.style.overflow = "hidden";
-
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    closeButtonRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        requestClose();
-        return;
-      }
-
-      if (event.key !== "Tab" || !drawerRef.current) {
-        return;
-      }
-
-      const focusableElements = Array.from(
-        drawerRef.current.querySelectorAll<HTMLElement>(
-          [
-            "a[href]",
-            "button:not([disabled])",
-            '[tabindex]:not([tabindex="-1"])',
-          ].join(","),
-        ),
-      );
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-
-      if (!firstElement || !lastElement) {
-        event.preventDefault();
-        drawerRef.current.focus();
-        return;
-      }
-
-      if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault();
-        lastElement.focus();
-        return;
-      }
-
-      if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.paddingRight = previousPaddingRight;
-      document.removeEventListener("keydown", handleKeyDown);
-      const previouslyFocusedElement =
-        previouslyFocusedElementRef.current;
-
-      if (previouslyFocusedElement?.isConnected) {
-        previouslyFocusedElement.focus();
-      }
-    };
-  }, [requestClose]);
+  useModalAccessibility({
+    isOpen: true,
+    dialogRef: drawerRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: requestClose,
+  });
 
   useEffect(() => {
     const drawer = drawerRef.current;

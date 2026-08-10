@@ -9,6 +9,7 @@ import EmptyState from "../states/EmptyState";
 import ErrorState from "../states/ErrorState";
 
 const DETAILS_CONTENT_CLASS = "mx-auto w-full max-w-[1180px]";
+const EMPTY_MEDIA_ITEMS: MediaItem[] = [];
 
 interface MoreLikeThisSectionProps {
   mediaType: MediaType;
@@ -28,11 +29,14 @@ function MoreLikeThisSection({
 
   useEffect(() => {
     if (isLoading) {
-      onItemsChange?.([], false);
+      onItemsChange?.(EMPTY_MEDIA_ITEMS, false);
       return;
     }
 
-    onItemsChange?.(errorMessage ? [] : items, true);
+    onItemsChange?.(
+      errorMessage ? EMPTY_MEDIA_ITEMS : items,
+      true,
+    );
   }, [errorMessage, isLoading, items, onItemsChange]);
 
   if (isLoading) {
