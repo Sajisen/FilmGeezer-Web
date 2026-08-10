@@ -1,11 +1,14 @@
 import {
-  useEffect,
   useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
   type MouseEvent,
 } from "react";
+
+import {
+  useModalAccessibility,
+} from "../../../hooks/useModalAccessibility";
 
 import {
   AuthApiError,
@@ -74,82 +77,13 @@ function RecentPasswordDialog({
   const dialogRef =
     useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const previousActiveElement =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-
-    const previousBodyOverflow =
-      document.body.style.overflow;
-
-    document.body.style.overflow =
-      "hidden";
-
-    const handleKeyDown = (
-      event: KeyboardEvent,
-    ) => {
-      if (event.key === "Escape" && !isSubmitting) {
-        event.preventDefault();
-        onCancel();
-      }
-
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const dialog = dialogRef.current;
-
-      if (!dialog) {
-        return;
-      }
-
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-
-      if (focusable.length === 0) {
-        event.preventDefault();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable.at(-1);
-
-      if (
-        event.shiftKey &&
-        document.activeElement === first
-      ) {
-        event.preventDefault();
-        last?.focus();
-      } else if (
-        !event.shiftKey &&
-        document.activeElement === last
-      ) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
-
-    return () => {
-      document.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
-
-      document.body.style.overflow =
-        previousBodyOverflow;
-
-      previousActiveElement?.focus();
-    };
-  }, [isSubmitting, onCancel]);
+  useModalAccessibility({
+    isOpen: true,
+    dialogRef,
+    initialFocusSelector: "[autofocus]",
+    onEscape: onCancel,
+    escapeEnabled: !isSubmitting,
+  });
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -212,6 +146,8 @@ function RecentPasswordDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="recent-password-title"
+        aria-describedby="recent-password-description"
+        aria-busy={isSubmitting}
         className="w-full max-w-md overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/60"
       >
         <div className="relative border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.16),transparent_55%)] px-5 pb-5 pt-6 sm:px-6">
@@ -240,7 +176,10 @@ function RecentPasswordDialog({
             {title}
           </h2>
 
-          <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">
+          <p
+            id="recent-password-description"
+            className="mt-2 max-w-sm text-sm leading-6 text-slate-400"
+          >
             {description}
           </p>
         </div>

@@ -104,6 +104,7 @@ interface UseModalAccessibilityOptions {
   isOpen: boolean;
   dialogRef: RefObject<HTMLElement | null>;
   initialFocusRef?: RefObject<HTMLElement | null>;
+  initialFocusSelector?: string;
   onEscape?: () => void;
   escapeEnabled?: boolean;
   lockBodyScroll?: boolean;
@@ -114,6 +115,7 @@ export function useModalAccessibility({
   isOpen,
   dialogRef,
   initialFocusRef,
+  initialFocusSelector,
   onEscape,
   escapeEnabled = true,
   lockBodyScroll = true,
@@ -178,7 +180,11 @@ export function useModalAccessibility({
         return;
       }
 
-      const requestedInitialFocus = initialFocusRef?.current;
+      const requestedInitialFocus =
+        initialFocusRef?.current ??
+        (initialFocusSelector
+          ? dialog.querySelector<HTMLElement>(initialFocusSelector)
+          : null);
 
       if (
         requestedInitialFocus &&
@@ -304,13 +310,11 @@ export function useModalAccessibility({
       removeModalFromStack(modalId);
       releaseBodyScrollLock?.();
 
-      const dialog = dialogRef.current;
-
       if (
         temporarilyAddedDialogTabIndex &&
-        dialog?.getAttribute("tabindex") === "-1"
+        dialogAtOpen?.getAttribute("tabindex") === "-1"
       ) {
-        dialog.removeAttribute("tabindex");
+        dialogAtOpen.removeAttribute("tabindex");
       }
 
       if (
@@ -326,6 +330,7 @@ export function useModalAccessibility({
   }, [
     dialogRef,
     initialFocusRef,
+    initialFocusSelector,
     isOpen,
     lockBodyScroll,
     restoreFocus,

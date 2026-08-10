@@ -15,8 +15,11 @@ import {
 } from "../../../components/navigation/NavigationIcons";
 
 import {
+  useModalAccessibility,
+} from "../../../hooks/useModalAccessibility";
+
+import {
   dismissActiveBrowserInput,
-  isTextEntryElement,
 } from "../../../utils/browserInput";
 
 interface AuthSurfaceProps {
@@ -45,9 +48,6 @@ function AuthSurface({
 
   const closeButtonRef =
     useRef<HTMLButtonElement>(null);
-
-  const previouslyFocusedElementRef =
-    useRef<HTMLElement | null>(null);
 
   const closeAttentionTimerRef =
     useRef<number | null>(null);
@@ -177,180 +177,43 @@ function AuthSurface({
       onCloseRef.current();
     }, [drawAttentionToCloseButton]);
 
+  useModalAccessibility({
+    isOpen: isModal,
+    dialogRef,
+    initialFocusSelector: "[autofocus]",
+    onEscape: requestAmbientDismiss,
+  });
+
   useEffect(() => {
-    previouslyFocusedElementRef.current =
-      document.activeElement as
-        | HTMLElement
-        | null;
-
-    const previousOverflow =
-      document.body.style.overflow;
-
-    const previousPaddingRight =
-      document.body.style.paddingRight;
-
-    const scrollbarWidth =
-      window.innerWidth -
-      document.documentElement.clientWidth;
-
     if (isModal) {
-      document.body.style.overflow =
-        "hidden";
-
-      if (scrollbarWidth > 0) {
-        document.body.style.paddingRight =
-          `${scrollbarWidth}px`;
-      }
+      return;
     }
 
-    const focusTimer =
-      window.setTimeout(
-        () => {
-          const autofocusElement =
-            dialogRef.current
-              ?.querySelector<HTMLElement>(
-                "[autofocus]",
-              );
-
-          if (autofocusElement) {
-            autofocusElement.focus();
-            return;
-          }
-
-          closeButtonRef.current?.focus();
-        },
-        0,
+    const focusFrame = window.requestAnimationFrame(() => {
+      const autofocusElement = dialogRef.current?.querySelector<HTMLElement>(
+        "[autofocus]",
       );
 
-    function handleKeyDown(
-      event: KeyboardEvent,
-    ) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        requestAmbientDismiss();
-        return;
-      }
-
-      if (
-        event.key !== "Tab" ||
-        !dialogRef.current
-      ) {
-        return;
-      }
-
-      const focusableElements =
-        Array.from(
-          dialogRef.current
-            .querySelectorAll<HTMLElement>(
-              [
-                "a[href]",
-                "button:not([disabled])",
-                "input:not([disabled])",
-                "select:not([disabled])",
-                "textarea:not([disabled])",
-                '[tabindex]:not([tabindex="-1"])',
-              ].join(","),
-            ),
-        ).filter(
-          (element) =>
-            !element.hasAttribute(
-              "hidden",
-            ),
-        );
-
-      const firstElement =
-        focusableElements[0];
-
-      const lastElement =
-        focusableElements[
-          focusableElements.length - 1
-        ];
-
-      if (
-        !firstElement ||
-        !lastElement
-      ) {
-        event.preventDefault();
-        dialogRef.current.focus();
-        return;
-      }
-
-      if (
-        event.shiftKey &&
-        document.activeElement ===
-          firstElement
-      ) {
-        event.preventDefault();
-        lastElement.focus();
-        return;
-      }
-
-      if (
-        !event.shiftKey &&
-        document.activeElement ===
-          lastElement
-      ) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
+      (autofocusElement ?? closeButtonRef.current)?.focus({
+        preventScroll: true,
+      });
+    });
 
     return () => {
-      window.clearTimeout(
-        focusTimer,
-      );
-
-      if (
-        closeAttentionTimerRef.current !==
-        null
-      ) {
-        window.clearTimeout(
-          closeAttentionTimerRef.current,
-        );
-      }
-
-      closeAttentionAnimationRef.current
-        ?.cancel();
-
-      document.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
-
-      if (isModal) {
-        document.body.style.overflow =
-          previousOverflow;
-
-        document.body.style.paddingRight =
-          previousPaddingRight;
-      }
-
-      dismissActiveBrowserInput();
-
-      const previouslyFocusedElement =
-        previouslyFocusedElementRef.current;
-
-      if (
-        previouslyFocusedElement
-          ?.isConnected &&
-        !isTextEntryElement(
-          previouslyFocusedElement,
-        )
-      ) {
-        previouslyFocusedElement.focus({
-          preventScroll: true,
-        });
-      }
+      window.cancelAnimationFrame(focusFrame);
     };
-  }, [
-    isModal,
-    requestAmbientDismiss,
-  ]);
+  }, [isModal]);
+
+  useEffect(() => {
+    return () => {
+      if (closeAttentionTimerRef.current !== null) {
+        window.clearTimeout(closeAttentionTimerRef.current);
+      }
+
+      closeAttentionAnimationRef.current?.cancel();
+      dismissActiveBrowserInput();
+    };
+  }, []);
 
   const surface = (
     <div
@@ -384,6 +247,7 @@ function AuthSurface({
         }
         aria-labelledby="filmgeezer-auth-title"
         aria-describedby="filmgeezer-auth-description"
+        aria-busy={isBusy || undefined}
         tabIndex={-1}
         className="relative z-10 grid max-h-[calc(100dvh-1.5rem)] w-full max-w-[28rem] min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/70 sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-[1.75rem] lg:max-w-[58rem] lg:grid-cols-[0.82fr_1.18fr]"
       >

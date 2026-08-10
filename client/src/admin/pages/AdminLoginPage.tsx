@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { getPublicAppOrigin } from "../adminRuntime";
 import { useAdminAuth } from "../auth/adminAuthContext";
@@ -29,6 +29,9 @@ export default function AdminLoginPage() {
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const mfaPanelRef = useRef<HTMLDivElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const previousNeedsMfaRef = useRef(false);
 
   const needsMfa = status === "mfa-required";
   const canUsePasskey = Boolean(
@@ -38,6 +41,29 @@ export default function AdminLoginPage() {
     !mfaChallenge?.totpAllowed && mfaChallenge?.recoveryAllowed
       ? "recovery"
       : method;
+
+  useEffect(() => {
+    const wasMfa = previousNeedsMfaRef.current;
+    previousNeedsMfaRef.current = needsMfa;
+
+    if (needsMfa) {
+      const focusFrame = window.requestAnimationFrame(() => {
+        mfaPanelRef.current
+          ?.querySelector<HTMLElement>("[data-admin-mfa-initial]")
+          ?.focus({ preventScroll: true });
+      });
+
+      return () => window.cancelAnimationFrame(focusFrame);
+    }
+
+    if (wasMfa) {
+      const focusFrame = window.requestAnimationFrame(() => {
+        emailInputRef.current?.focus({ preventScroll: true });
+      });
+
+      return () => window.cancelAnimationFrame(focusFrame);
+    }
+  }, [needsMfa]);
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,7 +163,11 @@ export default function AdminLoginPage() {
           </div>
 
           {needsMfa ? (
-            <div className="space-y-5 px-6 py-6 sm:px-8 sm:py-7">
+            <div
+              ref={mfaPanelRef}
+              aria-busy={isSubmitting}
+              className="space-y-5 px-6 py-6 sm:px-8 sm:py-7"
+            >
               {(errorMessage || bootstrapError) && (
                 <p role="alert" className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100">{errorMessage ?? bootstrapError}</p>
               )}
@@ -145,6 +175,7 @@ export default function AdminLoginPage() {
               {canUsePasskey && (
                 <button
                   type="button"
+                  data-admin-mfa-initial
                   onClick={() => void handlePasskeyVerification()}
                   disabled={isSubmitting}
                   className="min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55"
@@ -163,8 +194,8 @@ export default function AdminLoginPage() {
 
                   {mfaChallenge?.totpAllowed && mfaChallenge.recoveryAllowed && (
                     <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-slate-950/45 p-1.5">
-                      <button type="button" onClick={() => { setMethod("totp"); setCode(""); }} className={`min-h-10 rounded-xl text-sm font-bold transition ${effectiveMethod === "totp" ? "bg-sky-500 text-white" : "text-slate-400 hover:text-white"}`}>Authenticator</button>
-                      <button type="button" onClick={() => { setMethod("recovery"); setCode(""); }} className={`min-h-10 rounded-xl text-sm font-bold transition ${effectiveMethod === "recovery" ? "bg-sky-500 text-white" : "text-slate-400 hover:text-white"}`}>Recovery code</button>
+                      <button type="button" aria-pressed={effectiveMethod === "totp"} onClick={() => { setMethod("totp"); setCode(""); }} className={`min-h-10 rounded-xl text-sm font-bold transition ${effectiveMethod === "totp" ? "bg-sky-500 text-white" : "text-slate-400 hover:text-white"}`}>Authenticator</button>
+                      <button type="button" aria-pressed={effectiveMethod === "recovery"} onClick={() => { setMethod("recovery"); setCode(""); }} className={`min-h-10 rounded-xl text-sm font-bold transition ${effectiveMethod === "recovery" ? "bg-sky-500 text-white" : "text-slate-400 hover:text-white"}`}>Recovery code</button>
                     </div>
                   )}
 
@@ -172,6 +203,7 @@ export default function AdminLoginPage() {
                     <span className="text-sm font-bold text-slate-200">{effectiveMethod === "totp" ? "Six-digit code" : "Recovery code"}</span>
                     <input
                       type="text"
+                      data-admin-mfa-initial={canUsePasskey ? undefined : "true"}
                       inputMode={effectiveMethod === "totp" ? "numeric" : "text"}
                       autoComplete="one-time-code"
                       value={code}
@@ -195,13 +227,17 @@ export default function AdminLoginPage() {
               )}
             </div>
           ) : (
-            <form onSubmit={handlePasswordSubmit} className="space-y-5 px-6 py-6 sm:px-8 sm:py-7">
+            <form
+              onSubmit={handlePasswordSubmit}
+              aria-busy={isSubmitting}
+              className="space-y-5 px-6 py-6 sm:px-8 sm:py-7"
+            >
               {(errorMessage || bootstrapError) && (
                 <p role="alert" className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] px-4 py-3 text-sm leading-6 text-red-100">{errorMessage ?? bootstrapError}</p>
               )}
               <label className="block">
                 <span className="text-sm font-bold text-slate-200">Email</span>
-                <input type="email" autoComplete="username webauthn" value={email} onChange={(event) => setEmail(event.target.value)} required className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15" placeholder="administrator@example.com" />
+                <input ref={emailInputRef} type="email" autoFocus autoComplete="username webauthn" value={email} onChange={(event) => setEmail(event.target.value)} required className="mt-2 min-h-12 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15" placeholder="administrator@example.com" />
               </label>
               <label className="block">
                 <span className="text-sm font-bold text-slate-200">Password</span>
