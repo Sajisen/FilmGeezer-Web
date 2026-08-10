@@ -104,7 +104,10 @@ function AdminRouteLoadingState() {
 
 function AdminRouteErrorState() {
   return (
-    <section className="rounded-3xl border border-red-300/15 bg-red-400/[0.045] p-6 shadow-2xl shadow-black/15 sm:p-8">
+    <section
+      role="alert"
+      className="rounded-3xl border border-red-300/15 bg-red-400/[0.045] p-6 shadow-2xl shadow-black/15 sm:p-8"
+    >
       <p className="text-[0.64rem] font-black uppercase tracking-[0.2em] text-red-200">
         Workspace unavailable
       </p>

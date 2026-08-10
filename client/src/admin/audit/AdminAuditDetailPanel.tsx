@@ -78,7 +78,13 @@ function IdentityCard({
 
 function DetailSkeleton() {
   return (
-    <section className="animate-pulse overflow-hidden rounded-[1.6rem] border border-white/[0.075] bg-slate-900/45 p-6 shadow-xl shadow-black/[0.08]">
+    <section
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className="animate-pulse overflow-hidden rounded-[1.6rem] border border-white/[0.075] bg-slate-900/45 p-6 shadow-xl shadow-black/[0.08]"
+    >
+      <p className="sr-only">Loading audit record details.</p>
       <div className="h-3 w-28 rounded bg-white/[0.05]" />
       <div className="mt-4 h-7 w-3/5 rounded bg-white/[0.07]" />
       <div className="mt-3 h-3 w-4/5 rounded bg-white/[0.04]" />
@@ -110,7 +116,7 @@ export default function AdminAuditDetailPanel({
 
   if (errorMessage) {
     return (
-      <section className="grid min-h-96 place-items-center rounded-[1.6rem] border border-red-300/10 bg-red-400/[0.035] px-6 py-12 text-center shadow-xl shadow-black/[0.08]">
+      <section role="alert" className="grid min-h-96 place-items-center rounded-[1.6rem] border border-red-300/10 bg-red-400/[0.035] px-6 py-12 text-center shadow-xl shadow-black/[0.08]">
         <div>
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-red-300/15 bg-red-400/[0.08] text-red-200">
             <AdminIcon name="alert" className="h-5 w-5" />
@@ -128,7 +134,7 @@ export default function AdminAuditDetailPanel({
 
   if (!item) {
     return (
-      <section className="grid min-h-96 place-items-center rounded-[1.6rem] border border-white/[0.075] bg-slate-900/45 px-6 py-12 text-center shadow-xl shadow-black/[0.08]">
+      <section role="status" className="grid min-h-96 place-items-center rounded-[1.6rem] border border-white/[0.075] bg-slate-900/45 px-6 py-12 text-center shadow-xl shadow-black/[0.08]">
         <div>
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/[0.07] bg-slate-950/35 text-slate-500">
             <AdminIcon name="audit" className="h-5 w-5" />
@@ -195,12 +201,15 @@ export default function AdminAuditDetailPanel({
               className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-white/[0.08] px-3 text-xs font-black text-slate-400 transition hover:bg-white/[0.04] hover:text-white"
             >
               <AdminIcon name="copy" className="h-3.5 w-3.5" />
-              {copyState === "copied"
-                ? "Copied"
-                : copyState === "failed"
-                  ? "Copy failed"
-                  : "Copy record ID"}
+              Copy record ID
             </button>
+            {copyState !== "idle" ? (
+              <span role="status" aria-live="polite" className="text-xs font-bold text-slate-400">
+                {copyState === "copied"
+                  ? "Record ID copied."
+                  : "Record ID could not be copied."}
+              </span>
+            ) : null}
           </div>
         </div>
       </header>

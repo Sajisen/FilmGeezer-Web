@@ -29,7 +29,8 @@ interface AdminSupportConversationPanelProps {
 
 function ThreadSkeleton() {
   return (
-    <div className="space-y-4 p-5 sm:p-6" aria-label="Loading support conversation">
+    <div role="status" aria-live="polite" className="space-y-4 p-5 sm:p-6">
+      <p className="sr-only">Loading support conversation.</p>
       <div className="skeleton-placeholder h-28 rounded-2xl" />
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="skeleton-placeholder h-24 rounded-2xl" />
@@ -53,7 +54,7 @@ export default function AdminSupportConversationPanel({
   onStatusChange,
 }: AdminSupportConversationPanelProps) {
   const [reply, setReply] = useState("");
-  const [copyLabel, setCopyLabel] = useState("Copy reference");
+  const [copyLabel, setCopyLabel] = useState("");
 
   async function handleReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,7 +67,10 @@ export default function AdminSupportConversationPanel({
 
   if (isLoading) {
     return (
-      <section className="overflow-hidden rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 shadow-xl shadow-black/[0.08]">
+      <section
+        aria-busy="true"
+        className="overflow-hidden rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 shadow-xl shadow-black/[0.08]"
+      >
         <ThreadSkeleton />
       </section>
     );
@@ -74,7 +78,7 @@ export default function AdminSupportConversationPanel({
 
   if (errorMessage && !thread) {
     return (
-      <section className="rounded-[1.5rem] border border-red-300/15 bg-red-400/[0.06] p-6 text-sm leading-6 text-red-100 shadow-xl shadow-black/[0.08]">
+      <section role="alert" className="rounded-[1.5rem] border border-red-300/15 bg-red-400/[0.06] p-6 text-sm leading-6 text-red-100 shadow-xl shadow-black/[0.08]">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-red-300/15 bg-red-400/10">
             <AdminIcon name="alert" className="h-4 w-4" />
@@ -98,7 +102,7 @@ export default function AdminSupportConversationPanel({
 
   if (!thread) {
     return (
-      <section className="relative grid min-h-[35rem] place-items-center overflow-hidden rounded-[1.5rem] border border-dashed border-white/[0.1] bg-slate-900/35 px-6 text-center shadow-xl shadow-black/[0.06]">
+      <section role="status" className="relative grid min-h-[35rem] place-items-center overflow-hidden rounded-[1.5rem] border border-dashed border-white/[0.1] bg-slate-900/35 px-6 text-center shadow-xl shadow-black/[0.06]">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-400/[0.055] blur-3xl"
@@ -127,7 +131,10 @@ export default function AdminSupportConversationPanel({
     thread.delivery.available && conversation.status !== "spam";
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 shadow-xl shadow-black/[0.08]">
+    <section
+      aria-busy={isMutating}
+      className="overflow-hidden rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 shadow-xl shadow-black/[0.08]"
+    >
       <header className="relative overflow-hidden border-b border-white/[0.06] px-5 py-5 sm:px-6">
         <div
           aria-hidden="true"
@@ -172,14 +179,19 @@ export default function AdminSupportConversationPanel({
                 const copied = await copyTextToClipboard(
                   conversation.referenceId,
                 );
-                setCopyLabel(copied ? "Copied" : "Copy failed");
-                window.setTimeout(() => setCopyLabel("Copy reference"), 1_600);
+                setCopyLabel(copied ? "Reference copied." : "Reference could not be copied.");
+                window.setTimeout(() => setCopyLabel(""), 1_600);
               }}
               className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-slate-950/25 px-3.5 text-xs font-black text-slate-300 transition hover:border-white/[0.14] hover:text-white"
             >
               <AdminIcon name="copy" className="h-3.5 w-3.5" />
-              {copyLabel}
+              Copy reference
             </button>
+            {copyLabel ? (
+              <span role="status" aria-live="polite" className="sr-only">
+                {copyLabel}
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={onRefresh}
@@ -249,6 +261,7 @@ export default function AdminSupportConversationPanel({
               <button
                 key={status}
                 type="button"
+                aria-pressed={conversation.status === status}
                 disabled={isMutating || conversation.status === status}
                 onClick={() => void onStatusChange(status)}
                 className={`min-h-9 rounded-xl border px-3.5 text-xs font-black transition disabled:cursor-not-allowed ${
@@ -262,6 +275,7 @@ export default function AdminSupportConversationPanel({
             ))}
             <button
               type="button"
+              aria-pressed={conversation.status === "spam"}
               disabled={isMutating || conversation.status === "spam"}
               onClick={() => void onStatusChange("spam")}
               className="min-h-9 rounded-xl border border-red-300/12 bg-red-400/[0.035] px-3.5 text-xs font-black text-red-200 transition hover:border-red-300/20 hover:bg-red-400/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
@@ -275,13 +289,13 @@ export default function AdminSupportConversationPanel({
       {(errorMessage || mutationMessage) ? (
         <div className="mx-5 mt-5 space-y-3 sm:mx-6">
           {errorMessage ? (
-            <div className="flex items-start gap-3 rounded-xl border border-red-300/15 bg-red-400/[0.06] px-4 py-3 text-sm text-red-100">
+            <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-300/15 bg-red-400/[0.06] px-4 py-3 text-sm text-red-100">
               <AdminIcon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           ) : null}
           {mutationMessage ? (
-            <div className="flex items-start gap-3 rounded-xl border border-emerald-300/15 bg-emerald-400/[0.06] px-4 py-3 text-sm text-emerald-100">
+            <div role="status" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-emerald-300/15 bg-emerald-400/[0.06] px-4 py-3 text-sm text-emerald-100">
               <AdminIcon name="check" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{mutationMessage}</span>
             </div>
