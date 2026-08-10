@@ -11,11 +11,13 @@ export interface OneTimeCodeInputHandle {
 }
 
 interface OneTimeCodeInputProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   hasError?: boolean;
   autoFocus?: boolean;
+  compact?: boolean;
   ariaLabel?: string;
   ariaDescribedBy?: string;
 }
@@ -34,11 +36,13 @@ const OneTimeCodeInput =
     OneTimeCodeInputProps
   >(function OneTimeCodeInput(
     {
+      id,
       value,
       onChange,
       disabled = false,
       hasError = false,
       autoFocus = false,
+      compact = false,
       ariaLabel = "Six-digit email verification code",
       ariaDescribedBy,
     },
@@ -75,6 +79,7 @@ const OneTimeCodeInput =
     return (
       <div className="relative">
         <input
+          id={id}
           ref={inputRef}
           type="text"
           inputMode="numeric"
@@ -120,7 +125,11 @@ const OneTimeCodeInput =
 
         <div
           aria-hidden="true"
-          className="grid grid-cols-6 gap-2 sm:gap-2.5"
+          className={`grid grid-cols-6 ${
+            compact
+              ? "gap-2"
+              : "gap-2 sm:gap-2.5"
+          }`}
         >
           {Array.from(
             {
@@ -145,7 +154,11 @@ const OneTimeCodeInput =
               return (
                 <span
                   key={index}
-                  className={`flex h-14 min-w-0 items-center justify-center rounded-xl border text-xl font-bold tabular-nums transition sm:h-16 sm:text-2xl ${
+                  className={`flex min-w-0 items-center justify-center rounded-xl border font-bold tabular-nums transition ${
+                    compact
+                      ? "h-12 text-lg sm:h-14 sm:text-xl"
+                      : "h-14 text-xl sm:h-16 sm:text-2xl"
+                  } ${
                     hasError
                       ? "border-rose-400/70 bg-rose-400/8 text-white"
                       : digit

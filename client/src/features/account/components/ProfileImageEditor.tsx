@@ -225,6 +225,20 @@ function ProfileImageEditor({
   const isBusy = isValidating || isUploading || isRemoving;
 
   useEffect(() => {
+    if (!successMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage(null);
+    }, 5_000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [successMessage]);
+
+  useEffect(() => {
     return () => {
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
