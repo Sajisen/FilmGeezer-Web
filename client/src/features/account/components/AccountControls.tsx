@@ -80,7 +80,7 @@ function AccountControls({
             type="button"
             disabled={isSigningOutAll}
             onClick={onSignOutAll}
-            className="mt-auto min-h-11 w-full rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-200 transition hover:border-amber-300/25 hover:bg-amber-400/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-wait disabled:opacity-50 lg:mt-0 lg:w-auto lg:min-w-48"
+            className="mt-auto min-h-11 w-full rounded-xl border border-amber-300/20 bg-amber-400/[0.07] px-4 text-sm font-semibold text-amber-100 transition hover:border-amber-300/35 hover:bg-amber-400/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-wait disabled:opacity-50 lg:mt-0 lg:w-auto lg:min-w-48"
           >
             {isSigningOutAll
               ? "Signing out…"

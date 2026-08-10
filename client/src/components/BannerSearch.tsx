@@ -63,8 +63,8 @@ function BannerSearch({ ariaLabel, placeholder, scope }: BannerSearchProps) {
         {ariaLabel}
       </label>
 
-      <div className="flex flex-col gap-2 rounded-3xl border border-white/15 bg-slate-950/70 p-2 shadow-2xl shadow-black/30 backdrop-blur-xl sm:flex-row sm:items-center">
-        <div className="flex min-h-12 flex-1 items-center gap-3 rounded-2xl px-3 text-slate-400 transition focus-within:ring-2 focus-within:ring-sky-300 focus-within:ring-offset-2 focus-within:ring-offset-slate-950">
+      <div className="flex flex-col gap-2 rounded-3xl border border-white/15 bg-slate-950/70 p-2 shadow-2xl shadow-black/30 backdrop-blur-xl transition focus-within:border-sky-300/70 focus-within:ring-2 focus-within:ring-sky-300 focus-within:ring-offset-2 focus-within:ring-offset-slate-950 sm:flex-row sm:items-center">
+        <div className="flex min-h-12 flex-1 items-center gap-3 rounded-2xl px-3 text-slate-400">
           <SearchIcon />
 
           <input
@@ -74,7 +74,7 @@ function BannerSearch({ ariaLabel, placeholder, scope }: BannerSearchProps) {
             maxLength={100}
             onChange={(event) => setSearchText(event.target.value)}
             placeholder={placeholder}
-            className="min-w-0 flex-1 bg-transparent py-3 pl-1.5 text-base text-white caret-sky-300 outline-none placeholder:text-slate-500 sm:pl-2"
+            className="min-w-0 flex-1 bg-transparent py-3 pl-1.5 text-base text-white caret-sky-300 outline-none placeholder:text-slate-500 focus-visible:outline-none sm:pl-2"
           />
         </div>
 
