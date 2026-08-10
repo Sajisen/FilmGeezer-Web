@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 import { createDefaultSearchFilters } from "../../config/searchFilters";
 import type { SearchScope } from "../../types/media";
 import type { SearchFilterValues } from "../../types/search";
@@ -44,86 +45,18 @@ function SearchFilterSheet({
 
   const sheetRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
 
   const hasPendingChanges = !areFiltersEqual(
     draftFilters,
     initialFilters,
   );
 
-  useEffect(() => {
-    previouslyFocusedElementRef.current =
-      document.activeElement as HTMLElement | null;
-
-    const previousOverflow = document.body.style.overflow;
-    const previousPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth =
-      window.innerWidth - document.documentElement.clientWidth;
-
-    document.body.style.overflow = "hidden";
-
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    closeButtonRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab" || !sheetRef.current) {
-        return;
-      }
-
-      const focusableElements = Array.from(
-        sheetRef.current.querySelectorAll<HTMLElement>(
-          [
-            "button:not([disabled])",
-            "input:not([disabled])",
-            '[tabindex]:not([tabindex="-1"])',
-          ].join(","),
-        ),
-      );
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-
-      if (!firstElement || !lastElement) {
-        event.preventDefault();
-        sheetRef.current.focus();
-        return;
-      }
-
-      if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault();
-        lastElement.focus();
-        return;
-      }
-
-      if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.paddingRight = previousPaddingRight;
-      document.removeEventListener("keydown", handleKeyDown);
-
-      const previouslyFocusedElement =
-        previouslyFocusedElementRef.current;
-
-      if (previouslyFocusedElement?.isConnected) {
-        previouslyFocusedElement.focus();
-      }
-    };
-  }, [onClose]);
+  useModalAccessibility({
+    isOpen: true,
+    dialogRef: sheetRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: onClose,
+  });
 
   function resetDraftFilters() {
     setDraftFilters(createDefaultSearchFilters(scope));

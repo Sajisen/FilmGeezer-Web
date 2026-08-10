@@ -1,11 +1,12 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useModalAccessibility } from "../../hooks/useModalAccessibility";
+
 import {
   ExternalNavigationContext,
   type ExternalNavigationRequest,
@@ -51,7 +52,6 @@ export function ExternalNavigationProvider({
 
   const dialogRef = useRef<HTMLElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
-  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
 
   const requestExternalNavigation = useCallback(
     ({ url, destinationName }: ExternalNavigationRequest) => {
@@ -70,85 +70,12 @@ export function ExternalNavigationProvider({
     setNotice(null);
   }, []);
 
-  useEffect(() => {
-    if (!notice) {
-      return;
-    }
-
-    previouslyFocusedElementRef.current = document.activeElement as
-      | HTMLElement
-      | null;
-
-    const previousOverflow = document.body.style.overflow;
-    const previousPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth =
-      window.innerWidth - document.documentElement.clientWidth;
-
-    document.body.style.overflow = "hidden";
-
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    cancelButtonRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        closeNotice();
-        return;
-      }
-
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const dialog = dialogRef.current;
-
-      if (!dialog) {
-        return;
-      }
-
-      const focusableElements = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-
-      if (focusableElements.length === 0) {
-        event.preventDefault();
-        return;
-      }
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-
-      if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault();
-        lastElement.focus();
-        return;
-      }
-
-      if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.paddingRight = previousPaddingRight;
-      document.removeEventListener("keydown", handleKeyDown);
-
-      const previouslyFocusedElement =
-        previouslyFocusedElementRef.current;
-
-      if (previouslyFocusedElement?.isConnected) {
-        previouslyFocusedElement.focus();
-      }
-    };
-  }, [closeNotice, notice]);
+  useModalAccessibility({
+    isOpen: notice !== null,
+    dialogRef,
+    initialFocusRef: cancelButtonRef,
+    onEscape: closeNotice,
+  });
 
   const contextValue = useMemo(
     () => ({

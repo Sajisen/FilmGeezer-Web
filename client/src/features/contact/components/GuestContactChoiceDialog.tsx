@@ -1,8 +1,7 @@
-import {
-  useEffect,
-  useRef,
-} from "react";
+import { useRef } from "react";
 import { createPortal } from "react-dom";
+
+import { useModalAccessibility } from "../../../hooks/useModalAccessibility";
 
 interface GuestContactChoiceDialogProps {
   email: string;
@@ -12,14 +11,6 @@ interface GuestContactChoiceDialogProps {
   onSendAsGuest: () => void;
 }
 
-const FOCUSABLE_SELECTOR = [
-  "button:not([disabled])",
-  "a[href]",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
 
 function GuestContactChoiceDialog({
   email,
@@ -31,66 +22,13 @@ function GuestContactChoiceDialog({
   const dialogRef = useRef<HTMLElement | null>(null);
   const signInButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    const previousPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth =
-      window.innerWidth - document.documentElement.clientWidth;
-
-    document.body.style.overflow = "hidden";
-
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    signInButtonRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !isSending) {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const dialog = dialogRef.current;
-
-      if (!dialog) {
-        return;
-      }
-
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      );
-
-      if (focusable.length === 0) {
-        event.preventDefault();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      document.body.style.paddingRight = previousPaddingRight;
-    };
-  }, [isSending, onClose]);
+  useModalAccessibility({
+    isOpen: true,
+    dialogRef,
+    initialFocusRef: signInButtonRef,
+    onEscape: onClose,
+    escapeEnabled: !isSending,
+  });
 
   if (typeof document === "undefined") {
     return null;
@@ -112,6 +50,7 @@ function GuestContactChoiceDialog({
         aria-modal="true"
         aria-labelledby="guest-contact-dialog-title"
         aria-describedby="guest-contact-dialog-description"
+        aria-busy={isSending}
         className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/12 bg-slate-900 shadow-2xl shadow-black/55"
       >
         <div className="border-b border-white/8 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.15),transparent_38%)] px-5 py-5 sm:px-6">

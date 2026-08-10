@@ -1,7 +1,6 @@
-import {
-  useEffect,
-  useRef,
-} from "react";
+import { useRef } from "react";
+
+import { useModalAccessibility } from "../../../hooks/useModalAccessibility";
 
 import {
   BookmarkIcon,
@@ -22,74 +21,13 @@ function WatchlistLimitDialog({
 }: WatchlistLimitDialogProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const signInButtonRef = useRef<HTMLButtonElement>(null);
-  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    previouslyFocusedElementRef.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-
-    const previousOverflow = document.body.style.overflow;
-    const previousPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth =
-      window.innerWidth - document.documentElement.clientWidth;
-
-    document.body.style.overflow = "hidden";
-
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    signInButtonRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const focusableElements = Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
-
-      if (focusableElements.length === 0) {
-        return;
-      }
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements.at(-1);
-
-      if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault();
-        lastElement?.focus();
-      } else if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.paddingRight = previousPaddingRight;
-      document.removeEventListener("keydown", handleKeyDown);
-
-      const previousElement = previouslyFocusedElementRef.current;
-
-      if (previousElement?.isConnected) {
-        previousElement.focus();
-      }
-    };
-  }, [onClose]);
+  useModalAccessibility({
+    isOpen: true,
+    dialogRef,
+    initialFocusRef: signInButtonRef,
+    onEscape: onClose,
+  });
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">

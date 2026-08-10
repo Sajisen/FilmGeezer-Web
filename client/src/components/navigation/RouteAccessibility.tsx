@@ -71,6 +71,14 @@ function getFallbackAnnouncement(
     return "About FilmGeezer";
   }
 
+  if (pathname === "/privacy") {
+    return "Privacy Policy";
+  }
+
+  if (pathname === "/terms") {
+    return "Terms of Use";
+  }
+
   return "FilmGeezer page";
 }
 
