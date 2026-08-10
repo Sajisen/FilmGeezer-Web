@@ -425,7 +425,7 @@ function ContactPage() {
 
             {shouldShowHistory && (
               <details className="group mt-4 rounded-2xl border border-white/10 bg-slate-900/58 px-4 py-3 lg:hidden">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-white transition hover:text-sky-200 focus:[outline:none] focus-visible:[outline:none] group-open:text-sky-200 [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl text-sm font-bold text-white transition hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 group-open:text-sky-200 [&::-webkit-details-marker]:hidden">
                   <span className="flex min-w-0 items-center gap-2.5">
                     <svg
                       viewBox="0 0 20 20"
