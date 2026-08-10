@@ -74,7 +74,7 @@ function BannerSearch({ ariaLabel, placeholder, scope }: BannerSearchProps) {
             maxLength={100}
             onChange={(event) => setSearchText(event.target.value)}
             placeholder={placeholder}
-            className="min-w-0 flex-1 bg-transparent py-3 text-base text-white outline-none placeholder:text-slate-500"
+            className="min-w-0 flex-1 bg-transparent py-3 pl-1.5 text-base text-white caret-sky-300 outline-none placeholder:text-slate-500 sm:pl-2"
           />
         </div>
 

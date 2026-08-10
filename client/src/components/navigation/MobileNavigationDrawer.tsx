@@ -5,7 +5,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 
 import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 
@@ -54,6 +54,7 @@ function MobileNavigationDrawer({
   const [isEntered, setIsEntered] = useState(() =>
   prefersReducedMotion(),
 );
+  const navigate = useNavigate();
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
@@ -295,10 +296,16 @@ useEffect(() => {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5">
-          <NavLink
-            to="/search"
-            onClick={requestClose}
-            className="group flex min-h-[3.75rem] items-center gap-3 rounded-2xl border border-sky-400/20 bg-gradient-to-r from-sky-500/12 to-blue-500/5 px-4 text-left transition hover:border-sky-300/35 hover:from-sky-500/18 hover:to-blue-500/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          <button
+            type="button"
+            onClick={() =>
+              requestAction(() => {
+                navigate("/search", {
+                  state: { focusSearchInput: true },
+                });
+              })
+            }
+            className="group flex min-h-[3.75rem] w-full items-center gap-3 rounded-2xl border border-sky-400/20 bg-gradient-to-r from-sky-500/12 to-blue-500/5 px-4 text-left transition hover:border-sky-300/35 hover:from-sky-500/18 hover:to-blue-500/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sky-300/20 bg-sky-400/10 text-sky-300">
               <SearchIcon />
@@ -315,7 +322,7 @@ useEffect(() => {
             </span>
 
             <ArrowRightIcon className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-sky-300" />
-          </NavLink>
+          </button>
 
           <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
             Explore

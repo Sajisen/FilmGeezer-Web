@@ -186,6 +186,7 @@ function Navbar() {
           <div className="flex items-center justify-self-end gap-2">
             <NavLink
               to="/search"
+              state={{ focusSearchInput: true }}
               aria-label="Search FilmGeezer"
               title="Search FilmGeezer"
               className={({

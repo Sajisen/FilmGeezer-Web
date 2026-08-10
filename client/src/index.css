@@ -249,15 +249,14 @@ body {
 
 @media (min-width: 640px) {
   .search-results-grid {
-    grid-template-columns: repeat(auto-fill, 176px);
-    justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
     gap: 1rem;
   }
 }
 
 @media (min-width: 1024px) {
   .search-results-grid {
-    grid-template-columns: repeat(auto-fill, 196px);
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
     gap: 1.25rem;
   }
 }

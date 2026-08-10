@@ -91,91 +91,91 @@ function EmailChangeProgress({
 }: {
   verificationStep: boolean;
 }) {
+  const currentStep = verificationStep ? 2 : 1;
+
   return (
-    <div className="relative mt-6 px-2 sm:px-8">
+    <div role="group" className="mt-5" aria-label="Email change progress">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-slate-400">
+          Step {currentStep} of 2
+        </p>
+        <p className="text-xs text-slate-500">
+          {verificationStep ? "Verify your address" : "Add your new address"}
+        </p>
+      </div>
+
       <div
         aria-hidden="true"
-        className="absolute left-1/4 right-1/4 top-5 h-px bg-white/10"
+        className="mt-2 grid grid-cols-2 gap-1.5"
       >
-        <div
-          className={`h-full bg-gradient-to-r from-emerald-300/70 to-sky-300/70 transition-[width] duration-300 motion-reduce:transition-none ${
-            verificationStep
-              ? "w-full"
-              : "w-0"
+        <span
+          className={`h-1.5 rounded-full ${
+            verificationStep ? "bg-emerald-400/75" : "bg-sky-400"
+          }`}
+        />
+        <span
+          className={`h-1.5 rounded-full transition-colors duration-300 motion-reduce:transition-none ${
+            verificationStep ? "bg-sky-400" : "bg-white/10"
           }`}
         />
       </div>
 
-      <ol
-        aria-label="Email change progress"
-        className="relative grid grid-cols-2"
-      >
+      <ol className="mt-3 grid grid-cols-2 gap-4 text-sm">
         <li
-          aria-current={
-            verificationStep
-              ? undefined
-              : "step"
-          }
-          className="flex flex-col items-center text-center"
+          aria-current={verificationStep ? undefined : "step"}
+          className="flex min-w-0 items-center gap-2.5"
         >
           <span
-            className={`grid h-10 w-10 place-items-center rounded-full border text-sm font-black shadow-lg shadow-black/10 ${
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-black ${
               verificationStep
-                ? "border-emerald-300/25 bg-emerald-400/15 text-emerald-200"
-                : "border-sky-300/35 bg-sky-400/15 text-sky-100 ring-4 ring-sky-400/5"
+                ? "border-emerald-300/25 bg-emerald-400/12 text-emerald-200"
+                : "border-sky-300/35 bg-sky-400/12 text-sky-100"
             }`}
           >
-            {verificationStep ? (
-              <AccountIcon
-                name="check"
-                className="h-4 w-4"
-              />
-            ) : (
-              "1"
-            )}
+            1
           </span>
-          <span className="mt-2 text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
-            Step 1
-          </span>
-          <span
-            className={`mt-1 text-sm font-bold ${
-              verificationStep
-                ? "text-emerald-200"
-                : "text-white"
-            }`}
-          >
-            New address
+          <span className="min-w-0">
+            <span className="block truncate font-bold text-white">
+              New email
+            </span>
+            <span
+              className={`mt-0.5 block text-xs ${
+                verificationStep ? "text-emerald-300" : "text-sky-300"
+              }`}
+            >
+              {verificationStep ? "Done" : "Current"}
+            </span>
           </span>
         </li>
 
         <li
-          aria-current={
-            verificationStep
-              ? "step"
-              : undefined
-          }
-          className="flex flex-col items-center text-center"
+          aria-current={verificationStep ? "step" : undefined}
+          className="flex min-w-0 items-center justify-end gap-2.5 text-right"
         >
+          <span className="min-w-0">
+            <span
+              className={`block truncate font-bold ${
+                verificationStep ? "text-white" : "text-slate-400"
+              }`}
+            >
+              Verify code
+            </span>
+            <span
+              className={`mt-0.5 block text-xs ${
+                verificationStep ? "text-sky-300" : "text-slate-500"
+              }`}
+            >
+              {verificationStep ? "Current" : "Next"}
+            </span>
+          </span>
           <span
-            className={`grid h-10 w-10 place-items-center rounded-full border text-sm font-black shadow-lg shadow-black/10 ${
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-black ${
               verificationStep
-                ? "border-sky-300/35 bg-sky-400/15 text-sky-100 ring-4 ring-sky-400/5"
-                : "border-white/10 bg-slate-950/70 text-slate-500"
+                ? "border-sky-300/35 bg-sky-400/12 text-sky-100"
+                : "border-white/10 bg-slate-950/65 text-slate-500"
             }`}
           >
             2
-          </span>
-          <span className="mt-2 text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
-            Step 2
-          </span>
-          <span
-            className={`mt-1 text-sm font-bold ${
-              verificationStep
-                ? "text-white"
-                : "text-slate-500"
-            }`}
-          >
-            Verify
           </span>
         </li>
       </ol>
@@ -597,29 +597,23 @@ function EmailChangePanel({
               Email security
             </p>
             <h2 className="mt-1 text-xl font-black tracking-tight text-white sm:text-2xl">
-              {pending
-                ? "Verify your new email"
-                : "Change your email"}
+              {pending ? "Verify your new email" : "Change your email"}
             </h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
               {pending
-                ? `Enter the six-digit code sent to ${pending.targetEmail}. Your current email will keep working until verification is complete.`
+                ? "Enter the six-digit code we sent. Your current email will keep working until this step is complete."
                 : "Choose the new email address you want to use for sign-in and account recovery."}
             </p>
+
+            <EmailChangeProgress verificationStep={Boolean(pending)} />
           </div>
         </div>
-
-        <EmailChangeProgress
-          verificationStep={Boolean(pending)}
-        />
       </header>
 
       <div className="p-5 sm:p-7">
-        <div className="mx-auto w-full max-w-2xl">
-          <AuthFormMessage
-            message={errorMessage}
-          />
+        <div className="mx-auto w-full max-w-xl">
+          <AuthFormMessage message={errorMessage} />
 
           {successMessage && (
             <div
@@ -627,23 +621,16 @@ function EmailChangePanel({
               className="mb-5 flex items-start gap-2.5 rounded-xl border border-emerald-300/15 bg-emerald-400/[0.08] px-4 py-3 text-sm leading-6 text-emerald-100"
             >
               <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-400/15 text-emerald-200">
-                <AccountIcon
-                  name="check"
-                  className="h-3.5 w-3.5"
-                />
+                <AccountIcon name="check" className="h-3.5 w-3.5" />
               </span>
               <span>{successMessage}</span>
             </div>
           )}
 
           {!pending ? (
-            <form
-              onSubmit={handleRequest}
-              className="space-y-5"
-              noValidate
-            >
+            <form onSubmit={handleRequest} className="space-y-5" noValidate>
               <div className="rounded-2xl border border-white/8 bg-slate-950/45 px-4 py-3.5 sm:flex sm:items-center sm:justify-between sm:gap-5">
-                <div>
+                <div className="min-w-0">
                   <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-500">
                     Current email
                   </p>
@@ -668,7 +655,7 @@ function EmailChangePanel({
                 disabled={isBusy}
                 errorMessages={emailErrors}
                 placeholder="you@example.com"
-                hint="We’ll send a six-digit code to this address before anything changes."
+                hint="We’ll send a six-digit code here before your email changes."
                 onChange={(event: ChangeEvent<HTMLInputElement>) => {
                   setNewEmail(event.target.value);
                   setEmailErrors([]);
@@ -677,171 +664,152 @@ function EmailChangePanel({
                 }}
               />
 
-              <div className="flex flex-col-reverse gap-3 border-t border-white/8 pt-5 sm:flex-row sm:items-center sm:justify-end">
+              <div className="border-t border-white/8 pt-5">
+                <AuthSubmitButton
+                  label="Send verification code"
+                  loadingLabel="Sending…"
+                  isSubmitting={isRequesting}
+                  disabled={isBusy || newEmail.trim().length === 0}
+                />
+
                 <button
                   type="button"
                   onClick={onCancelPanel}
                   disabled={isBusy}
-                  className="min-h-11 rounded-xl border border-white/10 px-5 font-semibold text-slate-300 transition hover:border-white/20 hover:bg-white/[0.035] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-50"
+                  className="mt-3 min-h-10 w-full rounded-xl text-sm font-semibold text-slate-400 transition hover:bg-white/[0.035] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-50"
                 >
                   Cancel
                 </button>
-
-                <div className="w-full sm:w-52">
-                  <AuthSubmitButton
-                    label="Send code"
-                    loadingLabel="Sending…"
-                    isSubmitting={isRequesting}
-                    disabled={
-                      isBusy ||
-                      newEmail.trim().length === 0
-                    }
-                  />
-                </div>
               </div>
             </form>
           ) : (
-            <form
-              onSubmit={handleVerify}
-              className="space-y-6"
-              noValidate
-            >
-              <div className="flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-sky-400/[0.055] px-4 py-3.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-sky-300/15 bg-sky-400/10 text-sky-300">
-                  <AccountIcon name="mail" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-sky-300">
-                    Code sent to
-                  </p>
-                  <p className="mt-1 break-all text-sm font-bold text-white">
-                    {pending.targetEmail}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="account-email-change-code"
-                  className="block text-sm font-bold text-white"
-                >
-                  Verification code
-                </label>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Enter the six digits from the email we sent you.
-                </p>
-
-                <div className="mt-4 max-w-[25rem]">
-                  <OneTimeCodeInput
-                    id="account-email-change-code"
-                    ref={codeInputRef}
-                    value={code}
-                    disabled={isBusy}
-                    hasError={
-                      codeErrors.length > 0 ||
-                      Boolean(errorMessage)
-                    }
-                    autoFocus
-                    compact
-                    ariaLabel="Six-digit code for your new email address"
-                    ariaDescribedBy={codeDescriptionIds}
-                    onChange={handleCodeChange}
-                  />
-                </div>
-
-                {codeErrors.length > 0 && (
-                  <div
-                    id={codeErrorId}
-                    role="alert"
-                    className="mt-2 space-y-1 text-xs leading-5 text-rose-200"
-                  >
-                    {codeErrors.map((message) => (
-                      <p key={message}>{message}</p>
-                    ))}
+            <form onSubmit={handleVerify} className="space-y-5" noValidate>
+              <div className="overflow-hidden rounded-[1.4rem] border border-white/8 bg-slate-950/35 shadow-inner shadow-black/10">
+                <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5 sm:px-5">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-sky-300/15 bg-sky-400/10 text-sky-300">
+                    <AccountIcon name="mail" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[0.66rem] font-black uppercase tracking-[0.16em] text-slate-500">
+                      Code sent to
+                    </p>
+                    <p className="mt-1 break-all text-sm font-bold text-white">
+                      {pending.targetEmail}
+                    </p>
                   </div>
-                )}
+                </div>
 
-                <p
-                  id={codeHelpId}
-                  className="mt-2 text-xs leading-5 text-slate-500"
-                >
-                  Verification starts automatically after the sixth digit.
-                </p>
-              </div>
+                <div className="px-4 py-5 sm:px-6 sm:py-6">
+                  <div className="text-center">
+                    <label
+                      htmlFor="account-email-change-code"
+                      className="block text-sm font-bold text-white"
+                    >
+                      Verification code
+                    </label>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Enter the six digits from the email we sent you.
+                    </p>
+                  </div>
 
-              <div className="flex flex-wrap gap-2.5 text-xs">
-                <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.025] px-3 text-slate-400">
-                  <AccountIcon
-                    name="clock"
-                    className="h-3.5 w-3.5"
-                  />
-                  {expiryMilliseconds > 0
-                    ? `Expires in ${formatCountdown(expiryMilliseconds)}`
-                    : "Code expired"}
-                </span>
+                  <div className="mx-auto mt-4 max-w-[22rem]">
+                    <OneTimeCodeInput
+                      id="account-email-change-code"
+                      ref={codeInputRef}
+                      value={code}
+                      disabled={isBusy}
+                      hasError={codeErrors.length > 0 || Boolean(errorMessage)}
+                      autoFocus
+                      compact
+                      ariaLabel="Six-digit code for your new email address"
+                      ariaDescribedBy={codeDescriptionIds}
+                      onChange={handleCodeChange}
+                    />
+                  </div>
 
-                <span className="inline-flex min-h-8 items-center rounded-full border border-white/8 bg-white/[0.025] px-3 text-slate-400">
-                  {pending.attemptsRemaining} attempt{
-                    pending.attemptsRemaining === 1 ? "" : "s"
-                  } remaining
-                </span>
-              </div>
+                  {codeErrors.length > 0 && (
+                    <div
+                      id={codeErrorId}
+                      role="alert"
+                      className="mx-auto mt-2 max-w-[22rem] space-y-1 text-center text-xs leading-5 text-rose-200"
+                    >
+                      {codeErrors.map((message) => (
+                        <p key={message}>{message}</p>
+                      ))}
+                    </div>
+                  )}
 
-              <div className="flex flex-col gap-3 border-t border-white/8 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleResend();
-                  }}
-                  disabled={
-                    isBusy ||
-                    resendMilliseconds > 0
-                  }
-                  className="min-h-11 rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-300 transition hover:border-sky-300/30 hover:bg-sky-400/[0.05] hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isResending
-                    ? "Sending…"
-                    : resendMilliseconds > 0
-                      ? `Resend in ${formatCountdown(resendMilliseconds)}`
-                      : "Send another code"}
-                </button>
+                  <p
+                    id={codeHelpId}
+                    className="mt-2 text-center text-xs leading-5 text-slate-500"
+                  >
+                    We’ll verify automatically when all six digits are entered.
+                  </p>
 
-                <div className="w-full sm:w-44">
-                  <AuthSubmitButton
-                    label="Verify email"
-                    loadingLabel="Verifying…"
-                    isSubmitting={isVerifying}
-                    disabled={
-                      isBusy ||
-                      code.length !== 6 ||
-                      expiryMilliseconds === 0
-                    }
-                  />
+                  <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
+                    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.025] px-3 text-slate-400">
+                      <AccountIcon name="clock" className="h-3.5 w-3.5" />
+                      {expiryMilliseconds > 0
+                        ? `Expires in ${formatCountdown(expiryMilliseconds)}`
+                        : "Code expired"}
+                    </span>
+
+                    <span className="inline-flex min-h-8 items-center rounded-full border border-white/8 bg-white/[0.025] px-3 text-slate-400">
+                      {pending.attemptsRemaining} attempt
+                      {pending.attemptsRemaining === 1 ? "" : "s"} remaining
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-                <button
-                  type="button"
-                  onClick={onCancelPanel}
-                  disabled={isBusy}
-                  className="min-h-10 rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:bg-white/[0.035] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-50"
-                >
-                  Continue later
-                </button>
+              <div className="border-t border-white/8 pt-5">
+                <AuthSubmitButton
+                  label="Verify new email"
+                  loadingLabel="Verifying…"
+                  isSubmitting={isVerifying}
+                  disabled={
+                    isBusy || code.length !== 6 || expiryMilliseconds === 0
+                  }
+                />
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleCancelChange();
-                  }}
-                  disabled={isBusy}
-                  className="min-h-10 rounded-xl border border-rose-300/20 px-4 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-wait disabled:opacity-50"
-                >
-                  {isCancelling
-                    ? "Cancelling…"
-                    : "Cancel change"}
-                </button>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleResend();
+                    }}
+                    disabled={isBusy || resendMilliseconds > 0}
+                    className="min-h-10 rounded-xl px-3 text-sm font-semibold text-slate-400 transition hover:bg-sky-400/[0.05] hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isResending
+                      ? "Sending…"
+                      : resendMilliseconds > 0
+                        ? `Resend in ${formatCountdown(resendMilliseconds)}`
+                        : "Send another code"}
+                  </button>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={onCancelPanel}
+                      disabled={isBusy}
+                      className="min-h-10 rounded-xl px-3 text-sm font-semibold text-slate-400 transition hover:bg-white/[0.035] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-50"
+                    >
+                      Continue later
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleCancelChange();
+                      }}
+                      disabled={isBusy}
+                      className="min-h-10 rounded-xl px-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-400/[0.06] hover:text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-wait disabled:opacity-50"
+                    >
+                      {isCancelling ? "Cancelling…" : "Cancel change"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </form>
           )}

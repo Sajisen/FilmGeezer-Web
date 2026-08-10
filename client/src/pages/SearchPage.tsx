@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 import {
   createDefaultSearchFilters,
   getFormatLabel,
@@ -297,6 +297,46 @@ function SearchPageContent({
   const [filters, setFilters] =
     useState<SearchFilterValues>(committedFilters);
   const [areMobileFiltersOpen, setAreMobileFiltersOpen] = useState(false);
+  const location = useLocation();
+
+  const shouldFocusSearchInput =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "focusSearchInput" in location.state &&
+    (location.state as { focusSearchInput?: unknown }).focusSearchInput === true;
+
+  useEffect(() => {
+    if (!shouldFocusSearchInput) {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const inputId = window.matchMedia("(min-width: 1024px)").matches
+          ? "desktop-search-page-query"
+          : "search-page-query";
+
+        const input = document.getElementById(inputId);
+
+        if (!(input instanceof HTMLInputElement)) {
+          return;
+        }
+
+        input.focus({ preventScroll: true });
+
+        const caretPosition = input.value.length;
+        input.setSelectionRange(caretPosition, caretPosition);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [location.key, shouldFocusSearchInput]);
 
   useEffect(() => {
     window.scrollTo({
