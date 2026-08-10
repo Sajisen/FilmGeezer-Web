@@ -102,7 +102,7 @@ function AccountControls({
               <AccountIcon name="warning" />
             </span>
             <p className="text-sm leading-6 text-slate-400">
-              Make your account unavailable and sign out every device. Your stored data is not permanently deleted.
+              Temporarily deactivate your account and sign out everywhere. Your Watchlist, preferences, and other saved information will stay in your account.
             </p>
           </div>
 

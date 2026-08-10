@@ -194,7 +194,7 @@ function AccountDeactivationDialog({
             id="account-deactivation-description"
             className="mt-2 max-w-md text-sm leading-6 text-slate-300"
           >
-            Your account will become unavailable immediately, but your saved FilmGeezer data will not be permanently deleted.
+            You’ll be signed out everywhere and won’t be able to sign in while the account is deactivated. Your Watchlist, preferences, and other saved information will stay in your account.
           </p>
         </div>
 
@@ -211,14 +211,14 @@ function AccountDeactivationDialog({
               <span className="mb-2 block text-rose-300">
                 <AccountIcon name="key" className="h-4 w-4" />
               </span>
-              New sign-ins are blocked.
+              You won’t be able to sign in.
             </div>
 
             <div className="rounded-xl border border-white/8 bg-slate-950/50 p-3 text-sm text-slate-300">
               <span className="mb-2 block text-rose-300">
                 <AccountIcon name="profile" className="h-4 w-4" />
               </span>
-              Your stored data remains.
+              Your saved information stays.
             </div>
           </div>
 

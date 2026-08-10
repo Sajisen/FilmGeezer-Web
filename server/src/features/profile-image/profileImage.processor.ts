@@ -104,13 +104,13 @@ export async function processProfileImage(
       PROFILE_IMAGE_INPUT_POLICY.maximumPixels
     ) {
       throw new ProfileImageInvalidError(
-        "The selected image dimensions are too large.",
+        "That image is too large to process. Choose a smaller one.",
       );
     }
 
     if ((metadata.pages ?? 1) !== 1) {
       throw new ProfileImageInvalidError(
-        "Animated or multi-frame images are not supported.",
+        "Choose a still image. Animated images aren’t supported.",
       );
     }
 

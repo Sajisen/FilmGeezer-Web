@@ -125,7 +125,7 @@ export function uploadProfileImage(
           new AuthApiError(
             request.status,
             asErrorPayload(payload),
-            "FilmGeezer could not upload the profile picture.",
+            "FilmGeezer couldn’t update your profile picture. Please try again.",
           ),
         );
         return;
@@ -136,7 +136,7 @@ export function uploadProfileImage(
           new AuthApiError(
             request.status,
             {},
-            "FilmGeezer received an invalid profile-picture response.",
+            "Something went wrong while updating your profile picture. Please try again.",
           ),
         );
         return;
@@ -151,7 +151,7 @@ export function uploadProfileImage(
         new AuthApiError(
           0,
           {},
-          "FilmGeezer could not reach the profile-picture service.",
+          "FilmGeezer couldn’t upload your picture right now. Check your connection and try again.",
         ),
       );
     });
@@ -159,7 +159,7 @@ export function uploadProfileImage(
     request.addEventListener("abort", () => {
       reject(
         new DOMException(
-          "The profile-picture upload was cancelled.",
+          "Profile picture upload cancelled.",
           "AbortError",
         ),
       );
@@ -218,7 +218,7 @@ export async function removeProfileImage(
     throw new AuthApiError(
       0,
       {},
-      "FilmGeezer could not reach the profile-picture service.",
+      "FilmGeezer couldn’t remove your picture right now. Check your connection and try again.",
     );
   }
 
@@ -230,7 +230,7 @@ export async function removeProfileImage(
     throw new AuthApiError(
       response.status,
       asErrorPayload(payload),
-      "FilmGeezer could not remove the profile picture.",
+      "FilmGeezer couldn’t remove your profile picture. Please try again.",
     );
   }
 
@@ -242,7 +242,7 @@ export async function removeProfileImage(
     throw new AuthApiError(
       response.status,
       {},
-      "FilmGeezer received an invalid profile-picture response.",
+      "Something went wrong while removing your profile picture. Please try again.",
     );
   }
 

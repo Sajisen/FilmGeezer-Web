@@ -357,7 +357,7 @@ function SessionManager({
                       {isMenuOpen && (
                         <div
                           role="menu"
-                          aria-label={`Session options for ${session.device.label}`}
+                          aria-label={`Options for ${session.device.label}`}
                           onKeyDown={(event) => {
                             if (event.key === "Tab") {
                               setOpenMenuReference(null);
@@ -404,8 +404,8 @@ function SessionManager({
                             className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-rose-200 transition hover:bg-rose-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-wait disabled:opacity-50"
                           >
                             {isRevoking
-                              ? "Ending…"
-                              : "End session"}
+                              ? "Signing out…"
+                              : "Sign out"}
                           </button>
                         </div>
                       )}

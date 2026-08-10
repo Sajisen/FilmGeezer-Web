@@ -243,7 +243,7 @@ function ChangePasswordPanel({
               value={newPassword}
               disabled={isSubmitting}
               errorMessages={fieldErrors.newPassword}
-              placeholder="Use a memorable passphrase"
+              placeholder="Create a strong new password"
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 setNewPassword(event.target.value);
                 setAssessment(null);
@@ -293,7 +293,7 @@ function ChangePasswordPanel({
             <span className="mt-0.5 text-sky-300">
               <AccountIcon name="shield" className="h-4 w-4" />
             </span>
-            Your current device stays signed in with a fresh secure session.
+            This device will stay signed in after your password changes.
           </div>
 
           <div className="w-full sm:w-52">
