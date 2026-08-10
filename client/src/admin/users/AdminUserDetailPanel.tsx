@@ -1,4 +1,8 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import ProfileAvatar from "../../components/ProfileAvatar";
 import AdminIcon from "../components/AdminIcon";
@@ -68,8 +72,27 @@ function SessionCard({
   pending: boolean;
   onRequestRevoke: () => void;
   onCancelRevoke: () => void;
-  onConfirmRevoke: () => void;
+  onConfirmRevoke: () => Promise<void>;
 }) {
+  const requestButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!pending) {
+      return;
+    }
+
+    confirmButtonRef.current?.focus();
+  }, [pending]);
+
+  function handleCancel() {
+    onCancelRevoke();
+
+    window.setTimeout(() => {
+      requestButtonRef.current?.focus();
+    }, 0);
+  }
+
   return (
     <article className="rounded-2xl border border-white/[0.065] bg-slate-950/25 p-4">
       <div className="flex items-start gap-3">
@@ -99,9 +122,10 @@ function SessionCard({
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
+              ref={confirmButtonRef}
               type="button"
               disabled={isWorking}
-              onClick={onConfirmRevoke}
+              onClick={() => void onConfirmRevoke()}
               className="min-h-9 rounded-xl bg-red-500 px-3 text-xs font-black text-white transition hover:bg-red-400 disabled:opacity-50"
             >
               {isWorking ? "Revoking…" : "Revoke session"}
@@ -109,7 +133,7 @@ function SessionCard({
             <button
               type="button"
               disabled={isWorking}
-              onClick={onCancelRevoke}
+              onClick={handleCancel}
               className="min-h-9 rounded-xl border border-white/[0.08] px-3 text-xs font-black text-slate-400 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
             >
               Cancel
@@ -118,6 +142,7 @@ function SessionCard({
         </div>
       ) : (
         <button
+          ref={requestButtonRef}
           type="button"
           onClick={onRequestRevoke}
           disabled={isWorking}
@@ -155,6 +180,20 @@ export default function AdminUserDetailPanel({
   const [pendingSessionId, setPendingSessionId] =
     useState<string | null>(null);
 
+  const activeSessionsHeadingRef =
+    useRef<HTMLHeadingElement>(null);
+  const revokeAllTriggerRef =
+    useRef<HTMLButtonElement>(null);
+  const revokeAllConfirmRef =
+    useRef<HTMLButtonElement>(null);
+  const accessControlHeadingRef =
+    useRef<HTMLHeadingElement>(null);
+  const reasonRef =
+    useRef<HTMLTextAreaElement>(null);
+  const suspendTriggerRef =
+    useRef<HTMLButtonElement>(null);
+  const reactivateTriggerRef =
+    useRef<HTMLButtonElement>(null);
 
   if (isLoading) {
     return <DetailSkeleton />;
@@ -182,16 +221,66 @@ export default function AdminUserDetailPanel({
   const { user, permissions, identities, activeSessions } = detail;
 
   async function submitStatusAction() {
-    if (action === "suspend") {
+    const completedAction = action;
+
+    if (completedAction === "suspend") {
       await onSuspend(reason);
-    } else if (action === "reactivate") {
+    } else if (completedAction === "reactivate") {
       await onReactivate(reason);
-    } else if (action === "revoke-all") {
+    } else if (completedAction === "revoke-all") {
       await onRevokeAllSessions();
     }
 
     setAction(null);
     setReason("");
+
+    window.setTimeout(() => {
+      if (completedAction === "revoke-all") {
+        activeSessionsHeadingRef.current?.focus();
+      } else {
+        accessControlHeadingRef.current?.focus();
+      }
+    }, 0);
+  }
+
+  function requestStatusAction(nextAction: "suspend" | "reactivate") {
+    setAction(nextAction);
+    setReason("");
+
+    window.setTimeout(() => {
+      reasonRef.current?.focus();
+    }, 0);
+  }
+
+  function cancelStatusAction() {
+    const cancelledAction = action;
+
+    setAction(null);
+    setReason("");
+
+    window.setTimeout(() => {
+      if (cancelledAction === "suspend") {
+        suspendTriggerRef.current?.focus();
+      } else if (cancelledAction === "reactivate") {
+        reactivateTriggerRef.current?.focus();
+      }
+    }, 0);
+  }
+
+  function requestRevokeAll() {
+    setAction("revoke-all");
+
+    window.setTimeout(() => {
+      revokeAllConfirmRef.current?.focus();
+    }, 0);
+  }
+
+  function cancelRevokeAll() {
+    setAction(null);
+
+    window.setTimeout(() => {
+      revokeAllTriggerRef.current?.focus();
+    }, 0);
   }
 
   return (
@@ -308,7 +397,11 @@ export default function AdminUserDetailPanel({
         <section>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h3 className="text-sm font-black text-white">
+              <h3
+                ref={activeSessionsHeadingRef}
+                tabIndex={-1}
+                className="text-sm font-black text-white outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
                 Active public sessions
               </h3>
               <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -321,9 +414,10 @@ export default function AdminUserDetailPanel({
             activeSessions.length > 0 &&
             action !== "revoke-all" ? (
               <button
+                ref={revokeAllTriggerRef}
                 type="button"
                 disabled={isWorking}
-                onClick={() => setAction("revoke-all")}
+                onClick={requestRevokeAll}
                 className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-red-300/12 bg-red-400/[0.05] px-3 text-xs font-black text-red-100 transition hover:bg-red-400/[0.1] disabled:opacity-50"
               >
                 <AdminIcon name="logout" className="h-3.5 w-3.5" />
@@ -343,6 +437,7 @@ export default function AdminUserDetailPanel({
               </p>
               <div className="mt-3 flex gap-2">
                 <button
+                  ref={revokeAllConfirmRef}
                   type="button"
                   disabled={isWorking}
                   onClick={() => void submitStatusAction()}
@@ -353,7 +448,7 @@ export default function AdminUserDetailPanel({
                 <button
                   type="button"
                   disabled={isWorking}
-                  onClick={() => setAction(null)}
+                  onClick={cancelRevokeAll}
                   className="min-h-9 rounded-xl border border-white/[0.08] px-3 text-xs font-black text-slate-400 hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
                 >
                   Cancel
@@ -387,11 +482,14 @@ export default function AdminUserDetailPanel({
                     setPendingSessionId(session.sessionId)
                   }
                   onCancelRevoke={() => setPendingSessionId(null)}
-                  onConfirmRevoke={() =>
-                    void onRevokeSession(session.sessionId).then(() =>
-                      setPendingSessionId(null),
-                    )
-                  }
+                  onConfirmRevoke={async () => {
+                    await onRevokeSession(session.sessionId);
+                    setPendingSessionId(null);
+
+                    window.setTimeout(() => {
+                      activeSessionsHeadingRef.current?.focus();
+                    }, 0);
+                  }}
                 />
               ))}
             </div>
@@ -411,7 +509,11 @@ export default function AdminUserDetailPanel({
               />
             </span>
             <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-black text-white">
+              <h3
+                ref={accessControlHeadingRef}
+                tabIndex={-1}
+                className="text-sm font-black text-white outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
                 Account access control
               </h3>
               <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -428,6 +530,7 @@ export default function AdminUserDetailPanel({
                   Administrator reason
                 </span>
                 <textarea
+                  ref={reasonRef}
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   rows={3}
@@ -460,10 +563,7 @@ export default function AdminUserDetailPanel({
                 <button
                   type="button"
                   disabled={isWorking}
-                  onClick={() => {
-                    setAction(null);
-                    setReason("");
-                  }}
+                  onClick={cancelStatusAction}
                   className="min-h-10 rounded-xl border border-white/[0.08] px-4 text-xs font-black text-slate-400 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
                 >
                   Cancel
@@ -474,9 +574,10 @@ export default function AdminUserDetailPanel({
             <div className="mt-4 flex flex-wrap gap-2">
               {permissions.canSuspend ? (
                 <button
+                  ref={suspendTriggerRef}
                   type="button"
                   disabled={isWorking}
-                  onClick={() => setAction("suspend")}
+                  onClick={() => requestStatusAction("suspend")}
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-300/15 bg-red-400/[0.07] px-4 text-xs font-black text-red-100 transition hover:bg-red-400/[0.12] disabled:opacity-50"
                 >
                   <AdminIcon name="userBlock" className="h-4 w-4" />
@@ -486,9 +587,10 @@ export default function AdminUserDetailPanel({
 
               {permissions.canReactivate ? (
                 <button
+                  ref={reactivateTriggerRef}
                   type="button"
                   disabled={isWorking}
-                  onClick={() => setAction("reactivate")}
+                  onClick={() => requestStatusAction("reactivate")}
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-300/15 bg-emerald-400/[0.07] px-4 text-xs font-black text-emerald-100 transition hover:bg-emerald-400/[0.12] disabled:opacity-50"
                 >
                   <AdminIcon name="unlock" className="h-4 w-4" />

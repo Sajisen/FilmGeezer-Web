@@ -1,4 +1,5 @@
 import {
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -8,7 +9,7 @@ import {
   startAdminMfaSetup,
 } from "../services/adminService";
 import type { AdminMfaSetupResponse } from "../types/admin";
-import { copyTextToClipboard } from "../../utils/copyTextToClipboard";
+import AdminRecoveryCodesPanel from "./AdminRecoveryCodesPanel";
 
 interface AdminMfaSetupFlowProps {
   csrfToken: string;
@@ -25,10 +26,9 @@ export default function AdminMfaSetupFlow({
   const [setup, setSetup] = useState<AdminMfaSetupResponse["setup"] | null>(null);
   const [code, setCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
-  const [hasSavedCodes, setHasSavedCodes] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const codeInputRef = useRef<HTMLInputElement>(null);
 
   async function handleStart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,6 +47,10 @@ export default function AdminMfaSetupFlow({
       );
       setSetup(response.setup);
       setPassword("");
+
+      window.setTimeout(() => {
+        codeInputRef.current?.focus();
+      }, 0);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -82,82 +86,48 @@ export default function AdminMfaSetupFlow({
           ? error.message
           : "The authenticator code could not be verified.",
       );
+
+      window.setTimeout(() => {
+        codeInputRef.current?.focus();
+      }, 0);
     } finally {
       setIsWorking(false);
     }
   }
 
-  async function handleCopyCodes() {
-    if (!recoveryCodes) {
-      return;
-    }
-
-    const copied = await copyTextToClipboard(recoveryCodes.join("\n"));
-    setCopyStatus(copied ? "Copied" : "Copy failed");
-  }
-
   if (recoveryCodes) {
     return (
-      <section className="rounded-[1.75rem] border border-emerald-300/15 bg-emerald-400/[0.05] p-5 shadow-xl shadow-black/[0.08] sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
-          MFA enabled
-        </p>
-        <h2 className="mt-2 text-xl font-black text-white">
-          Save your recovery codes now
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">
-          Each code works once. FilmGeezer will not show this set again. Store them outside this browser and outside the device that holds your authenticator app.
-        </p>
+      <AdminRecoveryCodesPanel
+        recoveryCodes={recoveryCodes}
+        title="Save your administrator recovery codes now"
+        description="MFA is enabled. Each code works once, and FilmGeezer will not show this set again. Store the codes outside this browser and outside the device that holds your authenticator app."
+        requireAcknowledgement
+        continueLabel="Continue to administration"
+        isWorking={isWorking}
+        onContinue={async () => {
+          setIsWorking(true);
 
-        <div className="mt-5 grid gap-2 rounded-2xl border border-white/[0.08] bg-slate-950/45 p-4 font-mono text-sm text-slate-200 sm:grid-cols-2">
-          {recoveryCodes.map((recoveryCode) => (
-            <code key={recoveryCode} className="rounded-lg bg-white/[0.035] px-3 py-2">
-              {recoveryCode}
-            </code>
-          ))}
-        </div>
-
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={() => void handleCopyCodes()}
-            className="min-h-11 rounded-xl border border-white/10 px-4 text-sm font-bold text-slate-200 transition hover:bg-white/[0.04]"
-          >
-            {copyStatus ?? "Copy all codes"}
-          </button>
-          <label className="flex items-start gap-3 text-sm leading-6 text-slate-300">
-            <input
-              type="checkbox"
-              checked={hasSavedCodes}
-              onChange={(event) => setHasSavedCodes(event.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-white/20 bg-slate-950"
-            />
-            I stored these codes somewhere safe.
-          </label>
-        </div>
-
-        <button
-          type="button"
-          disabled={!hasSavedCodes || isWorking}
-          onClick={() => {
-            setIsWorking(true);
-            void onComplete().finally(() => setIsWorking(false));
-          }}
-          className="mt-5 min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          {isWorking ? "Finishing…" : "Continue to administration"}
-        </button>
-      </section>
+          try {
+            await onComplete();
+          } finally {
+            setIsWorking(false);
+          }
+        }}
+      />
     );
   }
 
   if (setup) {
     return (
-      <section className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
+      <section
+        aria-labelledby="admin-mfa-verify-title"
+        aria-busy={isWorking}
+        className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6"
+      >
         <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
           Authenticator setup
         </p>
-        <h2 className="mt-2 text-xl font-black text-white">
+        <h2 id="admin-mfa-verify-title" className="mt-2 text-xl font-black text-white">
           Scan, then verify one code
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -190,27 +160,34 @@ export default function AdminMfaSetupFlow({
               {setup.secret}
             </code>
 
-            <form onSubmit={handleVerify} className="mt-5">
+            <form
+              onSubmit={handleVerify}
+              aria-busy={isWorking}
+              className="mt-5"
+            >
               <label className="block">
                 <span className="text-sm font-bold text-slate-200">
                   Six-digit authenticator code
                 </span>
                 <input
+                  ref={codeInputRef}
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
+                  disabled={isWorking}
                   required
                   maxLength={6}
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/[0.08] bg-slate-950/45 px-4 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+                  pattern="[0-9]{6}"
+                  className="mt-2 min-h-12 w-full rounded-2xl border border-white/[0.08] bg-slate-950/45 px-4 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15 disabled:cursor-wait disabled:opacity-60"
                   placeholder="000000"
                 />
               </label>
               <button
                 type="submit"
-                disabled={isWorking}
-                className="mt-4 min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 disabled:opacity-50"
+                disabled={isWorking || code.length !== 6}
+                className="mt-4 min-h-12 w-full rounded-2xl bg-sky-500 px-5 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 disabled:opacity-50"
               >
                 {isWorking ? "Verifying…" : "Enable administrator MFA"}
               </button>
@@ -222,7 +199,11 @@ export default function AdminMfaSetupFlow({
   }
 
   return (
-    <form onSubmit={handleStart} className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6">
+    <form
+      onSubmit={handleStart}
+      aria-busy={isWorking}
+      className="rounded-[1.75rem] border border-white/[0.075] bg-slate-900/55 p-5 shadow-xl shadow-black/[0.08] sm:p-6"
+    >
       <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
         Authenticator app
       </p>
@@ -249,8 +230,9 @@ export default function AdminMfaSetupFlow({
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            disabled={isWorking}
             required
-            className="mt-2 min-h-12 w-full rounded-2xl border border-white/[0.08] bg-slate-950/45 px-4 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15"
+            className="mt-2 min-h-12 w-full rounded-2xl border border-white/[0.08] bg-slate-950/45 px-4 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15 disabled:cursor-wait disabled:opacity-60"
           />
         </label>
       )}
@@ -258,7 +240,7 @@ export default function AdminMfaSetupFlow({
       <button
         type="submit"
         disabled={isWorking}
-        className="mt-5 min-h-12 rounded-2xl bg-sky-500 px-6 text-sm font-black text-white transition hover:bg-sky-400 disabled:opacity-50"
+        className="mt-5 min-h-12 rounded-2xl bg-sky-500 px-6 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 disabled:opacity-50"
       >
         {isWorking ? "Preparing…" : "Start MFA setup"}
       </button>

@@ -223,6 +223,7 @@ function ChangePasswordPanel({
 
       <form
         onSubmit={handleSubmit}
+        aria-busy={isSubmitting}
         className="space-y-5 p-5 sm:p-7"
         noValidate
       >

@@ -16,6 +16,8 @@ interface OneTimeCodeInputProps {
   disabled?: boolean;
   hasError?: boolean;
   autoFocus?: boolean;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
 }
 
 function sanitizeCode(
@@ -37,6 +39,8 @@ const OneTimeCodeInput =
       disabled = false,
       hasError = false,
       autoFocus = false,
+      ariaLabel = "Six-digit email verification code",
+      ariaDescribedBy,
     },
     forwardedRef,
   ) {
@@ -108,7 +112,8 @@ const OneTimeCodeInput =
             event.preventDefault();
             onChange(pastedCode);
           }}
-          aria-label="Six-digit email verification code"
+          aria-label={ariaLabel}
+          aria-describedby={ariaDescribedBy}
           aria-invalid={hasError}
           className="absolute inset-0 z-10 h-full w-full cursor-text opacity-0 disabled:cursor-not-allowed"
         />

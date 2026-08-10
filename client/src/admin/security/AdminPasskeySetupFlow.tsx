@@ -167,7 +167,11 @@ export default function AdminPasskeySetupFlow({
           method.
         </p>
       ) : (
-        <form onSubmit={handleSubmit} className="mt-5 space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          aria-busy={isWorking}
+          className="mt-5 space-y-5"
+        >
           {(errorMessage || statusMessage) && (
             <p
               role={errorMessage ? "alert" : "status"}
@@ -185,15 +189,20 @@ export default function AdminPasskeySetupFlow({
             <span className="text-sm font-bold text-slate-200">
               Device label
             </span>
-            <span className="mt-1 block text-xs leading-5 text-slate-500">
+            <span
+              id="admin-passkey-label-help"
+              className="mt-1 block text-xs leading-5 text-slate-500"
+            >
               Use a name you will recognize later, such as “Personal Windows
               laptop” or “Backup security key”.
             </span>
             <input
               type="text"
               autoComplete="off"
+              aria-describedby="admin-passkey-label-help"
               value={label}
               onChange={(event) => setLabel(event.target.value)}
+              disabled={isWorking}
               required
               minLength={2}
               maxLength={64}
@@ -208,7 +217,7 @@ export default function AdminPasskeySetupFlow({
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
               <label
-                className={`cursor-pointer rounded-2xl border p-4 transition ${
+                className={`relative cursor-pointer rounded-2xl border p-4 transition ${
                   attachment === "platform"
                     ? "border-sky-300/35 bg-sky-400/[0.08]"
                     : "border-white/10 bg-slate-950/35 hover:border-white/20"
@@ -220,7 +229,12 @@ export default function AdminPasskeySetupFlow({
                   value="platform"
                   checked={attachment === "platform"}
                   onChange={() => setAttachment("platform")}
-                  className="sr-only"
+                  disabled={isWorking}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 rounded-2xl ring-sky-300 peer-focus-visible:ring-2"
                 />
                 <span className="block text-sm font-black text-white">
                   This device
@@ -232,7 +246,7 @@ export default function AdminPasskeySetupFlow({
               </label>
 
               <label
-                className={`cursor-pointer rounded-2xl border p-4 transition ${
+                className={`relative cursor-pointer rounded-2xl border p-4 transition ${
                   attachment === "cross-platform"
                     ? "border-sky-300/35 bg-sky-400/[0.08]"
                     : "border-white/10 bg-slate-950/35 hover:border-white/20"
@@ -244,7 +258,12 @@ export default function AdminPasskeySetupFlow({
                   value="cross-platform"
                   checked={attachment === "cross-platform"}
                   onChange={() => setAttachment("cross-platform")}
-                  className="sr-only"
+                  disabled={isWorking}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 rounded-2xl ring-sky-300 peer-focus-visible:ring-2"
                 />
                 <span className="block text-sm font-black text-white">
                   Security key or another device
@@ -259,7 +278,7 @@ export default function AdminPasskeySetupFlow({
           <button
             type="submit"
             disabled={isWorking || label.trim().length < 2}
-            className="min-h-12 rounded-2xl bg-sky-500 px-6 text-sm font-black text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-12 rounded-2xl bg-sky-500 px-6 text-sm font-black text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isWorking ? "Waiting for your device…" : submitLabel}
           </button>

@@ -187,6 +187,19 @@ function EmailChangePanel({
           expiryTimestamp - now,
         );
 
+  const codeErrorId =
+    codeErrors.length > 0
+      ? "account-email-change-code-error"
+      : undefined;
+
+  const codeHelpId =
+    "account-email-change-code-help";
+
+  const codeDescriptionIds =
+    [codeErrorId, codeHelpId]
+      .filter(Boolean)
+      .join(" ");
+
   function updatePending(
     next:
       | AccountEmailChangeReceipt
@@ -453,7 +466,10 @@ function EmailChangePanel({
   }
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] border border-sky-300/15 bg-slate-900/75 shadow-xl shadow-black/15">
+    <section
+      aria-busy={isBusy}
+      className="overflow-hidden rounded-[1.75rem] border border-sky-300/15 bg-slate-900/75 shadow-xl shadow-black/15"
+    >
       <div className="border-b border-white/8 px-5 py-5 sm:px-7 sm:py-6">
         <div className="flex items-start gap-3.5">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-300/15 bg-sky-400/10 text-sky-300">
@@ -481,8 +497,8 @@ function EmailChangePanel({
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2" aria-label="Email change progress">
-          <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+        <ol className="mt-5 grid grid-cols-2 gap-2" aria-label="Email change progress">
+          <li className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
             pending
               ? "border-emerald-300/15 bg-emerald-400/[0.06] text-emerald-200"
               : "border-sky-300/20 bg-sky-400/[0.08] text-sky-200"
@@ -495,9 +511,9 @@ function EmailChangePanel({
               )}
             </span>
             New address
-          </div>
+          </li>
 
-          <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+          <li className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
             pending
               ? "border-sky-300/20 bg-sky-400/[0.08] text-sky-200"
               : "border-white/8 bg-white/[0.025] text-slate-500"
@@ -506,8 +522,8 @@ function EmailChangePanel({
               2
             </span>
             Verify
-          </div>
-        </div>
+          </li>
+        </ol>
       </div>
 
       <div className="p-5 sm:p-7">
@@ -544,6 +560,7 @@ function EmailChangePanel({
                 id="account-new-email"
                 label="New email address"
                 type="email"
+                autoFocus
                 autoComplete="email"
                 required
                 maxLength={254}
@@ -609,8 +626,29 @@ function EmailChangePanel({
                   Boolean(errorMessage)
                 }
                 autoFocus
+                ariaLabel="Six-digit code for your new email address"
+                ariaDescribedBy={codeDescriptionIds}
                 onChange={handleCodeChange}
               />
+
+              {codeErrors.length > 0 && (
+                <div
+                  id={codeErrorId}
+                  role="alert"
+                  className="mt-2 space-y-1 text-xs leading-5 text-rose-200"
+                >
+                  {codeErrors.map((message) => (
+                    <p key={message}>{message}</p>
+                  ))}
+                </div>
+              )}
+
+              <p
+                id={codeHelpId}
+                className="mt-2 text-xs leading-5 text-slate-500"
+              >
+                Verification starts automatically after the sixth digit.
+              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500">

@@ -122,6 +122,16 @@ function SessionManager({
   const containerRef =
     useRef<HTMLDivElement>(null);
 
+  const menuTriggerRefs =
+    useRef<Map<string, HTMLButtonElement>>(
+      new Map(),
+    );
+
+  const menuItemRefs =
+    useRef<Map<string, HTMLButtonElement>>(
+      new Map(),
+    );
+
   useEffect(() => {
     if (!openMenuReference) {
       return;
@@ -143,7 +153,16 @@ function SessionManager({
       event: KeyboardEvent,
     ) {
       if (event.key === "Escape") {
+        const menuReference =
+          openMenuReference;
+
         setOpenMenuReference(null);
+
+        window.setTimeout(() => {
+          menuTriggerRefs.current
+            .get(menuReference)
+            ?.focus();
+        }, 0);
       }
     }
 
@@ -293,17 +312,38 @@ function SessionManager({
                   {!session.current && (
                     <div className="relative shrink-0">
                       <button
+                        ref={(node) => {
+                          if (node) {
+                            menuTriggerRefs.current.set(
+                              session.sessionReference,
+                              node,
+                            );
+                          } else {
+                            menuTriggerRefs.current.delete(
+                              session.sessionReference,
+                            );
+                          }
+                        }}
                         type="button"
                         aria-label={`More options for ${session.device.label}`}
                         aria-haspopup="menu"
                         aria-expanded={isMenuOpen}
                         disabled={isRevoking}
                         onClick={() => {
+                          if (isMenuOpen) {
+                            setOpenMenuReference(null);
+                            return;
+                          }
+
                           setOpenMenuReference(
-                            isMenuOpen
-                              ? null
-                              : session.sessionReference,
+                            session.sessionReference,
                           );
+
+                          window.setTimeout(() => {
+                            menuItemRefs.current
+                              .get(session.sessionReference)
+                              ?.focus();
+                          }, 0);
                         }}
                         className="grid h-10 w-10 place-items-center rounded-xl text-slate-400 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-50"
                       >
@@ -316,13 +356,47 @@ function SessionManager({
                       {isMenuOpen && (
                         <div
                           role="menu"
+                          aria-label={`Session options for ${session.device.label}`}
+                          onKeyDown={(event) => {
+                            if (event.key === "Tab") {
+                              setOpenMenuReference(null);
+                              return;
+                            }
+
+                            if (
+                              event.key === "ArrowDown" ||
+                              event.key === "ArrowUp" ||
+                              event.key === "Home" ||
+                              event.key === "End"
+                            ) {
+                              event.preventDefault();
+                              menuItemRefs.current
+                                .get(session.sessionReference)
+                                ?.focus();
+                            }
+                          }}
                           className="absolute right-0 top-[calc(100%+0.35rem)] z-20 w-40 rounded-xl border border-white/10 bg-slate-900 p-1.5 shadow-2xl shadow-black/50"
                         >
                           <button
+                            ref={(node) => {
+                              if (node) {
+                                menuItemRefs.current.set(
+                                  session.sessionReference,
+                                  node,
+                                );
+                              } else {
+                                menuItemRefs.current.delete(
+                                  session.sessionReference,
+                                );
+                              }
+                            }}
                             type="button"
                             role="menuitem"
                             disabled={isRevoking}
                             onClick={() => {
+                              menuTriggerRefs.current
+                                .get(session.sessionReference)
+                                ?.focus();
                               setOpenMenuReference(null);
                               onRevoke(session);
                             }}
