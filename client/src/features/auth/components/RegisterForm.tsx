@@ -236,7 +236,7 @@ function RegisterForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4"
+      className="space-y-3.5"
       noValidate
     >
       <AuthFormMessage

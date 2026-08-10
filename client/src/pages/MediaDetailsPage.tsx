@@ -22,6 +22,7 @@ import YouMayAlsoLikeSection from "../components/details/YouMayAlsoLikeSection";
 import ExternalLink from "../features/externalNavigation/ExternalLink";
 import TelegramIcon from "../components/icons/TelegramIcon";
 import { getRecommendationCategoryForMedia } from "../utils/recommendations";
+import { SearchIcon } from "../components/navigation/NavigationIcons";
 
 interface MediaDetailsRequestState {
   mediaType: string | null;
@@ -403,28 +404,62 @@ function MediaDetailsPage() {
 
   if (!selectedMedia) {
     return (
-      <main className="min-h-screen bg-slate-950 py-16 text-white">
+      <main className="min-h-screen bg-slate-950 py-8 text-white sm:py-12 lg:py-16">
         <ContentContainer>
-          <div className="max-w-3xl rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
-              Not found
-            </p>
+          <section
+            aria-labelledby="media-not-found-title"
+            className="relative mx-auto flex min-h-[28rem] w-full max-w-[1180px] items-center overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_16%_18%,rgba(14,165,233,0.13),transparent_32%),radial-gradient(circle_at_88%_78%,rgba(79,70,229,0.12),transparent_34%),linear-gradient(145deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))] px-5 py-10 shadow-2xl shadow-black/25 sm:min-h-[30rem] sm:px-10 sm:py-14 lg:px-14"
+          >
+            <div
+              aria-hidden="true"
+              className="absolute right-[-5rem] top-1/2 hidden h-72 w-72 -translate-y-1/2 rotate-6 rounded-[2.25rem] border border-sky-300/10 bg-sky-400/[0.025] lg:block"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute right-[3.5rem] top-1/2 hidden h-56 w-40 -translate-y-1/2 -rotate-6 rounded-[1.75rem] border border-white/[0.07] bg-white/[0.02] lg:block"
+            />
 
-            <h1 className="mt-3 text-3xl font-bold sm:text-4xl">
-              Media item not found
-            </h1>
+            <div className="relative max-w-2xl">
+              <span
+                aria-hidden="true"
+                className="grid h-14 w-14 place-items-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300 shadow-lg shadow-sky-950/20 sm:h-16 sm:w-16"
+              >
+                <SearchIcon className="h-7 w-7 sm:h-8 sm:w-8" />
+              </span>
 
-            <p className="mt-4 leading-7 text-slate-300">
-              This title may have been removed or the link may be incorrect.
-            </p>
+              <p className="mt-6 text-xs font-bold uppercase tracking-[0.24em] text-sky-300">
+                Title unavailable
+              </p>
 
-            <Link
-              to="/"
-              className="mt-7 inline-flex min-h-11 items-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400"
-            >
-              Back to Home
-            </Link>
-          </div>
+              <h1
+                id="media-not-found-title"
+                className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl"
+              >
+                We couldn’t find that title.
+              </h1>
+
+              <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
+                The title may have been removed, or the web address may be incorrect. Try searching FilmGeezer instead, or head back home to keep browsing.
+              </p>
+
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  to="/search"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-sky-500 px-6 text-sm font-bold text-white shadow-lg shadow-sky-950/30 transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
+                >
+                  <SearchIcon className="h-4 w-4" />
+                  Search FilmGeezer
+                </Link>
+
+                <Link
+                  to="/"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/12 bg-white/[0.04] px-6 text-sm font-bold text-slate-200 transition hover:border-sky-300/25 hover:bg-sky-400/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                >
+                  Back to Home
+                </Link>
+              </div>
+            </div>
+          </section>
         </ContentContainer>
       </main>
     );
