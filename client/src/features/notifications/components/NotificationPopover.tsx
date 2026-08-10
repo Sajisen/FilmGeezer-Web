@@ -28,6 +28,7 @@ export default function NotificationPopover({
     <div
       role="dialog"
       aria-label="Recent notifications"
+      aria-busy={status === "loading" || status === "idle" || isMutating}
       className="absolute right-0 top-[calc(100%+0.75rem)] z-[75] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-[1.4rem] border border-white/10 bg-slate-900/98 shadow-2xl shadow-black/60 backdrop-blur-xl"
     >
       <div className="flex items-start justify-between gap-4 border-b border-white/[0.07] px-4 py-4">
@@ -68,7 +69,10 @@ export default function NotificationPopover({
             ))}
           </div>
         ) : errorMessage ? (
-          <div className="rounded-2xl border border-rose-300/15 bg-rose-400/[0.07] p-4 text-center">
+          <div
+            role="alert"
+            className="rounded-2xl border border-rose-300/15 bg-rose-400/[0.07] p-4 text-center"
+          >
             <p className="text-sm font-bold text-rose-100">{errorMessage}</p>
             <button
               type="button"
@@ -79,7 +83,10 @@ export default function NotificationPopover({
             </button>
           </div>
         ) : notifications.length === 0 ? (
-          <div className="grid min-h-48 place-items-center rounded-2xl border border-dashed border-white/[0.08] bg-slate-950/30 p-6 text-center">
+          <div
+            role="status"
+            className="grid min-h-48 place-items-center rounded-2xl border border-dashed border-white/[0.08] bg-slate-950/30 p-6 text-center"
+          >
             <div>
               <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl border border-white/[0.08] bg-white/[0.035] text-slate-500">
                 <BellIcon className="h-5 w-5" />

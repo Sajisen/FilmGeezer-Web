@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -96,6 +97,7 @@ function ProofForm({
   return (
     <form
       onSubmit={handleSubmit}
+      aria-busy={isWorking}
       className="rounded-2xl border border-white/[0.07] bg-slate-950/30 p-4"
     >
       <h3 className="text-sm font-black text-white">{title}</h3>
@@ -104,39 +106,48 @@ function ProofForm({
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <input
-          type="password"
-          autoComplete="current-password"
-          value={fields.password}
-          onChange={(event) =>
-            setFields((current) => ({
-              ...current,
-              password: event.target.value,
-            }))
-          }
-          required
-          className="min-h-11 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 text-sm text-white outline-none focus:border-sky-300/45"
-          placeholder="Current password"
-        />
-        <input
-          type="text"
-          inputMode={fields.method === "totp" ? "numeric" : "text"}
-          autoComplete="one-time-code"
-          value={fields.code}
-          onChange={(event) =>
-            setFields((current) => ({
-              ...current,
-              code: event.target.value,
-            }))
-          }
-          required
-          className="min-h-11 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 text-sm text-white outline-none focus:border-sky-300/45"
-          placeholder={
-            fields.method === "totp"
-              ? "Six-digit code"
-              : "Recovery code"
-          }
-        />
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold text-slate-400">
+            Current password
+          </span>
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={fields.password}
+            onChange={(event) =>
+              setFields((current) => ({
+                ...current,
+                password: event.target.value,
+              }))
+            }
+            disabled={isWorking}
+            required
+            className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15 disabled:cursor-wait disabled:opacity-60"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold text-slate-400">
+            {fields.method === "totp"
+              ? "Six-digit authenticator code"
+              : "Recovery code"}
+          </span>
+          <input
+            type="text"
+            inputMode={fields.method === "totp" ? "numeric" : "text"}
+            autoComplete="one-time-code"
+            value={fields.code}
+            onChange={(event) =>
+              setFields((current) => ({
+                ...current,
+                code: event.target.value,
+              }))
+            }
+            disabled={isWorking}
+            required
+            className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 text-sm text-white outline-none focus:border-sky-300/45 focus:ring-2 focus:ring-sky-400/15 disabled:cursor-wait disabled:opacity-60"
+          />
+        </label>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -212,6 +223,15 @@ export default function AdminSecurityPage() {
   const [showRecentAuthentication, setShowRecentAuthentication] =
     useState(false);
 
+  const feedbackRef =
+    useRef<HTMLParagraphElement>(null);
+  const recentAuthenticationHeadingRef =
+    useRef<HTMLHeadingElement>(null);
+  const passkeyRevokeTriggerRefs =
+    useRef<Map<string, HTMLButtonElement>>(new Map());
+  const passkeyRevokeConfirmRefs =
+    useRef<Map<string, HTMLButtonElement>>(new Map());
+
   const loadSecurity = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     setErrorMessage(null);
@@ -271,6 +291,10 @@ export default function AdminSecurityPage() {
         error.code === "ADMIN_RECENT_AUTHENTICATION_REQUIRED"
       ) {
         setShowRecentAuthentication(true);
+
+        window.setTimeout(() => {
+          recentAuthenticationHeadingRef.current?.focus();
+        }, 0);
       }
       setErrorMessage(
         error instanceof Error
@@ -318,7 +342,31 @@ export default function AdminSecurityPage() {
       setSuccessMessage(response.message);
       await refreshSession();
       await loadSecurity();
+
+      window.setTimeout(() => {
+        feedbackRef.current?.focus();
+      }, 0);
     });
+  }
+
+  function requestPasskeyRemoval(credentialId: string) {
+    setPendingRevokeId(credentialId);
+
+    window.setTimeout(() => {
+      passkeyRevokeConfirmRefs.current
+        .get(credentialId)
+        ?.focus();
+    }, 0);
+  }
+
+  function cancelPasskeyRemoval(credentialId: string) {
+    setPendingRevokeId(null);
+
+    window.setTimeout(() => {
+      passkeyRevokeTriggerRefs.current
+        .get(credentialId)
+        ?.focus();
+    }, 0);
   }
 
   const totpAvailable = Boolean(status?.mfaEnabled);
@@ -346,8 +394,10 @@ export default function AdminSecurityPage() {
 
       {(errorMessage || successMessage) && (
         <p
+          ref={feedbackRef}
           role={errorMessage ? "alert" : "status"}
-          className={`rounded-2xl border px-4 py-3 text-sm ${
+          tabIndex={-1}
+          className={`rounded-2xl border px-4 py-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
             errorMessage
               ? "border-red-300/20 bg-red-400/[0.07] text-red-100"
               : "border-emerald-300/20 bg-emerald-400/[0.07] text-emerald-100"
@@ -497,6 +547,18 @@ export default function AdminSecurityPage() {
                     {confirming ? (
                       <div className="flex shrink-0 flex-wrap gap-2">
                         <button
+                          ref={(node) => {
+                            if (node) {
+                              passkeyRevokeConfirmRefs.current.set(
+                                passkey.credentialId,
+                                node,
+                              );
+                            } else {
+                              passkeyRevokeConfirmRefs.current.delete(
+                                passkey.credentialId,
+                              );
+                            }
+                          }}
                           type="button"
                           disabled={isWorking}
                           onClick={() => void revokePasskey(passkey.credentialId)}
@@ -507,7 +569,7 @@ export default function AdminSecurityPage() {
                         <button
                           type="button"
                           disabled={isWorking}
-                          onClick={() => setPendingRevokeId(null)}
+                          onClick={() => cancelPasskeyRemoval(passkey.credentialId)}
                           className="min-h-10 rounded-xl border border-white/10 px-4 text-xs font-bold text-slate-300 transition hover:bg-white/[0.04]"
                         >
                           Cancel
@@ -515,9 +577,21 @@ export default function AdminSecurityPage() {
                       </div>
                     ) : (
                       <button
+                        ref={(node) => {
+                          if (node) {
+                            passkeyRevokeTriggerRefs.current.set(
+                              passkey.credentialId,
+                              node,
+                            );
+                          } else {
+                            passkeyRevokeTriggerRefs.current.delete(
+                              passkey.credentialId,
+                            );
+                          }
+                        }}
                         type="button"
                         disabled={isWorking || finalStrongFactor}
-                        onClick={() => setPendingRevokeId(passkey.credentialId)}
+                        onClick={() => requestPasskeyRemoval(passkey.credentialId)}
                         className="min-h-10 shrink-0 rounded-xl border border-white/10 px-4 text-xs font-bold text-slate-300 transition hover:border-red-300/20 hover:bg-red-400/[0.06] hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-40"
                         title={
                           finalStrongFactor
@@ -670,7 +744,11 @@ export default function AdminSecurityPage() {
         <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
           Sensitive actions
         </p>
-        <h2 className="mt-2 text-xl font-black text-white">
+        <h2
+          ref={recentAuthenticationHeadingRef}
+          tabIndex={-1}
+          className="mt-2 text-xl font-black text-white outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        >
           Confirm recent administrator authentication
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">

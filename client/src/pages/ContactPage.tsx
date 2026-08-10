@@ -346,7 +346,7 @@ function ContactPage() {
 
       <div className="relative mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
         {showPageSkeleton ? (
-          <ContactPageSkeleton />
+          <ContactPageSkeleton authStatus={status} />
         ) : (
           <>
             <section className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/58 shadow-xl shadow-black/20 backdrop-blur-xl">
@@ -366,7 +366,7 @@ function ContactPage() {
                 </p>
 
                 <details className="group mt-5 rounded-2xl border border-white/10 bg-slate-950/35 px-4 py-3 sm:px-5">
-                  <summary className="flex cursor-pointer list-none items-center gap-2.5 text-sm font-bold text-white transition hover:text-sky-200 focus:outline-none focus-visible:text-sky-200 group-open:text-sky-200 [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-xl text-sm font-bold text-white transition hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus-visible:text-sky-200 group-open:text-sky-200 [&::-webkit-details-marker]:hidden">
                     <svg
                       viewBox="0 0 20 20"
                       fill="none"
@@ -425,7 +425,7 @@ function ContactPage() {
 
             {shouldShowHistory && (
               <details className="group mt-4 rounded-2xl border border-white/10 bg-slate-900/58 px-4 py-3 lg:hidden">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-white transition hover:text-sky-200 focus:[outline:none] focus-visible:[outline:none] group-open:text-sky-200 [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl text-sm font-bold text-white transition hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 group-open:text-sky-200 [&::-webkit-details-marker]:hidden">
                   <span className="flex min-w-0 items-center gap-2.5">
                     <svg
                       viewBox="0 0 20 20"

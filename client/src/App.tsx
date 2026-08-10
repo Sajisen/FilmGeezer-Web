@@ -20,6 +20,7 @@ import {
   PublicRouteLoadingState,
 } from "./components/navigation/PublicRouteState";
 import ScrollToTop from "./components/navigation/ScrollToTop";
+import SkipToMainContent from "./components/navigation/SkipToMainContent";
 
 import { DocumentMetadataProvider } from "./features/metadata/documentMetadataContext";
 
@@ -120,12 +121,7 @@ function ApplicationRoutes() {
 
       {!isDirectAuthRoute && (
         <>
-          <a
-            href="#main-content"
-            className="fixed left-4 top-3 z-[200] -translate-y-24 rounded-full bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950 shadow-xl shadow-black/30 transition-transform focus:translate-y-0 focus:outline-none focus:ring-2 focus:ring-white"
-          >
-            Skip to main content
-          </a>
+          <SkipToMainContent />
 
           <ScrollToTop />
           <RouteAccessibility />

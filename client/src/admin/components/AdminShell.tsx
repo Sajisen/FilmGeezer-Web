@@ -1,6 +1,6 @@
 import {
-  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -11,6 +11,7 @@ import {
 } from "react-router";
 
 import ProfileAvatar from "../../components/ProfileAvatar";
+import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 import RouteContentBoundary from "../../components/navigation/RouteContentBoundary";
 import { getPublicAppOrigin } from "../adminRuntime";
 import { useAdminAuth } from "../auth/adminAuthContext";
@@ -103,7 +104,10 @@ function AdminRouteLoadingState() {
 
 function AdminRouteErrorState() {
   return (
-    <section className="rounded-3xl border border-red-300/15 bg-red-400/[0.045] p-6 shadow-2xl shadow-black/15 sm:p-8">
+    <section
+      role="alert"
+      className="rounded-3xl border border-red-300/15 bg-red-400/[0.045] p-6 shadow-2xl shadow-black/15 sm:p-8"
+    >
       <p className="text-[0.64rem] font-black uppercase tracking-[0.2em] text-red-200">
         Workspace unavailable
       </p>
@@ -299,6 +303,7 @@ export default function AdminShell({
   const { user, security, signOut } = useAdminAuth();
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const mobileNavigationRef = useRef<HTMLElement>(null);
 
   const pageTitle = useMemo(
     () =>
@@ -309,27 +314,11 @@ export default function AdminShell({
   );
 
 
-  useEffect(() => {
-    if (!isMobileNavigationOpen) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsMobileNavigationOpen(false);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isMobileNavigationOpen]);
+  useModalAccessibility({
+    isOpen: isMobileNavigationOpen,
+    dialogRef: mobileNavigationRef,
+    onEscape: () => setIsMobileNavigationOpen(false),
+  });
 
   async function handleSignOut() {
     if (isSigningOut) {
@@ -356,10 +345,12 @@ export default function AdminShell({
           <button
             type="button"
             aria-label="Close administrator navigation"
+            tabIndex={-1}
             onClick={() => setIsMobileNavigationOpen(false)}
             className="absolute inset-0 bg-[#010714]/80 backdrop-blur-sm"
           />
           <aside
+            ref={mobileNavigationRef}
             role="dialog"
             aria-modal="true"
             aria-label="Administrator navigation"

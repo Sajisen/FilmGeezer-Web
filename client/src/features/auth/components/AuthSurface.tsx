@@ -15,8 +15,11 @@ import {
 } from "../../../components/navigation/NavigationIcons";
 
 import {
+  useModalAccessibility,
+} from "../../../hooks/useModalAccessibility";
+
+import {
   dismissActiveBrowserInput,
-  isTextEntryElement,
 } from "../../../utils/browserInput";
 
 interface AuthSurfaceProps {
@@ -26,6 +29,8 @@ interface AuthSurfaceProps {
   eyebrow: string;
   title: string;
   description: string;
+  sideTitle: string;
+  sideDescription: string;
   children: ReactNode;
   onClose: () => void;
 }
@@ -37,6 +42,8 @@ function AuthSurface({
   eyebrow,
   title,
   description,
+  sideTitle,
+  sideDescription,
   children,
   onClose,
 }: AuthSurfaceProps) {
@@ -45,9 +52,6 @@ function AuthSurface({
 
   const closeButtonRef =
     useRef<HTMLButtonElement>(null);
-
-  const previouslyFocusedElementRef =
-    useRef<HTMLElement | null>(null);
 
   const closeAttentionTimerRef =
     useRef<number | null>(null);
@@ -177,187 +181,50 @@ function AuthSurface({
       onCloseRef.current();
     }, [drawAttentionToCloseButton]);
 
+  useModalAccessibility({
+    isOpen: isModal,
+    dialogRef,
+    initialFocusSelector: "[autofocus]",
+    onEscape: requestAmbientDismiss,
+  });
+
   useEffect(() => {
-    previouslyFocusedElementRef.current =
-      document.activeElement as
-        | HTMLElement
-        | null;
-
-    const previousOverflow =
-      document.body.style.overflow;
-
-    const previousPaddingRight =
-      document.body.style.paddingRight;
-
-    const scrollbarWidth =
-      window.innerWidth -
-      document.documentElement.clientWidth;
-
     if (isModal) {
-      document.body.style.overflow =
-        "hidden";
-
-      if (scrollbarWidth > 0) {
-        document.body.style.paddingRight =
-          `${scrollbarWidth}px`;
-      }
+      return;
     }
 
-    const focusTimer =
-      window.setTimeout(
-        () => {
-          const autofocusElement =
-            dialogRef.current
-              ?.querySelector<HTMLElement>(
-                "[autofocus]",
-              );
-
-          if (autofocusElement) {
-            autofocusElement.focus();
-            return;
-          }
-
-          closeButtonRef.current?.focus();
-        },
-        0,
+    const focusFrame = window.requestAnimationFrame(() => {
+      const autofocusElement = dialogRef.current?.querySelector<HTMLElement>(
+        "[autofocus]",
       );
 
-    function handleKeyDown(
-      event: KeyboardEvent,
-    ) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        requestAmbientDismiss();
-        return;
-      }
-
-      if (
-        event.key !== "Tab" ||
-        !dialogRef.current
-      ) {
-        return;
-      }
-
-      const focusableElements =
-        Array.from(
-          dialogRef.current
-            .querySelectorAll<HTMLElement>(
-              [
-                "a[href]",
-                "button:not([disabled])",
-                "input:not([disabled])",
-                "select:not([disabled])",
-                "textarea:not([disabled])",
-                '[tabindex]:not([tabindex="-1"])',
-              ].join(","),
-            ),
-        ).filter(
-          (element) =>
-            !element.hasAttribute(
-              "hidden",
-            ),
-        );
-
-      const firstElement =
-        focusableElements[0];
-
-      const lastElement =
-        focusableElements[
-          focusableElements.length - 1
-        ];
-
-      if (
-        !firstElement ||
-        !lastElement
-      ) {
-        event.preventDefault();
-        dialogRef.current.focus();
-        return;
-      }
-
-      if (
-        event.shiftKey &&
-        document.activeElement ===
-          firstElement
-      ) {
-        event.preventDefault();
-        lastElement.focus();
-        return;
-      }
-
-      if (
-        !event.shiftKey &&
-        document.activeElement ===
-          lastElement
-      ) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
+      (autofocusElement ?? closeButtonRef.current)?.focus({
+        preventScroll: true,
+      });
+    });
 
     return () => {
-      window.clearTimeout(
-        focusTimer,
-      );
-
-      if (
-        closeAttentionTimerRef.current !==
-        null
-      ) {
-        window.clearTimeout(
-          closeAttentionTimerRef.current,
-        );
-      }
-
-      closeAttentionAnimationRef.current
-        ?.cancel();
-
-      document.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
-
-      if (isModal) {
-        document.body.style.overflow =
-          previousOverflow;
-
-        document.body.style.paddingRight =
-          previousPaddingRight;
-      }
-
-      dismissActiveBrowserInput();
-
-      const previouslyFocusedElement =
-        previouslyFocusedElementRef.current;
-
-      if (
-        previouslyFocusedElement
-          ?.isConnected &&
-        !isTextEntryElement(
-          previouslyFocusedElement,
-        )
-      ) {
-        previouslyFocusedElement.focus({
-          preventScroll: true,
-        });
-      }
+      window.cancelAnimationFrame(focusFrame);
     };
-  }, [
-    isModal,
-    requestAmbientDismiss,
-  ]);
+  }, [isModal]);
+
+  useEffect(() => {
+    return () => {
+      if (closeAttentionTimerRef.current !== null) {
+        window.clearTimeout(closeAttentionTimerRef.current);
+      }
+
+      closeAttentionAnimationRef.current?.cancel();
+      dismissActiveBrowserInput();
+    };
+  }, []);
 
   const surface = (
     <div
       className={
         isModal
-          ? "fixed inset-0 z-[120] flex items-center justify-center overflow-hidden p-3 sm:p-5 lg:p-8"
-          : "flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.12),transparent_34%)] bg-slate-950 p-3 sm:p-5 lg:p-8"
+          ? "fixed inset-0 z-[120] flex items-center justify-center overflow-hidden p-2 sm:p-4 lg:p-5"
+          : "flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.12),transparent_34%)] bg-slate-950 p-2 sm:p-4 lg:p-5"
       }
     >
       {isModal && (
@@ -384,8 +251,9 @@ function AuthSurface({
         }
         aria-labelledby="filmgeezer-auth-title"
         aria-describedby="filmgeezer-auth-description"
+        aria-busy={isBusy || undefined}
         tabIndex={-1}
-        className="relative z-10 grid max-h-[calc(100dvh-1.5rem)] w-full max-w-[28rem] min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/70 sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-[1.75rem] lg:max-w-[58rem] lg:grid-cols-[0.82fr_1.18fr]"
+        className="relative z-10 grid max-h-[calc(100dvh-1rem)] w-full max-w-[28rem] min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/70 sm:max-h-[calc(100dvh-2rem)] sm:rounded-[1.75rem] lg:max-w-[58rem] lg:grid-cols-[0.82fr_1.18fr]"
       >
         <div className="relative hidden min-h-[32rem] overflow-hidden border-r border-white/10 bg-slate-950 lg:flex lg:flex-col lg:justify-between lg:p-9">
           <div
@@ -419,11 +287,11 @@ function AuthSurface({
             </p>
 
             <h2 className="mt-4 max-w-sm text-4xl font-black leading-tight text-white">
-              Keep your place while you sign in.
+              {sideTitle}
             </h2>
 
             <p className="mt-5 max-w-sm leading-7 text-slate-400">
-              Return to the movie, series, Anime, or K-Drama you were browsing.
+              {sideDescription}
             </p>
           </div>
 
@@ -432,8 +300,8 @@ function AuthSurface({
           </p>
         </div>
 
-        <div className="min-h-0 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.09),transparent_34%)] [scrollbar-color:rgba(56,189,248,0.35)_rgba(15,23,42,0.65)] [scrollbar-width:thin]">
-          <div className="sticky top-0 z-20 flex items-center justify-between border-b border-white/8 bg-[radial-gradient(circle_at_left,rgba(14,165,233,0.2),transparent_48%),linear-gradient(to_bottom,rgba(15,23,42,0.98),rgba(15,23,42,0.94))] px-4 py-3 backdrop-blur lg:justify-end lg:border-b-0 lg:bg-gradient-to-b lg:from-slate-900 lg:via-slate-900/95 lg:to-transparent lg:px-5 lg:pb-2 lg:pt-4">
+        <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.09),transparent_34%)]">
+          <div className="z-20 flex items-center justify-between border-b border-white/8 bg-[radial-gradient(circle_at_left,rgba(14,165,233,0.2),transparent_48%),linear-gradient(to_bottom,rgba(15,23,42,0.98),rgba(15,23,42,0.94))] px-4 py-2.5 backdrop-blur lg:justify-end lg:border-b-0 lg:bg-gradient-to-b lg:from-slate-900 lg:via-slate-900/95 lg:to-transparent lg:px-5 lg:pb-1.5 lg:pt-3">
             <div className="inline-flex items-center gap-3 lg:hidden">
               <img
                 src="/filmgeezer-logo-v1.webp"
@@ -474,7 +342,8 @@ function AuthSurface({
             </span>
           </div>
 
-          <div className="mx-auto w-full max-w-[32rem] px-5 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-6 lg:px-9 lg:pb-9 lg:pt-3">
+          <div className="min-h-0 overflow-y-auto overscroll-contain [scrollbar-color:rgba(56,189,248,0.35)_rgba(15,23,42,0.65)] [scrollbar-gutter:stable] [scrollbar-width:thin]">
+            <div className="mx-auto w-full max-w-[32rem] px-5 pb-5 pt-4 sm:px-8 sm:pb-7 sm:pt-5 lg:px-9 lg:pb-8 lg:pt-2">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
               {eyebrow}
             </p>
@@ -493,8 +362,9 @@ function AuthSurface({
               {description}
             </p>
 
-            <div className="mt-6">
+            <div className="mt-5 sm:mt-6">
               {children}
+            </div>
             </div>
           </div>
         </div>

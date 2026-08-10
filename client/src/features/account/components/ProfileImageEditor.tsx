@@ -130,7 +130,7 @@ async function readImageDimensions(
       image.onerror = () => {
         reject(
           new Error(
-            "The selected file could not be opened as an image.",
+            "We couldn’t open that image. Try another one.",
           ),
         );
       };
@@ -156,7 +156,7 @@ async function validateSelectedFile(
 
   if (file.size <= 0) {
     throw new Error(
-      "The selected image is empty.",
+      "We couldn’t use that image. Try another one.",
     );
   }
 
@@ -175,7 +175,7 @@ async function validateSelectedFile(
     dimensions = await readImageDimensions(file);
   } catch {
     throw new Error(
-      "The selected file could not be opened as a valid image.",
+      "We couldn’t open that image. Try another JPEG, PNG, or WebP.",
     );
   }
 
@@ -193,7 +193,7 @@ async function validateSelectedFile(
     PROFILE_IMAGE_MAX_PIXELS
   ) {
     throw new Error(
-      "Choose an image smaller than 12 megapixels.",
+      "That image is too large to process. Choose a smaller one.",
     );
   }
 
@@ -223,6 +223,20 @@ function ProfileImageEditor({
     useState<string | null>(null);
 
   const isBusy = isValidating || isUploading || isRemoving;
+
+  useEffect(() => {
+    if (!successMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage(null);
+    }, 5_000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [successMessage]);
 
   useEffect(() => {
     return () => {
@@ -281,7 +295,7 @@ function ProfileImageEditor({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "FilmGeezer could not read that image.",
+          : "FilmGeezer couldn’t use that image. Try another one.",
       );
     } finally {
       setIsValidating(false);
@@ -312,7 +326,7 @@ function ProfileImageEditor({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "FilmGeezer could not upload the profile picture.",
+          : "FilmGeezer couldn’t update your profile picture. Please try again.",
       );
     } finally {
       setIsUploading(false);
@@ -338,7 +352,7 @@ function ProfileImageEditor({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "FilmGeezer could not remove the profile picture.",
+          : "FilmGeezer couldn’t remove your profile picture. Please try again.",
       );
     } finally {
       setIsRemoving(false);
@@ -376,12 +390,12 @@ function ProfileImageEditor({
             </h3>
 
             <p className="mt-1 max-w-md text-sm leading-6 text-slate-400">
-              Choose a clear image. FilmGeezer securely rebuilds it as a
-              small square WebP before saving it.
+              Choose a clear image for your profile. FilmGeezer will resize
+              and crop it to fit.
             </p>
 
             <p className="mt-2 text-xs font-medium text-slate-500">
-              JPEG, PNG, or WebP · up to 5 MB · at least 96 × 96
+              JPEG, PNG, or WebP · up to 5 MB · 96 × 96 or larger
             </p>
           </div>
         </div>
@@ -434,9 +448,8 @@ function ProfileImageEditor({
                 {selectedImage.file.name}
               </p>
               <p className="mt-1 text-xs leading-5 text-slate-400">
-                {formatFileSize(selectedImage.file.size)} · {selectedImage.width}
-                × {selectedImage.height} pixels. The server will crop it to a
-                square and remove the original metadata.
+                {formatFileSize(selectedImage.file.size)} · Ready to use.
+                FilmGeezer will resize and crop it to fit your profile.
               </p>
             </div>
 
@@ -468,7 +481,7 @@ function ProfileImageEditor({
               <div className="flex items-center justify-between gap-3 text-xs font-semibold text-slate-400">
                 <span>
                   {uploadProgress >= 100
-                    ? "Finishing securely…"
+                    ? "Finishing…"
                     : "Uploading…"}
                 </span>
                 <span>{uploadProgress}%</span>
@@ -492,7 +505,7 @@ function ProfileImageEditor({
               Remove your profile picture?
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-400">
-              FilmGeezer will return to showing your initials.
+              Your initials will be shown instead.
             </p>
           </div>
 

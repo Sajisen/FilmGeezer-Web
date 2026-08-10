@@ -84,6 +84,9 @@ function ProfileMenu() {
   const triggerRef =
     useRef<HTMLButtonElement>(null);
 
+  const initialMenuFocusRef =
+    useRef<"first" | "last">("first");
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -101,57 +104,90 @@ function ProfileMenu() {
       }
     }
 
+    function getMenuItems() {
+      if (!menuRef.current) {
+        return [];
+      }
+
+      return Array.from(
+        menuRef.current.querySelectorAll<HTMLElement>(
+          '[role="menuitem"]',
+        ),
+      ).filter((item) => {
+        if (
+          item instanceof HTMLButtonElement &&
+          item.disabled
+        ) {
+          return false;
+        }
+
+        return !item.hidden;
+      });
+    }
+
     function handleKeyDown(
       event: KeyboardEvent,
     ) {
       if (event.key === "Escape") {
+        event.preventDefault();
         setIsOpen(false);
         triggerRef.current?.focus();
         return;
       }
 
-      if (
-        event.key !== "Tab" ||
-        !menuRef.current
-      ) {
-        return;
-      }
-
-      const focusableElements =
-        Array.from(
-          menuRef.current.querySelectorAll<HTMLElement>(
-            [
-              "a[href]",
-              "button:not([disabled])",
-            ].join(","),
-          ),
-        );
-
-      const firstElement =
-        focusableElements[0];
-
-      const lastElement =
-        focusableElements[
-          focusableElements.length - 1
-        ];
-
-      if (!firstElement || !lastElement) {
+      if (event.key === "Tab") {
+        setIsOpen(false);
         return;
       }
 
       if (
-        event.shiftKey &&
-        document.activeElement === firstElement
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowUp" &&
+        event.key !== "Home" &&
+        event.key !== "End"
       ) {
-        event.preventDefault();
-        lastElement.focus();
-      } else if (
-        !event.shiftKey &&
-        document.activeElement === lastElement
-      ) {
-        event.preventDefault();
-        firstElement.focus();
+        return;
       }
+
+      const menuItems = getMenuItems();
+
+      if (menuItems.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (event.key === "Home") {
+        menuItems[0]?.focus();
+        return;
+      }
+
+      if (event.key === "End") {
+        menuItems.at(-1)?.focus();
+        return;
+      }
+
+      const currentIndex = menuItems.findIndex(
+        (item) => item === document.activeElement,
+      );
+
+      if (event.key === "ArrowDown") {
+        const nextIndex =
+          currentIndex < 0
+            ? 0
+            : (currentIndex + 1) % menuItems.length;
+
+        menuItems[nextIndex]?.focus();
+        return;
+      }
+
+      const previousIndex =
+        currentIndex < 0
+          ? menuItems.length - 1
+          : (currentIndex - 1 + menuItems.length) %
+            menuItems.length;
+
+      menuItems[previousIndex]?.focus();
     }
 
     document.addEventListener(
@@ -165,11 +201,28 @@ function ProfileMenu() {
     );
 
     window.setTimeout(() => {
-      menuRef.current
-        ?.querySelector<HTMLElement>(
-          "a[href], button:not([disabled])",
-        )
-        ?.focus();
+      const menuItems = Array.from(
+        menuRef.current?.querySelectorAll<HTMLElement>(
+          '[role="menuitem"]',
+        ) ?? [],
+      ).filter((item) => {
+        if (
+          item instanceof HTMLButtonElement &&
+          item.disabled
+        ) {
+          return false;
+        }
+
+        return !item.hidden;
+      });
+
+      const target =
+        initialMenuFocusRef.current === "last"
+          ? menuItems.at(-1)
+          : menuItems[0];
+
+      target?.focus();
+      initialMenuFocusRef.current = "first";
     }, 0);
 
     return () => {
@@ -250,7 +303,24 @@ function ProfileMenu() {
         ref={triggerRef}
         type="button"
         onClick={() => {
+          if (!isOpen) {
+            initialMenuFocusRef.current = "first";
+          }
+
           setIsOpen((current) => !current);
+        }}
+        onKeyDown={(event) => {
+          if (
+            event.key !== "ArrowDown" &&
+            event.key !== "ArrowUp"
+          ) {
+            return;
+          }
+
+          event.preventDefault();
+          initialMenuFocusRef.current =
+            event.key === "ArrowUp" ? "last" : "first";
+          setIsOpen(true);
         }}
         aria-label="Open account menu"
         aria-haspopup="menu"

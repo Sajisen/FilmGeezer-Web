@@ -288,7 +288,7 @@ export function AuthFormMessage({
   return (
     <div
       role="alert"
-      className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm leading-6 text-rose-100"
+      className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-3.5 py-2.5 text-sm leading-5 text-rose-100 shadow-sm shadow-rose-950/20"
     >
       {message}
     </div>

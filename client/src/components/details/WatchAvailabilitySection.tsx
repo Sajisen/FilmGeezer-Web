@@ -436,6 +436,7 @@ function WatchAvailabilitySection({
                   id={railId}
                   ref={railRef}
                   tabIndex={0}
+                  role="group"
                   aria-label="Official watch providers"
                   aria-describedby={instructionsId}
                   onScroll={updateScrollState}

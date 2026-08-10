@@ -104,6 +104,7 @@ interface UseModalAccessibilityOptions {
   isOpen: boolean;
   dialogRef: RefObject<HTMLElement | null>;
   initialFocusRef?: RefObject<HTMLElement | null>;
+  initialFocusSelector?: string;
   onEscape?: () => void;
   escapeEnabled?: boolean;
   lockBodyScroll?: boolean;
@@ -114,6 +115,7 @@ export function useModalAccessibility({
   isOpen,
   dialogRef,
   initialFocusRef,
+  initialFocusSelector,
   onEscape,
   escapeEnabled = true,
   lockBodyScroll = true,
@@ -149,6 +151,28 @@ export function useModalAccessibility({
 
     let temporarilyAddedDialogTabIndex = false;
 
+    const dialogAtOpen = dialogRef.current;
+
+    if (dialogAtOpen && !dialogAtOpen.hasAttribute("tabindex")) {
+      dialogAtOpen.tabIndex = -1;
+      temporarilyAddedDialogTabIndex = true;
+    }
+
+    function focusDialogFallback(dialog: HTMLElement) {
+      const firstFocusable = getDialogFocusableElements(dialog)[0];
+
+      if (firstFocusable) {
+        firstFocusable.focus({
+          preventScroll: true,
+        });
+        return;
+      }
+
+      dialog.focus({
+        preventScroll: true,
+      });
+    }
+
     const focusFrame = window.requestAnimationFrame(() => {
       const dialog = dialogRef.current;
 
@@ -156,7 +180,11 @@ export function useModalAccessibility({
         return;
       }
 
-      const requestedInitialFocus = initialFocusRef?.current;
+      const requestedInitialFocus =
+        initialFocusRef?.current ??
+        (initialFocusSelector
+          ? dialog.querySelector<HTMLElement>(initialFocusSelector)
+          : null);
 
       if (
         requestedInitialFocus &&
@@ -169,24 +197,28 @@ export function useModalAccessibility({
         return;
       }
 
-      const firstFocusable = getDialogFocusableElements(dialog)[0];
+      focusDialogFallback(dialog);
+    });
 
-      if (firstFocusable) {
-        firstFocusable.focus({
-          preventScroll: true,
-        });
+    function handleFocusIn(event: FocusEvent) {
+      if (!isTopmostModal(modalId)) {
         return;
       }
 
-      if (!dialog.hasAttribute("tabindex")) {
-        dialog.tabIndex = -1;
-        temporarilyAddedDialogTabIndex = true;
+      const dialog = dialogRef.current;
+
+      if (!dialog) {
+        return;
       }
 
-      dialog.focus({
-        preventScroll: true,
-      });
-    });
+      const target = event.target;
+
+      if (target instanceof Node && dialog.contains(target)) {
+        return;
+      }
+
+      focusDialogFallback(dialog);
+    }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (!isTopmostModal(modalId)) {
@@ -231,7 +263,13 @@ export function useModalAccessibility({
         return;
       }
 
-      if (!dialog.contains(document.activeElement)) {
+      const activeElement = document.activeElement;
+
+      if (
+        !dialog.contains(activeElement) ||
+        !(activeElement instanceof HTMLElement) ||
+        !focusableElements.includes(activeElement)
+      ) {
         event.preventDefault();
 
         if (event.shiftKey) {
@@ -261,22 +299,22 @@ export function useModalAccessibility({
       }
     }
 
+    document.addEventListener("focusin", handleFocusIn, true);
     document.addEventListener("keydown", handleKeyDown, true);
 
     return () => {
       window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("focusin", handleFocusIn, true);
       document.removeEventListener("keydown", handleKeyDown, true);
 
       removeModalFromStack(modalId);
       releaseBodyScrollLock?.();
 
-      const dialog = dialogRef.current;
-
       if (
         temporarilyAddedDialogTabIndex &&
-        dialog?.getAttribute("tabindex") === "-1"
+        dialogAtOpen?.getAttribute("tabindex") === "-1"
       ) {
-        dialog.removeAttribute("tabindex");
+        dialogAtOpen.removeAttribute("tabindex");
       }
 
       if (
@@ -292,6 +330,7 @@ export function useModalAccessibility({
   }, [
     dialogRef,
     initialFocusRef,
+    initialFocusSelector,
     isOpen,
     lockBodyScroll,
     restoreFocus,

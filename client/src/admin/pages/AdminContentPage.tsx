@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -93,6 +94,7 @@ export default function AdminContentPage() {
   const [listError, setListError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successMessageRef = useRef<HTMLDivElement>(null);
   const [showLookup, setShowLookup] = useState(false);
   const [showRecentAuthentication, setShowRecentAuthentication] =
     useState(false);
@@ -235,6 +237,10 @@ export default function AdminContentPage() {
       setPendingRetry(null);
       setShowRecentAuthentication(false);
       await loadEntries();
+
+      window.setTimeout(() => {
+        successMessageRef.current?.focus();
+      }, 0);
     } catch (error) {
       if (
         error instanceof AdminApiError &&
@@ -335,8 +341,10 @@ export default function AdminContentPage() {
 
       {successMessage ? (
         <div
+          ref={successMessageRef}
           role="status"
-          className="flex items-start gap-3 rounded-2xl border border-emerald-300/12 bg-emerald-400/[0.06] px-4 py-3.5 text-sm font-bold text-emerald-100"
+          tabIndex={-1}
+          className="flex items-start gap-3 rounded-2xl border border-emerald-300/12 bg-emerald-400/[0.06] px-4 py-3.5 text-sm font-bold text-emerald-100 outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
         >
           <AdminIcon name="check" className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{successMessage}</span>

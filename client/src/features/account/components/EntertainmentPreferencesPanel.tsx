@@ -243,6 +243,20 @@ function EntertainmentPreferencesPanel({
   const [selectionMessage, setSelectionMessage] =
     useState<string | null>(null);
 
+  useEffect(() => {
+    if (!successMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage(null);
+    }, 5_000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [successMessage]);
+
   const loadPreferences = useCallback(
     async (signal?: AbortSignal) => {
       setIsLoading(true);

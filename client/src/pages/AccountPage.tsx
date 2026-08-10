@@ -194,6 +194,20 @@ function AccountPage() {
     useState<string | null>(null);
 
   useEffect(() => {
+    if (!securityMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSecurityMessage(null);
+    }, 5_000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [securityMessage]);
+
+  useEffect(() => {
     if (auth.status !== "guest") {
       return;
     }
@@ -665,6 +679,8 @@ function AccountPage() {
       id="main-content"
       className="relative min-h-screen overflow-hidden bg-slate-950 pb-16 text-white"
     >
+      <h1 className="sr-only">Account settings</h1>
+
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[30rem] bg-[radial-gradient(circle_at_12%_0%,rgba(14,165,233,0.12),transparent_36%),radial-gradient(circle_at_88%_8%,rgba(79,70,229,0.08),transparent_34%)]" />
 
       <div className="relative mx-auto w-full max-w-[1080px] px-4 py-7 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
@@ -673,9 +689,9 @@ function AccountPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
               FilmGeezer account
             </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+            <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
               Account settings
-            </h1>
+            </h2>
           </div>
 
           <button
@@ -752,12 +768,21 @@ function AccountPage() {
                 </header>
 
               {securityError && (
-                <p
+                <div
                   role="alert"
-                  className="mb-5 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+                  className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
                 >
-                  {securityError}
-                </p>
+                  <span className="min-w-0 leading-6">
+                    {securityError}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSecurityError(null)}
+                    className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold text-rose-100/80 transition hover:bg-rose-300/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               )}
 
               {securityMessage && (

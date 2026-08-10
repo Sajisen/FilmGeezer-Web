@@ -6,15 +6,25 @@ interface MediaDetailsSkeletonProps {
   mediaType?: string;
 }
 
-function SectionHeadingSkeleton({ width = "w-52" }: { width?: string }) {
+
+function SectionHeadingSkeleton({
+  width = "w-52",
+  showDescription = true,
+}: {
+  width?: string;
+  showDescription?: boolean;
+}) {
   return (
     <header className="mb-6 space-y-3">
       <div className="skeleton-placeholder h-3 w-28 rounded-md" />
       <div className={`skeleton-placeholder h-8 ${width} rounded-lg`} />
-      <div className="skeleton-placeholder h-4 w-full max-w-2xl rounded-md" />
+      {showDescription && (
+        <div className="skeleton-placeholder h-4 w-full max-w-2xl rounded-md" />
+      )}
     </header>
   );
 }
+
 
 function MediaDetailsSkeleton({ mediaType }: MediaDetailsSkeletonProps) {
   const showEpisodeExplorer = mediaType === "tv";
@@ -100,12 +110,13 @@ function MediaDetailsSkeleton({ mediaType }: MediaDetailsSkeletonProps) {
         </MediaDetailsContainer>
       </div>
 
+
       <section className="py-10 sm:py-12">
         <MediaDetailsContainer>
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
-            <SectionHeadingSkeleton width="w-40" />
+            <SectionHeadingSkeleton width="w-40" showDescription={false} />
 
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
               {Array.from({ length: 5 }).map((_, index) => (
                 <div
                   key={index}
@@ -130,20 +141,37 @@ function MediaDetailsSkeleton({ mediaType }: MediaDetailsSkeletonProps) {
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
             <SectionHeadingSkeleton width="w-56" />
 
-            <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
               <div className="min-w-0">
                 <div className="skeleton-placeholder aspect-video rounded-2xl" />
-                <div className="skeleton-placeholder mt-4 h-11 w-full rounded-full" />
+
+                <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="skeleton-placeholder h-3 w-24 rounded-md" />
+                    <div className="skeleton-placeholder h-4 w-3/5 rounded-md" />
+                  </div>
+                  <div className="skeleton-placeholder h-11 w-full shrink-0 rounded-full sm:w-40" />
+                </div>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
-                <div className="skeleton-placeholder h-6 w-32 rounded-md" />
-                <div className="mt-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="skeleton-placeholder h-5 w-28 rounded-md" />
+                    <div className="skeleton-placeholder h-3 w-full rounded-md" />
+                  </div>
+                  <div className="skeleton-placeholder h-7 w-9 rounded-full" />
+                </div>
+                <div className="mt-4 space-y-2">
                   {Array.from({ length: 3 }).map((_, index) => (
                     <div
                       key={index}
-                      className="skeleton-placeholder h-24 rounded-xl"
-                    />
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5"
+                    >
+                      <div className="skeleton-placeholder h-3 w-16 rounded-md" />
+                      <div className="skeleton-placeholder mt-2 h-4 w-full rounded-md" />
+                      <div className="skeleton-placeholder mt-2 h-3 w-3/4 rounded-md" />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -157,20 +185,31 @@ function MediaDetailsSkeleton({ mediaType }: MediaDetailsSkeletonProps) {
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <SectionHeadingSkeleton width="w-72" />
-              <div className="skeleton-placeholder h-11 w-full rounded-xl sm:w-52" />
+
+              <div className="w-full sm:w-52">
+                <div className="skeleton-placeholder h-3 w-16 rounded-md" />
+                <div className="skeleton-placeholder mt-2 h-11 w-full rounded-xl" />
+              </div>
             </div>
 
-            <div className="flex gap-3 overflow-hidden pt-1">
+            <div className="mt-6 flex gap-3 overflow-hidden sm:gap-4">
               {Array.from({ length: 5 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-44 w-36 shrink-0 rounded-2xl border border-white/10 bg-slate-900/65 p-4"
+                  className="flex min-h-24 w-[172px] min-w-[172px] items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/55 p-3 sm:w-[190px] sm:min-w-[190px] lg:w-[208px] lg:min-w-[208px]"
                 >
-                  <div className="skeleton-placeholder mx-auto h-14 w-14 rounded-xl" />
-                  <div className="skeleton-placeholder mx-auto mt-4 h-4 w-24 rounded-md" />
-                  <div className="skeleton-placeholder mx-auto mt-4 h-6 w-20 rounded-full" />
+                  <div className="skeleton-placeholder h-11 w-11 shrink-0 rounded-xl" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="skeleton-placeholder h-4 w-full rounded-md" />
+                    <div className="skeleton-placeholder h-3 w-3/4 rounded-md" />
+                  </div>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-5 flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="skeleton-placeholder h-3 w-52 rounded-md" />
+              <div className="skeleton-placeholder h-3 w-40 rounded-md" />
             </div>
           </div>
         </MediaDetailsContainer>
@@ -179,13 +218,27 @@ function MediaDetailsSkeleton({ mediaType }: MediaDetailsSkeletonProps) {
       {showEpisodeExplorer && (
         <section className="py-10 sm:py-12">
           <MediaDetailsContainer>
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 sm:p-6 lg:p-7">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                 <SectionHeadingSkeleton width="w-52" />
-                <div className="skeleton-placeholder h-11 w-40 rounded-full" />
+
+                <div className="w-full lg:w-auto">
+                  <div className="flex w-full gap-2 sm:w-auto sm:justify-end">
+                    <div className="skeleton-placeholder h-11 flex-1 rounded-xl sm:w-36 sm:flex-none" />
+                    <div className="skeleton-placeholder h-11 flex-1 rounded-xl sm:w-32 sm:flex-none" />
+                  </div>
+                  <div className="skeleton-placeholder mt-3 h-9 w-full rounded-full sm:ml-auto sm:w-36" />
+                </div>
               </div>
 
-              <div className="mt-2 space-y-3">
+              <div className="mt-5 flex flex-wrap items-center gap-3 border-y border-white/10 py-3">
+                <div className="skeleton-placeholder h-3 w-24 rounded-md" />
+                <div className="skeleton-placeholder h-3 w-14 rounded-md" />
+                <div className="skeleton-placeholder h-3 w-36 rounded-full sm:w-44" />
+                <div className="skeleton-placeholder h-3 w-14 rounded-md" />
+              </div>
+
+              <div className="mt-3 space-y-3">
                 {Array.from({ length: 4 }).map((_, rowIndex) => (
                   <div
                     key={rowIndex}
@@ -203,6 +256,8 @@ function MediaDetailsSkeleton({ mediaType }: MediaDetailsSkeletonProps) {
                   </div>
                 ))}
               </div>
+
+              <div className="skeleton-placeholder mt-4 h-3 w-full max-w-2xl rounded-md" />
             </div>
           </MediaDetailsContainer>
         </section>
@@ -217,13 +272,12 @@ function MediaDetailsSkeleton({ mediaType }: MediaDetailsSkeletonProps) {
               {Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}
-                  className="w-36 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55 sm:w-40"
+                  className="w-[146px] min-w-[146px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55 sm:w-[164px] sm:min-w-[164px] lg:w-[176px] lg:min-w-[176px]"
                 >
                   <div className="skeleton-placeholder aspect-[3/4]" />
                   <div className="space-y-2 p-3.5">
                     <div className="skeleton-placeholder h-4 w-full rounded-md" />
-                    <div className="skeleton-placeholder h-4 w-3/4 rounded-md" />
-                    <div className="skeleton-placeholder h-3 w-4/5 rounded-md" />
+                    <div className="skeleton-placeholder h-3 w-3/4 rounded-md" />
                   </div>
                 </div>
               ))}
@@ -237,17 +291,29 @@ function MediaDetailsSkeleton({ mediaType }: MediaDetailsSkeletonProps) {
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 lg:p-8">
             <SectionHeadingSkeleton width="w-64" />
 
-            <div className="space-y-3">
-              {Array.from({ length: 2 }).map((_, index) => (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {Array.from({ length: 2 }).map((_, groupIndex) => (
                 <div
-                  key={index}
-                  className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4"
+                  key={groupIndex}
+                  className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 sm:p-5"
                 >
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="skeleton-placeholder h-4 w-44 max-w-full rounded-md" />
-                    <div className="skeleton-placeholder h-3 w-32 rounded-md" />
+                  <div className="skeleton-placeholder h-5 w-24 rounded-md" />
+
+                  <div className="mt-4 space-y-3">
+                    {Array.from({ length: 2 }).map((__, rowIndex) => (
+                      <div
+                        key={rowIndex}
+                        className="rounded-2xl border border-white/10 bg-slate-900/70 p-4"
+                      >
+                        <div className="skeleton-placeholder h-5 w-48 max-w-full rounded-md" />
+                        <div className="mt-3 flex gap-2">
+                          <div className="skeleton-placeholder h-6 w-20 rounded-full" />
+                          <div className="skeleton-placeholder h-6 w-24 rounded-full" />
+                        </div>
+                        <div className="skeleton-placeholder mt-5 h-11 w-40 rounded-full" />
+                      </div>
+                    ))}
                   </div>
-                  <div className="skeleton-placeholder h-10 w-20 rounded-full" />
                 </div>
               ))}
             </div>

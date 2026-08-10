@@ -1,4 +1,8 @@
-import { useState, type FormEvent } from "react";
+import {
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import AdminIcon from "../components/AdminIcon";
 import type {
@@ -169,6 +173,8 @@ export default function AdminContentEditor({
   const [statusReason, setStatusReason] = useState("");
   const [showStatusAction, setShowStatusAction] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const statusActionTriggerRef = useRef<HTMLButtonElement>(null);
+  const statusReasonRef = useRef<HTMLTextAreaElement>(null);
 
   function buildSaveInput(): AdminContentSaveInput | null {
     if (detail.kind === "series") {
@@ -822,10 +828,23 @@ export default function AdminContentEditor({
             </div>
 
             <button
+              ref={statusActionTriggerRef}
               type="button"
+              aria-expanded={showStatusAction}
               onClick={() => {
-                setShowStatusAction((current) => !current);
+                if (showStatusAction) {
+                  setShowStatusAction(false);
+                  setStatusReason("");
+                  setLocalError(null);
+                  return;
+                }
+
+                setShowStatusAction(true);
                 setLocalError(null);
+
+                window.setTimeout(() => {
+                  statusReasonRef.current?.focus();
+                }, 0);
               }}
               disabled={isWorking}
               className={`min-h-10 rounded-xl border px-4 text-xs font-black transition disabled:opacity-50 ${
@@ -845,6 +864,7 @@ export default function AdminContentEditor({
                   Administrator reason
                 </span>
                 <textarea
+                  ref={statusReasonRef}
                   value={statusReason}
                   onChange={(event) => setStatusReason(event.target.value)}
                   maxLength={300}
@@ -863,6 +883,10 @@ export default function AdminContentEditor({
                   onClick={() => {
                     setShowStatusAction(false);
                     setStatusReason("");
+
+                    window.setTimeout(() => {
+                      statusActionTriggerRef.current?.focus();
+                    }, 0);
                   }}
                   disabled={isWorking}
                   className="min-h-10 rounded-xl border border-white/[0.08] px-4 text-xs font-black text-slate-400 transition hover:text-white disabled:opacity-50"

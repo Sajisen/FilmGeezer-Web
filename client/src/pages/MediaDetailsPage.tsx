@@ -22,6 +22,7 @@ import YouMayAlsoLikeSection from "../components/details/YouMayAlsoLikeSection";
 import ExternalLink from "../features/externalNavigation/ExternalLink";
 import TelegramIcon from "../components/icons/TelegramIcon";
 import { getRecommendationCategoryForMedia } from "../utils/recommendations";
+import { SearchIcon } from "../components/navigation/NavigationIcons";
 
 interface MediaDetailsRequestState {
   mediaType: string | null;
@@ -125,6 +126,24 @@ function haveSameMediaItems(
   });
 }
 
+
+function hasUsableMediaRouteParameters(
+  mediaType: string | undefined,
+  tmdbId: string | undefined,
+): boolean {
+  if (mediaType !== "movie" && mediaType !== "tv") {
+    return false;
+  }
+
+  if (!tmdbId || !/^\d+$/u.test(tmdbId)) {
+    return false;
+  }
+
+  const numericTmdbId = Number(tmdbId);
+
+  return Number.isSafeInteger(numericTmdbId) && numericTmdbId > 0;
+}
+
 function getBrowseFallbackPath(media: MediaDetails) {
   const normalizedGenres = media.genres.map((genre) =>
     genre.toLocaleLowerCase(),
@@ -174,8 +193,11 @@ function MediaDetailsPage() {
   const [providerRequestState, setProviderRequestState] =
     useState<ProviderLinksRequestState>(initialProviderRequestState);
 
+  const hasValidRouteParameters =
+    hasUsableMediaRouteParameters(mediaType, tmdbId);
+
   useEffect(() => {
-    if (!mediaType || !tmdbId) {
+    if (!hasValidRouteParameters || !mediaType || !tmdbId) {
       return;
     }
 
@@ -233,10 +255,10 @@ function MediaDetailsPage() {
     return () => {
       controller.abort();
     };
-  }, [mediaType, tmdbId, detailsReloadKey]);
+  }, [hasValidRouteParameters, mediaType, tmdbId, detailsReloadKey]);
 
   useEffect(() => {
-    if (!mediaType || !tmdbId) {
+    if (!hasValidRouteParameters || !mediaType || !tmdbId) {
       return;
     }
 
@@ -294,9 +316,7 @@ function MediaDetailsPage() {
     return () => {
       controller.abort();
     };
-  }, [mediaType, tmdbId, linksReloadKey]);
-
-  const hasValidRouteParameters = Boolean(mediaType && tmdbId);
+  }, [hasValidRouteParameters, mediaType, tmdbId, linksReloadKey]);
 
   const mediaRequestMatches =
     mediaRequestState.mediaType === mediaType &&
@@ -403,28 +423,63 @@ function MediaDetailsPage() {
 
   if (!selectedMedia) {
     return (
-      <main className="min-h-screen bg-slate-950 py-16 text-white">
+      <main className="min-h-[calc(100vh-5rem)] bg-slate-950 py-8 text-white sm:py-12 lg:py-16">
         <ContentContainer>
-          <div className="max-w-3xl rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
-              Not found
-            </p>
+          <section
+            role="status"
+            aria-labelledby="media-not-found-title"
+            className="relative mx-auto flex min-h-[28rem] w-full max-w-[1180px] items-center justify-center overflow-hidden rounded-3xl border border-dashed border-white/10 bg-[radial-gradient(circle_at_18%_22%,rgba(14,165,233,0.08),transparent_30%),radial-gradient(circle_at_82%_78%,rgba(79,70,229,0.08),transparent_32%),rgba(15,23,42,0.45)] px-5 py-10 text-center sm:min-h-[30rem] sm:px-10 sm:py-14 lg:min-h-[32rem] lg:px-12 lg:py-16"
+          >
+            <div
+              aria-hidden="true"
+              className="absolute left-[8%] top-[18%] h-32 w-24 -rotate-6 rounded-3xl border border-white/[0.035] bg-white/[0.012] blur-[0.2px] sm:h-40 sm:w-28"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute bottom-[14%] right-[9%] h-36 w-28 rotate-6 rounded-3xl border border-sky-300/[0.045] bg-sky-400/[0.012] sm:h-44 sm:w-32"
+            />
 
-            <h1 className="mt-3 text-3xl font-bold sm:text-4xl">
-              Media item not found
-            </h1>
+            <div className="relative mx-auto flex max-w-xl flex-col items-center">
+              <span
+                aria-hidden="true"
+                className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300 shadow-lg shadow-sky-950/20 sm:h-16 sm:w-16"
+              >
+                <SearchIcon className="h-7 w-7 sm:h-8 sm:w-8" />
+              </span>
 
-            <p className="mt-4 leading-7 text-slate-300">
-              This title may have been removed or the link may be incorrect.
-            </p>
+              <p className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-sky-300 sm:mt-6">
+                Title unavailable
+              </p>
 
-            <Link
-              to="/"
-              className="mt-7 inline-flex min-h-11 items-center rounded-full bg-sky-500 px-5 font-semibold text-white transition hover:bg-sky-400"
-            >
-              Back to Home
-            </Link>
-          </div>
+              <h1
+                id="media-not-found-title"
+                className="mt-2.5 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-[2rem]"
+              >
+                We couldn’t find that title.
+              </h1>
+
+              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400 sm:text-base sm:leading-7">
+                The title may have been removed, or the web address may be incorrect. Search FilmGeezer to find what you were looking for.
+              </p>
+
+              <div className="mt-6 flex w-full max-w-[28rem] flex-col gap-3 sm:mt-7 sm:flex-row sm:justify-center">
+                <Link
+                  to="/search"
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-sky-500 px-6 text-sm font-bold text-white transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                >
+                  <SearchIcon className="h-4 w-4" />
+                  Search FilmGeezer
+                </Link>
+
+                <Link
+                  to="/"
+                  className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-6 text-sm font-bold text-slate-200 transition hover:border-sky-300/25 hover:bg-sky-400/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                >
+                  Back to Home
+                </Link>
+              </div>
+            </div>
+          </section>
         </ContentContainer>
       </main>
     );

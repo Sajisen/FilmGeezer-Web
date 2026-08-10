@@ -583,6 +583,7 @@ function VerifyEmailForm({
   return (
     <form
       onSubmit={handleSubmit}
+      aria-busy={isBusy}
       className="space-y-4"
       noValidate
     >
@@ -629,6 +630,8 @@ function VerifyEmailForm({
             )
           }
           autoFocus
+          ariaLabel="Six-digit verification code"
+          ariaDescribedBy="verify-email-code-help"
           onChange={(
             nextCode,
           ) => {
@@ -656,7 +659,10 @@ function VerifyEmailForm({
           }}
         />
 
-        <p className="mt-2 text-xs leading-5 text-slate-500">
+        <p
+          id="verify-email-code-help"
+          className="mt-2 text-xs leading-5 text-slate-500"
+        >
           Verification starts automatically after the sixth digit.
         </p>
 

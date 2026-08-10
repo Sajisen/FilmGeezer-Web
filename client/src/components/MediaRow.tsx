@@ -224,34 +224,32 @@ function MediaRow({
     >
       <ContentContainer>
         <div className={contentClassName}>
-        <header className="mb-4 flex items-start justify-between gap-4 sm:mb-5">
-          <div className="min-w-0">
-            <h2
-              id={headingId}
-              className="text-xl font-bold tracking-tight text-white sm:text-2xl"
-            >
-              {title}
-            </h2>
-
-            {description && (
-              <p
-                id={descriptionId}
-                className="mt-1 max-w-3xl text-sm leading-6 text-slate-400"
-              >
-                {description}
-              </p>
-            )}
-          </div>
+        <header className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1 sm:mb-5">
+          <h2
+            id={headingId}
+            className="min-w-0 text-xl font-bold tracking-tight text-white sm:text-2xl"
+          >
+            {title}
+          </h2>
 
           {viewMoreHref && (
             <Link
               to={viewMoreHref}
               aria-label={`${viewMoreLabel}: ${title}`}
-              className="group inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-sky-400/20 bg-sky-500/10 px-3 text-xs font-semibold text-sky-200 transition hover:border-sky-300/40 hover:bg-sky-500/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:px-4 sm:text-sm"
+              className="group col-start-2 row-start-1 inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-sky-400/20 bg-sky-500/10 px-3 text-xs font-semibold text-sky-200 transition hover:border-sky-300/40 hover:bg-sky-500/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:px-4 sm:text-sm"
             >
               <span>{viewMoreLabel}</span>
               <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
+          )}
+
+          {description && (
+            <p
+              id={descriptionId}
+              className="col-span-2 mt-1 max-w-3xl text-sm leading-6 text-slate-400 sm:col-span-1 sm:col-start-1"
+            >
+              {description}
+            </p>
           )}
         </header>
 
@@ -269,6 +267,7 @@ function MediaRow({
             id={railId}
             ref={railRef}
             tabIndex={0}
+            role="group"
             aria-label={`${title} media`}
             aria-describedby={
               instructionsId

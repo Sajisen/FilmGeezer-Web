@@ -27,8 +27,9 @@ function MethodCard({
     <button
       type="button"
       disabled={disabled}
+      aria-pressed={active}
       onClick={onClick}
-      className={`rounded-3xl border p-5 text-left transition disabled:cursor-not-allowed disabled:opacity-45 ${
+      className={`rounded-3xl border p-5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-45 ${
         active
           ? "border-sky-300/35 bg-sky-400/[0.08] shadow-lg shadow-sky-950/20"
           : "border-white/10 bg-slate-900/55 hover:border-white/20 hover:bg-slate-900/75"

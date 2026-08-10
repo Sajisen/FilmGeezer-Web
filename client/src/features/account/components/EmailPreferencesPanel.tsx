@@ -174,6 +174,20 @@ function EmailPreferencesPanel({
   const [successMessage, setSuccessMessage] =
     useState<string | null>(null);
 
+  useEffect(() => {
+    if (!successMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage(null);
+    }, 5_000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [successMessage]);
+
   const loadPreferences = useCallback(
     async (
       signal?: AbortSignal,
@@ -428,7 +442,7 @@ function EmailPreferencesPanel({
               Email preferences
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              Essential account, security and support emails stay on. Optional FilmGeezer emails are your choice and are off by default.
+              Important account, security, and support emails stay on. Everything else is optional and off by default.
             </p>
           </div>
         </div>
@@ -456,21 +470,21 @@ function EmailPreferencesPanel({
         <div>
           <div className="mb-3">
             <h3 className="text-sm font-black text-white">
-              Essential service emails
+              Emails you’ll always receive
             </h3>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              These emails keep your account and active support conversations working, so they cannot be disabled.
+              These messages are needed for your account and any support requests, so they stay on.
             </p>
           </div>
 
           <div className="grid gap-3">
             <EssentialEmailRow
               title="Account & security"
-              description="Email verification, password reset, email or password changes, account recovery and critical security notices."
+              description="Verification codes, password resets, email or password changes, account recovery, and important security alerts."
             />
             <EssentialEmailRow
               title="Support conversations"
-              description="Replies and service updates for support requests you create with FilmGeezer."
+              description="Replies and updates about support requests you send to FilmGeezer."
             />
           </div>
         </div>
@@ -479,10 +493,10 @@ function EmailPreferencesPanel({
           <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
             <div>
               <h3 className="text-sm font-black text-white">
-                Optional emails
+                Optional FilmGeezer emails
               </h3>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                FilmGeezer does not currently send newsletters or promotional campaigns. These opt-ins are stored now so future optional email categories cannot be enabled without your choice.
+                FilmGeezer does not currently send newsletters or promotions. These choices stay off unless you decide to turn them on.
               </p>
             </div>
 
@@ -499,7 +513,7 @@ function EmailPreferencesPanel({
               }
               disabled={isSaving}
               label="Recommendations & discovery"
-              description="Allow occasional recommendation and discovery emails based on FilmGeezer activity and the entertainment preferences you choose."
+              description="Occasional suggestions based on your FilmGeezer activity and the entertainment preferences you choose."
               onToggle={() => {
                 setPreference(
                   "recommendationsAndDiscoveryEmailsEnabled",
@@ -516,7 +530,7 @@ function EmailPreferencesPanel({
               }
               disabled={isSaving}
               label="FilmGeezer product updates"
-              description="Allow occasional announcements about meaningful FilmGeezer features and product improvements. Account and security mail is separate."
+              description="Occasional news about useful new FilmGeezer features and improvements."
               onToggle={() => {
                 setPreference(
                   "productUpdatesEmailsEnabled",

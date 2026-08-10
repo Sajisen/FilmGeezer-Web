@@ -338,6 +338,7 @@ function EpisodesAcrossGrid({
 
       <div
         tabIndex={0}
+        role="group"
         aria-label="Episode rating grid with episodes across"
         aria-describedby={instructionsId}
         className="media-row-scrollbar min-w-0 overflow-x-auto overscroll-x-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300"
@@ -400,6 +401,7 @@ function EpisodesDownGrid({
   return (
     <div
       tabIndex={0}
+      role="group"
       aria-label="Episode rating grid with episodes down"
       aria-describedby={instructionsId}
       className="episode-grid-scrollbar max-h-[68vh] min-w-0 overflow-auto rounded-2xl border border-white/10 bg-slate-950/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300 sm:max-h-[38rem]"

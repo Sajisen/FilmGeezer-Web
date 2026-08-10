@@ -23,7 +23,8 @@ interface AdminSupportConversationListProps {
 
 function LoadingList() {
   return (
-    <div className="space-y-2.5 p-3.5" aria-label="Loading support requests">
+    <div role="status" aria-live="polite" className="space-y-2.5 p-3.5">
+      <p className="sr-only">Loading support requests.</p>
       {Array.from({ length: 6 }, (_, index) => (
         <div
           key={index}
@@ -46,14 +47,20 @@ export default function AdminSupportConversationList({
   onPageChange,
 }: AdminSupportConversationListProps) {
   return (
-    <aside className="overflow-hidden rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 shadow-xl shadow-black/[0.08]">
+    <aside
+      aria-labelledby="admin-support-queue-title"
+      aria-busy={isLoading}
+      className="overflow-hidden rounded-[1.5rem] border border-white/[0.075] bg-slate-900/55 shadow-xl shadow-black/[0.08]"
+    >
       <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-4 sm:px-5">
         <div className="flex items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-slate-950/35 text-slate-400">
             <AdminIcon name="inbox" className="h-4 w-4" />
           </span>
           <div>
-            <p className="text-sm font-black text-white">Request queue</p>
+            <h2 id="admin-support-queue-title" className="text-sm font-black text-white">
+              Request queue
+            </h2>
             <p className="mt-0.5 text-xs text-slate-500">
               {totalItems} matching request{totalItems === 1 ? "" : "s"}
             </p>
@@ -68,7 +75,7 @@ export default function AdminSupportConversationList({
         <LoadingList />
       ) : errorMessage ? (
         <div className="p-4">
-          <div className="rounded-2xl border border-red-300/15 bg-red-400/[0.06] px-4 py-4 text-sm leading-6 text-red-100">
+          <div role="alert" className="rounded-2xl border border-red-300/15 bg-red-400/[0.06] px-4 py-4 text-sm leading-6 text-red-100">
             <div className="flex items-start gap-3">
               <AdminIcon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{errorMessage}</span>
@@ -76,7 +83,7 @@ export default function AdminSupportConversationList({
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="px-5 py-14 text-center">
+        <div role="status" className="px-5 py-14 text-center">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/[0.07] bg-slate-950/35 text-slate-600">
             <AdminIcon name="search" className="h-5 w-5" />
           </span>

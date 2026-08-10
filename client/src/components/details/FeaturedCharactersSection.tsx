@@ -362,6 +362,7 @@ function FeaturedCharactersSection({
                     id={railId}
                     ref={railRef}
                     tabIndex={0}
+                    role="group"
                     aria-label="Featured characters"
                     aria-describedby={instructionsId}
                     onScroll={updateScrollState}

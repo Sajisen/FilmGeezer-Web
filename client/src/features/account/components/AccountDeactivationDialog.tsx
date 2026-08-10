@@ -1,11 +1,14 @@
 import {
-  useEffect,
   useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
   type MouseEvent,
 } from "react";
+
+import {
+  useModalAccessibility,
+} from "../../../hooks/useModalAccessibility";
 
 import {
   deactivateAccount,
@@ -70,86 +73,13 @@ function AccountDeactivationDialog({
   const dialogRef =
     useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const previousActiveElement =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-
-    const previousBodyOverflow =
-      document.body.style.overflow;
-
-    document.body.style.overflow =
-      "hidden";
-
-    function handleKeyDown(
-      event: KeyboardEvent,
-    ) {
-      if (
-        event.key === "Escape" &&
-        !isSubmitting
-      ) {
-        event.preventDefault();
-        onCancel();
-        return;
-      }
-
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const dialog = dialogRef.current;
-
-      if (!dialog) {
-        return;
-      }
-
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-
-      const first = focusable[0];
-      const last = focusable.at(-1);
-
-      if (!first || !last) {
-        event.preventDefault();
-        return;
-      }
-
-      if (
-        event.shiftKey &&
-        document.activeElement === first
-      ) {
-        event.preventDefault();
-        last.focus();
-      } else if (
-        !event.shiftKey &&
-        document.activeElement === last
-      ) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
-
-    return () => {
-      document.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
-
-      document.body.style.overflow =
-        previousBodyOverflow;
-
-      previousActiveElement?.focus();
-    };
-  }, [isSubmitting, onCancel]);
+  useModalAccessibility({
+    isOpen: true,
+    dialogRef,
+    initialFocusSelector: "[autofocus]",
+    onEscape: onCancel,
+    escapeEnabled: !isSubmitting,
+  });
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -230,6 +160,8 @@ function AccountDeactivationDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="account-deactivation-title"
+        aria-describedby="account-deactivation-description"
+        aria-busy={isSubmitting}
         className="flex max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-rose-300/20 bg-slate-900 shadow-2xl shadow-black/65"
       >
         <div className="relative shrink-0 border-b border-rose-300/10 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.16),transparent_56%)] px-5 pb-5 pt-6 sm:px-7">
@@ -258,8 +190,11 @@ function AccountDeactivationDialog({
             Deactivate your account?
           </h2>
 
-          <p className="mt-2 max-w-md text-sm leading-6 text-slate-300">
-            Your account will become unavailable immediately, but your saved FilmGeezer data will not be permanently deleted.
+          <p
+            id="account-deactivation-description"
+            className="mt-2 max-w-md text-sm leading-6 text-slate-300"
+          >
+            You’ll be signed out everywhere and won’t be able to sign in while the account is deactivated. Your Watchlist, preferences, and other saved information will stay in your account.
           </p>
         </div>
 
@@ -276,14 +211,14 @@ function AccountDeactivationDialog({
               <span className="mb-2 block text-rose-300">
                 <AccountIcon name="key" className="h-4 w-4" />
               </span>
-              New sign-ins are blocked.
+              You won’t be able to sign in.
             </div>
 
             <div className="rounded-xl border border-white/8 bg-slate-950/50 p-3 text-sm text-slate-300">
               <span className="mb-2 block text-rose-300">
                 <AccountIcon name="profile" className="h-4 w-4" />
               </span>
-              Your stored data remains.
+              Your saved information stays.
             </div>
           </div>
 

@@ -410,7 +410,11 @@ function NotificationsPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full border border-white/[0.08] bg-slate-950/35 px-3.5 py-2 text-xs font-black text-slate-300">
+                <span
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className="rounded-full border border-white/[0.08] bg-slate-950/35 px-3.5 py-2 text-xs font-black text-slate-300"
+                >
                   {unreadCount} unread
                 </span>
                 <button
@@ -426,16 +430,21 @@ function NotificationsPage() {
             </div>
           </div>
 
-          <div className="p-4 sm:p-6 lg:p-8">
+          <div
+            aria-busy={isLoading || isMutating}
+            className="p-4 sm:p-6 lg:p-8"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div
-                className="inline-flex rounded-full border border-white/[0.08] bg-slate-950/40 p-1"
+                role="group"
                 aria-label="Notification filter"
+                className="inline-flex rounded-full border border-white/[0.08] bg-slate-950/40 p-1"
               >
                 {(["all", "unread"] as const).map((value) => (
                   <button
                     key={value}
                     type="button"
+                    aria-pressed={filter === value}
                     onClick={() => changeFilter(value)}
                     className={`min-h-9 rounded-full px-4 text-xs font-black capitalize transition ${
                       filter === value
@@ -478,7 +487,8 @@ function NotificationsPage() {
 
             <div className="mt-5">
               {isLoading ? (
-                <div className="space-y-3" role="status" aria-label="Loading notifications">
+                <div className="space-y-3" role="status">
+                  <span className="sr-only">Loading notifications</span>
                   {[0, 1, 2, 3].map((item) => (
                     <div
                       key={item}

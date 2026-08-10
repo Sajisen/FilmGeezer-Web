@@ -101,10 +101,21 @@ function WatchlistCardSkeleton() {
       aria-hidden="true"
       className="overflow-hidden rounded-[1.15rem] border border-white/10 bg-slate-900/55"
     >
-      <div className="skeleton-placeholder aspect-[2/3]" />
-      <div className="space-y-2 px-3 py-3">
-        <div className="skeleton-placeholder h-4 w-4/5 rounded-full" />
-        <div className="skeleton-placeholder h-3 w-3/5 rounded-full" />
+      <div className="skeleton-shimmer relative aspect-[2/3]">
+        <div className="skeleton-placeholder absolute right-2.5 top-2.5 h-11 w-11 rounded-full" />
+        <div className="skeleton-placeholder absolute bottom-2.5 left-2.5 h-6 w-20 rounded-full" />
+      </div>
+
+      <div className="flex min-h-[5.4rem] flex-col px-3 py-3 sm:min-h-[6rem] sm:px-3.5">
+        <div className="space-y-2">
+          <div className="skeleton-placeholder h-4 w-11/12 rounded-md" />
+          <div className="skeleton-placeholder h-4 w-7/12 rounded-md" />
+        </div>
+
+        <div className="mt-auto flex items-center gap-2 pt-2">
+          <div className="skeleton-placeholder h-3 w-12 rounded-md" />
+          <div className="skeleton-placeholder h-3 w-16 rounded-md" />
+        </div>
       </div>
     </div>
   );
@@ -278,8 +289,16 @@ function WatchlistPage() {
                   </span>
                 </div>
 
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+                <div
+                  role="progressbar"
+                  aria-label="Watchlist capacity used"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={capacityPercentage}
+                  className="mt-2 h-1 overflow-hidden rounded-full bg-white/10"
+                >
                   <div
+                    aria-hidden="true"
                     className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-[width] duration-300"
                     style={{ width: `${capacityPercentage}%` }}
                   />
@@ -321,8 +340,16 @@ function WatchlistPage() {
                 </span>
               </div>
 
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                role="progressbar"
+                aria-label="Watchlist capacity used"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={capacityPercentage}
+                className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"
+              >
                 <div
+                  aria-hidden="true"
                   className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-[width] duration-300"
                   style={{ width: `${capacityPercentage}%` }}
                 />
@@ -378,8 +405,16 @@ function WatchlistPage() {
                   </span>
                 </div>
 
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  role="progressbar"
+                  aria-label="Watchlist capacity used"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={capacityPercentage}
+                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"
+                >
                   <div
+                    aria-hidden="true"
                     className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-[width] duration-300"
                     style={{ width: `${capacityPercentage}%` }}
                   />
@@ -505,7 +540,7 @@ function WatchlistPage() {
         )}
 
         {isInitialAccountLoad ? (
-          <section aria-live="polite" className="mt-5 sm:mt-8 lg:mt-6">
+          <section role="status" className="mt-5 sm:mt-8 lg:mt-6">
             <p className="sr-only">Loading your Watchlist…</p>
             <div className="grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {Array.from({ length: 6 }, (_, index) => (
@@ -514,7 +549,10 @@ function WatchlistPage() {
             </div>
           </section>
         ) : items.length === 0 ? (
-          <section className="mt-5 rounded-3xl border border-dashed border-white/10 bg-slate-900/45 px-5 py-8 text-center sm:mt-8 sm:px-10 sm:py-14 xl:mt-8 xl:px-12 xl:py-16">
+          <section
+            role="status"
+            className="mt-5 rounded-3xl border border-dashed border-white/10 bg-slate-900/45 px-5 py-8 text-center sm:mt-8 sm:px-10 sm:py-14 xl:mt-8 xl:px-12 xl:py-16"
+          >
             <div className="mx-auto flex max-w-xl flex-col items-center">
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300 sm:h-14 sm:w-14 xl:h-16 xl:w-16">
                 <BookmarkIcon className="h-5 w-5 sm:h-7 sm:w-7" />

@@ -236,7 +236,7 @@ function RegisterForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4"
+      className="space-y-3.5"
       noValidate
     >
       <AuthFormMessage
@@ -263,10 +263,6 @@ function RegisterForm({
 
           setDisplayName(
             nextDisplayName,
-          );
-
-          setPasswordAssessment(
-            null,
           );
 
           onDirtyChange(
@@ -312,10 +308,6 @@ function RegisterForm({
             event.target.value;
 
           setEmail(nextEmail);
-
-          setPasswordAssessment(
-            null,
-          );
 
           onDirtyChange(
             displayName.length > 0 ||

@@ -6,6 +6,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { useModalAccessibility } from "../../hooks/useModalAccessibility";
+
 import AdminIcon from "../components/AdminIcon";
 import { searchAdminContentTmdb } from "../services/adminService";
 import type {
@@ -13,18 +15,35 @@ import type {
   AdminContentMediaType,
 } from "../types/admin";
 
+interface AdminContentLookupDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (mediaType: AdminContentMediaType, tmdbId: number) => void;
+}
+
 export default function AdminContentLookupDialog({
   open,
   onClose,
   onSelect,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSelect: (mediaType: AdminContentMediaType, tmdbId: number) => void;
-}) {
+}: AdminContentLookupDialogProps) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <OpenAdminContentLookupDialog
+      onClose={onClose}
+      onSelect={onSelect}
+    />
+  );
+}
+
+function OpenAdminContentLookupDialog({
+  onClose,
+  onSelect,
+}: Omit<AdminContentLookupDialogProps, "open">) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
-  const isLoadingRef = useRef(false);
   const [mediaType, setMediaType] =
     useState<AdminContentMediaType>("movie");
   const [query, setQuery] = useState("");
@@ -42,47 +61,13 @@ export default function AdminContentLookupDialog({
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  useEffect(() => {
-    isLoadingRef.current = isLoading;
-  }, [isLoading]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const previousActiveElement =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const timer = window.setTimeout(() => {
-      setMediaType("movie");
-      setQuery("");
-      setResults([]);
-      setPagination({ page: 1, totalItems: 0, totalPages: 1 });
-      setErrorMessage(null);
-      dialogRef.current?.querySelector<HTMLInputElement>("input")?.focus();
-    }, 0);
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !isLoadingRef.current) {
-        event.preventDefault();
-        onCloseRef.current();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previousActiveElement?.focus();
-    };
-  }, [open]);
+  useModalAccessibility({
+    isOpen: true,
+    dialogRef,
+    initialFocusSelector: "[data-admin-content-lookup-initial]",
+    onEscape: onClose,
+    escapeEnabled: !isLoading,
+  });
 
   async function runSearch(page: number) {
     const normalizedQuery = query.trim();
@@ -124,10 +109,6 @@ export default function AdminContentLookupDialog({
     ? Number(query.trim())
     : null;
 
-  if (!open) {
-    return null;
-  }
-
   return createPortal(
     <div
       className="fixed inset-0 z-[115] grid place-items-center overflow-y-auto bg-slate-950/80 px-4 py-8 backdrop-blur-md"
@@ -143,6 +124,8 @@ export default function AdminContentLookupDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-content-lookup-title"
+        aria-describedby="admin-content-lookup-description"
+        aria-busy={isLoading}
         className="w-full max-w-4xl overflow-hidden rounded-[1.75rem] border border-white/[0.1] bg-slate-900 shadow-2xl shadow-black/55"
       >
         <header className="flex items-start justify-between gap-4 border-b border-white/[0.07] px-5 py-5 sm:px-6">
@@ -160,7 +143,10 @@ export default function AdminContentLookupDialog({
               >
                 Find a title on TMDB
               </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+              <p
+                id="admin-content-lookup-description"
+                className="mt-2 max-w-2xl text-sm leading-6 text-slate-400"
+              >
                 FilmGeezer stores content links against the TMDB media type and
                 TMDB ID. Search by title or open an exact numeric ID.
               </p>
@@ -184,6 +170,7 @@ export default function AdminContentLookupDialog({
             className="grid gap-3 md:grid-cols-[10rem_minmax(0,1fr)_auto]"
           >
             <select
+              aria-label="Media type"
               value={mediaType}
               onChange={(event) => {
                 setMediaType(event.target.value as AdminContentMediaType);
@@ -206,6 +193,7 @@ export default function AdminContentLookupDialog({
               />
               <input
                 type="search"
+                data-admin-content-lookup-initial
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 disabled={isLoading}

@@ -120,7 +120,7 @@ function ProfileEditor({
           Profile details
         </h2>
         <p className="mt-1 text-sm leading-6 text-slate-500">
-          Choose how your FilmGeezer account appears across the app.
+          Choose the name and picture shown on your FilmGeezer account.
         </p>
       </div>
 

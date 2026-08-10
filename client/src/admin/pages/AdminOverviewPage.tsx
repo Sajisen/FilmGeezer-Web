@@ -88,8 +88,17 @@ function QueueRow({
           {value.toLocaleString()}
         </span>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-950/70">
+      <div
+        role="progressbar"
+        aria-label={`${label} support requests`}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(total, 1)}
+        aria-valuenow={total > 0 ? value : 0}
+        aria-valuetext={`${value.toLocaleString()} of ${total.toLocaleString()} support requests`}
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-950/70"
+      >
         <div
+          aria-hidden="true"
           className={`h-full rounded-full ${barTone}`}
           style={{ width: `${percentage}%` }}
         />
@@ -142,7 +151,13 @@ function QuickAction({
 
 function OverviewLoading() {
   return (
-    <div className="space-y-6" aria-label="Loading administrator overview">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className="space-y-6"
+    >
+      <p className="sr-only">Loading administrator overview.</p>
       <div className="skeleton-placeholder h-48 rounded-[1.75rem]" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
@@ -220,7 +235,10 @@ export default function AdminOverviewPage() {
           description="Secure operational control for accounts, support, content, and administrator security."
           icon="overview"
         />
-        <div className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] p-5 text-sm leading-6 text-red-100">
+        <div
+          role="alert"
+          className="rounded-2xl border border-red-300/20 bg-red-400/[0.07] p-5 text-sm leading-6 text-red-100"
+        >
           {errorMessage ?? "The administrator overview is unavailable."}
         </div>
       </div>

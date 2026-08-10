@@ -30,7 +30,8 @@ function createContentKey(
 
 function ContentListSkeleton() {
   return (
-    <div className="space-y-2 p-3">
+    <div role="status" aria-live="polite" className="space-y-2 p-3">
+      <p className="sr-only">Loading managed content.</p>
       {Array.from({ length: 7 }, (_, index) => (
         <div
           key={index}
@@ -65,12 +66,19 @@ export default function AdminContentList({
   onPageChange: (page: number) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-[1.6rem] border border-white/[0.075] bg-slate-900/45 shadow-xl shadow-black/[0.08]">
+    <section
+      aria-labelledby="admin-content-list-title"
+      aria-busy={isLoading}
+      className="overflow-hidden rounded-[1.6rem] border border-white/[0.075] bg-slate-900/45 shadow-xl shadow-black/[0.08]"
+    >
       <header className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-4">
         <div>
-          <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-600">
+          <h2
+            id="admin-content-list-title"
+            className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-slate-600"
+          >
             Managed catalog
-          </p>
+          </h2>
           <p className="mt-1 text-sm font-black text-white">
             {pagination.totalItems.toLocaleString()} content entr
             {pagination.totalItems === 1 ? "y" : "ies"}
@@ -84,7 +92,7 @@ export default function AdminContentList({
       {isLoading ? (
         <ContentListSkeleton />
       ) : items.length === 0 ? (
-        <div className="grid min-h-72 place-items-center px-5 py-10 text-center">
+        <div role="status" className="grid min-h-72 place-items-center px-5 py-10 text-center">
           <div>
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/[0.07] bg-slate-950/35 text-slate-500">
               <AdminIcon name="content" className="h-5 w-5" />
@@ -107,6 +115,7 @@ export default function AdminContentList({
               <button
                 key={key}
                 type="button"
+                aria-pressed={selected}
                 onClick={() => onSelect(item.mediaType, item.tmdbId)}
                 className={`w-full rounded-2xl border p-3 text-left transition ${
                   selected

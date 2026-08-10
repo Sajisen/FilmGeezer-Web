@@ -53,42 +53,60 @@ const AUTH_COPY = {
     eyebrow: "Welcome back",
     title: "Sign in",
     description:
-      "Access your FilmGeezer account.",
+      "Sign in to continue with your Watchlist, preferences, and account.",
+    sideTitle: "Welcome back to FilmGeezer.",
+    sideDescription:
+      "Your saved titles, preferences, and account settings are ready when you are.",
   },
 
   register: {
     eyebrow: "Join FilmGeezer",
     title: "Create an account",
     description:
-      "Use your email, then follow the next step we send.",
+      "Add your details. We’ll email you a six-digit code to verify your address.",
+    sideTitle: "Make FilmGeezer yours.",
+    sideDescription:
+      "Save titles to your Watchlist, set your preferences, and get recommendations shaped around what you enjoy.",
   },
 
   "registration-pending": {
     eyebrow: "One more step",
     title: "Check your email",
     description:
-      "Continue with the private instructions sent to your inbox.",
+      "We sent a verification email. Use it to finish creating your account.",
+    sideTitle: "Check your inbox.",
+    sideDescription:
+      "Verify your email to finish setting up FilmGeezer and keep your account secure.",
   },
 
   "verify-email": {
     eyebrow: "Verify your email",
     title: "Enter your code",
     description:
-      "Use the newest six-digit code from FilmGeezer.",
+      "Enter the newest six-digit code we sent to your email.",
+    sideTitle: "One quick check.",
+    sideDescription:
+      "Confirm your email, then continue with your FilmGeezer account.",
   },
 
   "forgot-password": {
     eyebrow: "Account recovery",
     title: "Reset your password",
     description:
-      "Enter your email and FilmGeezer will send the next secure step.",
+      "Enter your email and we’ll send you a secure password-reset link.",
+    sideTitle: "Get back to your account.",
+    sideDescription:
+      "Request a reset link, choose a new password, and continue using FilmGeezer.",
   },
 
   "reset-password": {
     eyebrow: "Choose a new password",
     title: "Secure your account",
     description:
-      "Create a new password. Every existing FilmGeezer session will be signed out.",
+      "Choose a new password. We’ll sign out your other FilmGeezer sessions for security.",
+    sideTitle: "Choose a fresh password.",
+    sideDescription:
+      "After the reset, sign in again and continue with your saved FilmGeezer account.",
   },
 } as const;
 
@@ -384,6 +402,8 @@ function AuthRoute({
       eyebrow={copy.eyebrow}
       title={copy.title}
       description={copy.description}
+      sideTitle={copy.sideTitle}
+      sideDescription={copy.sideDescription}
       onClose={closeAuth}
     >
       {mode === "login" && (

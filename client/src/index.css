@@ -25,6 +25,12 @@ body {
   outline-offset: 3px;
 }
 
+/* Banner search uses the surrounding search shell as its single focus indicator. */
+.banner-search-input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
 ::selection {
   background-color: rgb(14 165 233 / 35%);
   color: #ffffff;
@@ -249,15 +255,14 @@ body {
 
 @media (min-width: 640px) {
   .search-results-grid {
-    grid-template-columns: repeat(auto-fill, 176px);
-    justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
     gap: 1rem;
   }
 }
 
 @media (min-width: 1024px) {
   .search-results-grid {
-    grid-template-columns: repeat(auto-fill, 196px);
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
     gap: 1.25rem;
   }
 }
@@ -643,4 +648,8 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
 .admin-support-list-scrollbar::-webkit-scrollbar-thumb:hover,
 .admin-support-thread-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgb(56 189 248 / 48%);
+}
+
+#main-content {
+  scroll-margin-top: 5.5rem;
 }

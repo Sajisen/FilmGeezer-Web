@@ -41,7 +41,7 @@ export class ProfileImageTooLargeError extends ProfileImageError {
 }
 
 export class ProfileImageInvalidError extends ProfileImageError {
-  constructor(message = "The selected file is not a valid profile image.") {
+  constructor(message = "We couldn’t use that image. Try another one.") {
     super(
       "PROFILE_IMAGE_INVALID",
       message,
@@ -53,7 +53,7 @@ export class ProfileImageProcessingError extends ProfileImageError {
   constructor(options?: ErrorOptions) {
     super(
       "PROFILE_IMAGE_PROCESSING_FAILED",
-      "FilmGeezer could not safely prepare that image. Try another one.",
+      "FilmGeezer couldn’t prepare that image. Try another one.",
       options,
     );
   }
@@ -63,7 +63,7 @@ export class ProfileImageStorageError extends ProfileImageError {
   constructor(options?: ErrorOptions) {
     super(
       "PROFILE_IMAGE_STORAGE_UNAVAILABLE",
-      "Profile-picture storage is temporarily unavailable. Please try again shortly.",
+      "Profile pictures are temporarily unavailable. Please try again shortly.",
       options,
     );
   }
