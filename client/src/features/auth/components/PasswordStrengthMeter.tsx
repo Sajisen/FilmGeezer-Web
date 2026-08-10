@@ -20,7 +20,7 @@ interface PasswordStrengthMeterProps {
 }
 
 interface AssessmentSnapshot {
-  requestKey: string;
+  password: string;
   assessment: PasswordStrengthAssessment;
 }
 
@@ -40,18 +40,6 @@ const STRENGTH_SEGMENTS = {
   strong: 4,
 } as const;
 
-function createAssessmentRequestKey(
-  password: string,
-  email: string,
-  displayName: string,
-): string {
-  return JSON.stringify([
-    password,
-    email,
-    displayName,
-  ]);
-}
-
 function PasswordStrengthMeter({
   password,
   email,
@@ -63,21 +51,20 @@ function PasswordStrengthMeter({
       null,
     );
 
-  const requestKey =
-    createAssessmentRequestKey(
-      password,
-      email,
-      displayName,
-    );
+  const passwordMatchesSnapshot =
+    snapshot?.password === password;
 
+  // Email/display-name changes can affect zxcvbn because they are useful
+  // user-specific inputs. Re-check them silently, but only show the
+  // "Checking…" transition when the password itself changes.
   const assessment =
-    snapshot?.requestKey === requestKey
+    passwordMatchesSnapshot
       ? snapshot.assessment
       : null;
 
   const isChecking =
     password.length > 0 &&
-    assessment === null;
+    !passwordMatchesSnapshot;
 
   useEffect(() => {
     if (!password) {
@@ -104,7 +91,7 @@ function PasswordStrengthMeter({
               }
 
               setSnapshot({
-                requestKey,
+                password,
                 assessment:
                   nextAssessment,
               });
@@ -133,7 +120,7 @@ function PasswordStrengthMeter({
               };
 
             setSnapshot({
-              requestKey,
+              password,
               assessment:
                 fallbackAssessment,
             });
@@ -155,7 +142,6 @@ function PasswordStrengthMeter({
     email,
     onAssessmentChange,
     password,
-    requestKey,
   ]);
 
   if (!password) {

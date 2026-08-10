@@ -265,10 +265,6 @@ function RegisterForm({
             nextDisplayName,
           );
 
-          setPasswordAssessment(
-            null,
-          );
-
           onDirtyChange(
             nextDisplayName.length > 0 ||
               email.length > 0 ||
@@ -312,10 +308,6 @@ function RegisterForm({
             event.target.value;
 
           setEmail(nextEmail);
-
-          setPasswordAssessment(
-            null,
-          );
 
           onDirtyChange(
             displayName.length > 0 ||
