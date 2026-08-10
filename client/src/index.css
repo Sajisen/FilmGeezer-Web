@@ -644,3 +644,7 @@ html.contact-page-scrollbar::-webkit-scrollbar-thumb:hover,
 .admin-support-thread-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgb(56 189 248 / 48%);
 }
+
+#main-content {
+  scroll-margin-top: 5.5rem;
+}

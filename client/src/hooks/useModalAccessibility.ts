@@ -149,6 +149,28 @@ export function useModalAccessibility({
 
     let temporarilyAddedDialogTabIndex = false;
 
+    const dialogAtOpen = dialogRef.current;
+
+    if (dialogAtOpen && !dialogAtOpen.hasAttribute("tabindex")) {
+      dialogAtOpen.tabIndex = -1;
+      temporarilyAddedDialogTabIndex = true;
+    }
+
+    function focusDialogFallback(dialog: HTMLElement) {
+      const firstFocusable = getDialogFocusableElements(dialog)[0];
+
+      if (firstFocusable) {
+        firstFocusable.focus({
+          preventScroll: true,
+        });
+        return;
+      }
+
+      dialog.focus({
+        preventScroll: true,
+      });
+    }
+
     const focusFrame = window.requestAnimationFrame(() => {
       const dialog = dialogRef.current;
 
@@ -169,24 +191,28 @@ export function useModalAccessibility({
         return;
       }
 
-      const firstFocusable = getDialogFocusableElements(dialog)[0];
+      focusDialogFallback(dialog);
+    });
 
-      if (firstFocusable) {
-        firstFocusable.focus({
-          preventScroll: true,
-        });
+    function handleFocusIn(event: FocusEvent) {
+      if (!isTopmostModal(modalId)) {
         return;
       }
 
-      if (!dialog.hasAttribute("tabindex")) {
-        dialog.tabIndex = -1;
-        temporarilyAddedDialogTabIndex = true;
+      const dialog = dialogRef.current;
+
+      if (!dialog) {
+        return;
       }
 
-      dialog.focus({
-        preventScroll: true,
-      });
-    });
+      const target = event.target;
+
+      if (target instanceof Node && dialog.contains(target)) {
+        return;
+      }
+
+      focusDialogFallback(dialog);
+    }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (!isTopmostModal(modalId)) {
@@ -231,7 +257,13 @@ export function useModalAccessibility({
         return;
       }
 
-      if (!dialog.contains(document.activeElement)) {
+      const activeElement = document.activeElement;
+
+      if (
+        !dialog.contains(activeElement) ||
+        !(activeElement instanceof HTMLElement) ||
+        !focusableElements.includes(activeElement)
+      ) {
         event.preventDefault();
 
         if (event.shiftKey) {
@@ -261,10 +293,12 @@ export function useModalAccessibility({
       }
     }
 
+    document.addEventListener("focusin", handleFocusIn, true);
     document.addEventListener("keydown", handleKeyDown, true);
 
     return () => {
       window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("focusin", handleFocusIn, true);
       document.removeEventListener("keydown", handleKeyDown, true);
 
       removeModalFromStack(modalId);
