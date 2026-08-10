@@ -101,10 +101,21 @@ function WatchlistCardSkeleton() {
       aria-hidden="true"
       className="overflow-hidden rounded-[1.15rem] border border-white/10 bg-slate-900/55"
     >
-      <div className="skeleton-placeholder aspect-[2/3]" />
-      <div className="space-y-2 px-3 py-3">
-        <div className="skeleton-placeholder h-4 w-4/5 rounded-full" />
-        <div className="skeleton-placeholder h-3 w-3/5 rounded-full" />
+      <div className="skeleton-shimmer relative aspect-[2/3]">
+        <div className="skeleton-placeholder absolute right-2.5 top-2.5 h-11 w-11 rounded-full" />
+        <div className="skeleton-placeholder absolute bottom-2.5 left-2.5 h-6 w-20 rounded-full" />
+      </div>
+
+      <div className="flex min-h-[5.4rem] flex-col px-3 py-3 sm:min-h-[6rem] sm:px-3.5">
+        <div className="space-y-2">
+          <div className="skeleton-placeholder h-4 w-11/12 rounded-md" />
+          <div className="skeleton-placeholder h-4 w-7/12 rounded-md" />
+        </div>
+
+        <div className="mt-auto flex items-center gap-2 pt-2">
+          <div className="skeleton-placeholder h-3 w-12 rounded-md" />
+          <div className="skeleton-placeholder h-3 w-16 rounded-md" />
+        </div>
       </div>
     </div>
   );

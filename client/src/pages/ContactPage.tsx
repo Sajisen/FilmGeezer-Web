@@ -346,7 +346,7 @@ function ContactPage() {
 
       <div className="relative mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
         {showPageSkeleton ? (
-          <ContactPageSkeleton />
+          <ContactPageSkeleton authStatus={status} />
         ) : (
           <>
             <section className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/58 shadow-xl shadow-black/20 backdrop-blur-xl">
