@@ -49,9 +49,9 @@ function AccountHero({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-            <h1 className="break-words text-2xl font-black tracking-tight sm:text-3xl lg:text-2xl">
+            <h2 className="break-words text-2xl font-black tracking-tight sm:text-3xl lg:text-2xl">
               {displayName}
-            </h1>
+            </h2>
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-bold text-emerald-200">
               <AccountIcon
                 name="check"

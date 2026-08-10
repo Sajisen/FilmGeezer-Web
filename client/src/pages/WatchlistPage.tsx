@@ -278,8 +278,16 @@ function WatchlistPage() {
                   </span>
                 </div>
 
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+                <div
+                  role="progressbar"
+                  aria-label="Watchlist capacity used"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={capacityPercentage}
+                  className="mt-2 h-1 overflow-hidden rounded-full bg-white/10"
+                >
                   <div
+                    aria-hidden="true"
                     className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-[width] duration-300"
                     style={{ width: `${capacityPercentage}%` }}
                   />
@@ -321,8 +329,16 @@ function WatchlistPage() {
                 </span>
               </div>
 
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                role="progressbar"
+                aria-label="Watchlist capacity used"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={capacityPercentage}
+                className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"
+              >
                 <div
+                  aria-hidden="true"
                   className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-[width] duration-300"
                   style={{ width: `${capacityPercentage}%` }}
                 />
@@ -378,8 +394,16 @@ function WatchlistPage() {
                   </span>
                 </div>
 
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  role="progressbar"
+                  aria-label="Watchlist capacity used"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={capacityPercentage}
+                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"
+                >
                   <div
+                    aria-hidden="true"
                     className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-[width] duration-300"
                     style={{ width: `${capacityPercentage}%` }}
                   />

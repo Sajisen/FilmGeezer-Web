@@ -429,13 +429,15 @@ function NotificationsPage() {
           <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div
-                className="inline-flex rounded-full border border-white/[0.08] bg-slate-950/40 p-1"
+                role="group"
                 aria-label="Notification filter"
+                className="inline-flex rounded-full border border-white/[0.08] bg-slate-950/40 p-1"
               >
                 {(["all", "unread"] as const).map((value) => (
                   <button
                     key={value}
                     type="button"
+                    aria-pressed={filter === value}
                     onClick={() => changeFilter(value)}
                     className={`min-h-9 rounded-full px-4 text-xs font-black capitalize transition ${
                       filter === value
