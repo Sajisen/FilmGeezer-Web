@@ -279,6 +279,7 @@ function SeasonEpisodeRow({
                 id={railId}
                 ref={railRef}
                 tabIndex={0}
+                role="group"
                 aria-label={`Season ${seasonSummary.seasonNumber} episode ratings`}
                 aria-describedby={instructionsId}
                 onScroll={updateScrollState}

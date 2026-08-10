@@ -269,6 +269,7 @@ function MediaRow({
             id={railId}
             ref={railRef}
             tabIndex={0}
+            role="group"
             aria-label={`${title} media`}
             aria-describedby={
               instructionsId

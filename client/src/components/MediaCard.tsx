@@ -33,7 +33,7 @@ function MediaCard({ item }: MediaCardProps) {
   const yearLabel = item.year || "Year unavailable";
 
   return (
-    <article className="group relative h-full overflow-hidden rounded-xl border border-white/10 bg-slate-900/85 shadow-lg shadow-black/20 transition duration-300 hover:-translate-y-1 hover:border-sky-400/30 hover:shadow-xl hover:shadow-sky-950/30 focus-within:border-sky-400/50 sm:rounded-2xl">
+    <article className="group relative h-full overflow-hidden rounded-xl border border-white/10 bg-slate-900/85 shadow-lg shadow-black/20 transition duration-300 hover:-translate-y-1 hover:border-sky-400/30 hover:shadow-xl hover:shadow-sky-950/30 focus-within:border-sky-400/50 focus-within:ring-2 focus-within:ring-sky-300 focus-within:ring-offset-2 focus-within:ring-offset-slate-950 sm:rounded-2xl">
       <Link
         to={`/media/${item.mediaType}/${item.tmdbId}`}
         aria-label={`View details for ${item.title}`}
