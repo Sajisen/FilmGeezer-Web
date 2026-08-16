@@ -14,7 +14,7 @@ function PrivacyPage() {
       eyebrow="Privacy & data"
       title="Privacy Policy"
       intro="This page explains, in plain language, what FilmGeezer stores, why it is needed, and the controls available to you."
-      updatedLabel="Last updated: August 16, 2026"
+      updatedLabel="Last updated: August 17, 2026"
       summary={PRIVACY_SUMMARY}
     >
       <LegalSection title="1. Information connected to your account">
@@ -51,8 +51,10 @@ function PrivacyPage() {
         <p>
           Continue with Google uses Google Identity Services to confirm the
           Google account you select. After that confirmation, FilmGeezer uses
-          its own account and session system. A connected Google account can
-          also be used to confirm sensitive account changes.
+          its own account and session system. Sensitive account changes are not
+          approved through the Google account chooser; after a FilmGeezer
+          password is configured, FilmGeezer requires that current password for
+          step-up confirmation.
         </p>
         <p>
           Administrator passkeys work through WebAuthn. FilmGeezer stores the

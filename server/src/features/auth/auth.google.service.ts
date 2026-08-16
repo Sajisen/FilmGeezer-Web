@@ -1585,36 +1585,3 @@ export async function verifyGoogleCredentialForConnection(
     emailDisplay: google.emailDisplay,
   };
 }
-
-export async function verifyGoogleCredentialForUser(
-  credential: string,
-  expectedUserId: ObjectId,
-): Promise<void> {
-  const google = await verifyGoogleCredential(credential);
-
-  const identity = await findAuthIdentityByProviderAndSubject(
-    "google",
-    google.subject,
-  );
-
-  if (!identity || !identity.userId.equals(expectedUserId)) {
-    throw new AuthGoogleAuthenticationError("account-unavailable");
-  }
-
-  const user = await findUserById(expectedUserId);
-
-  if (
-    !user ||
-    user.status !== "active" ||
-    !user.emailVerifiedAt ||
-    user.emailNormalized !== google.emailNormalized
-  ) {
-    throw new AuthGoogleAuthenticationError("google-email-mismatch");
-  }
-
-  await syncVerifiedGoogleIdentityEmail(
-    identity,
-    google,
-    new Date(),
-  );
-}
