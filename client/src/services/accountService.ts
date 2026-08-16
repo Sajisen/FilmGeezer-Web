@@ -18,6 +18,7 @@ import type {
   AccountEmailChangeRequestResponse,
   AccountEmailChangeResendResponse,
   AccountEmailChangeStatusResponse,
+  AccountPasswordAddResponse,
   AccountPasswordChangeResponse,
   AccountProfileUpdateResponse,
   AccountSecuritySummary,
@@ -94,7 +95,9 @@ function isAuthUser(
 
   return (
     typeof value.userId === "string" &&
-    value.provider === "local" &&
+    (value.provider === "local" ||
+      value.provider === "google" ||
+      value.provider === "clerk") &&
     typeof value.email === "string" &&
     typeof value.displayName === "string" &&
     isNullableString(value.profileImagePath) &&
@@ -146,7 +149,9 @@ function isAccountSummary(
 
   return (
     typeof value.userId === "string" &&
-    value.provider === "local" &&
+    (value.provider === "local" ||
+      value.provider === "google" ||
+      value.provider === "clerk") &&
     typeof value.email === "string" &&
     typeof value.displayName === "string" &&
     isNullableString(value.profileImagePath) &&
@@ -165,7 +170,9 @@ function isAccountSecuritySummary(
   }
 
   return (
-    typeof value.passwordChangedAt === "string" &&
+    typeof value.passwordConfigured === "boolean" &&
+    isNullableString(value.passwordChangedAt) &&
+    typeof value.googleConnected === "boolean" &&
     isNullableString(
       value.recentAuthenticationExpiresAt,
     )
@@ -369,6 +376,18 @@ function isAccountDeactivationResponse(
   );
 }
 
+function isAccountPasswordAddResponse(
+  value: unknown,
+): value is AccountPasswordAddResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ACCOUNT_PASSWORD_ADDED" &&
+    typeof value.message === "string" &&
+    typeof value.addedAt === "string"
+  );
+}
+
 function isAccountPasswordChangeResponse(
   value: unknown,
 ): value is AccountPasswordChangeResponse {
@@ -533,6 +552,40 @@ export function confirmAccountPassword(
   return requestAccountApi(
     "/api/account/confirm-password",
     isRecentAuthenticationResponse,
+    {
+      method: "POST",
+      body: input,
+      csrfToken,
+    },
+  );
+}
+
+export function confirmAccountGoogle(
+  input: {
+    credential: string;
+  },
+  csrfToken: string,
+): Promise<RecentAuthenticationResponse> {
+  return requestAccountApi(
+    "/api/account/confirm-google",
+    isRecentAuthenticationResponse,
+    {
+      method: "POST",
+      body: input,
+      csrfToken,
+    },
+  );
+}
+
+export function addAccountPassword(
+  input: {
+    newPassword: string;
+  },
+  csrfToken: string,
+): Promise<AccountPasswordAddResponse> {
+  return requestAccountApi(
+    "/api/account/add-password",
+    isAccountPasswordAddResponse,
     {
       method: "POST",
       body: input,

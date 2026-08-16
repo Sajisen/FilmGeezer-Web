@@ -47,6 +47,12 @@ export const AUTH_LOGIN_HTTP_POLICY = {
   maximumRequestsPerWindow: 10,
 } as const;
 
+export const AUTH_GOOGLE_HTTP_POLICY = {
+  requestBodyLimit: "16kb",
+  rateLimitWindowMilliseconds: 15 * 60 * 1_000,
+  maximumRequestsPerWindow: 10,
+} as const;
+
 export const AUTH_SESSION_HTTP_POLICY = {
   /*
    * Session state may be checked during application startup, route

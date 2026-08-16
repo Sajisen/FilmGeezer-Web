@@ -58,6 +58,28 @@ export async function createAuthIdentity(
   return identity;
 }
 
+
+export async function findAuthIdentityByProviderAndSubject(
+  provider: AuthProvider,
+  providerSubject: string,
+  session?: ClientSession,
+): Promise<AuthIdentityDocument | null> {
+  const { identities } =
+    await getAuthCollections();
+
+  return identities.findOne(
+    {
+      provider,
+      providerSubject,
+    },
+    session
+      ? {
+          session,
+        }
+      : undefined,
+  );
+}
+
 export async function findAuthIdentityByUserAndProvider(
   userId: ObjectId,
   provider: AuthProvider,
@@ -77,4 +99,23 @@ export async function findAuthIdentityByUserAndProvider(
         }
       : undefined,
   );
+}
+
+export async function deleteAuthIdentityByUserAndProvider(
+  userId: ObjectId,
+  provider: AuthProvider,
+  session: ClientSession,
+): Promise<number> {
+  const { identities } =
+    await getAuthCollections();
+
+  const result = await identities.deleteMany(
+    {
+      userId,
+      provider,
+    },
+    { session },
+  );
+
+  return result.deletedCount;
 }

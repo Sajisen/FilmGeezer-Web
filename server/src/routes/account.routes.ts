@@ -11,7 +11,9 @@ import {
 } from "express-rate-limit";
 
 import {
+  addCurrentAccountPassword,
   changeCurrentAccountPassword,
+  confirmCurrentAccountGoogle,
   confirmCurrentAccountPassword,
   getCurrentAccountDetails,
   getCurrentAccountSessions,
@@ -42,6 +44,7 @@ import {
   AUTH_EMAIL_CHANGE_REQUEST_HTTP_POLICY,
   AUTH_EMAIL_CHANGE_RESEND_HTTP_POLICY,
   AUTH_EMAIL_CHANGE_VERIFY_HTTP_POLICY,
+  AUTH_GOOGLE_HTTP_POLICY,
   AUTH_PASSWORD_CHANGE_HTTP_POLICY,
   AUTH_RECENT_AUTHENTICATION_HTTP_POLICY,
 } from "../features/auth/auth.constants.js";
@@ -166,7 +169,7 @@ const recentAuthenticationRateLimit =
     code:
       "AUTH_RECENT_AUTHENTICATION_RATE_LIMITED",
     message:
-      "Too many password-confirmation attempts. Please wait before trying again.",
+      "Too many identity-confirmation attempts. Please wait before trying again.",
   });
 
 const passwordChangeRateLimit =
@@ -401,6 +404,37 @@ router.post(
     strict: true,
   }),
   confirmCurrentAccountPassword,
+);
+
+router.post(
+  "/confirm-google",
+  recentAuthenticationRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requireJsonContentType,
+  json({
+    limit:
+      AUTH_GOOGLE_HTTP_POLICY
+        .requestBodyLimit,
+    strict: true,
+  }),
+  confirmCurrentAccountGoogle,
+);
+
+router.post(
+  "/add-password",
+  passwordChangeRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requireRecentAuthentication,
+  requireJsonContentType,
+  json({
+    limit:
+      AUTH_PASSWORD_CHANGE_HTTP_POLICY
+        .requestBodyLimit,
+    strict: true,
+  }),
+  addCurrentAccountPassword,
 );
 
 router.post(

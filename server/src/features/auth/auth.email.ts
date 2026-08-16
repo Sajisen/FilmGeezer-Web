@@ -7,6 +7,8 @@ import {
   createEmailChangeVerificationTemplate,
   createEmailVerificationTemplate,
   createExistingAccountRegistrationNoticeTemplate,
+  createGoogleSignInConnectedNoticeTemplate,
+  createPasswordAddedNoticeTemplate,
   createPasswordChangedNoticeTemplate,
   createPasswordResetCompletedNoticeTemplate,
   createPasswordResetTemplate,
@@ -80,6 +82,22 @@ export interface SendAccountDeactivatedNoticeInput {
 export interface SendWelcomeEmailInput {
   recipientEmail: string;
   displayName: string;
+  idempotencyKey: string;
+  userId: string;
+}
+
+export interface SendGoogleSignInConnectedNoticeInput {
+  recipientEmail: string;
+  displayName: string;
+  connectedAt: Date;
+  idempotencyKey: string;
+  userId: string;
+}
+
+export interface SendPasswordAddedNoticeInput {
+  recipientEmail: string;
+  displayName: string;
+  addedAt: Date;
   idempotencyKey: string;
   userId: string;
 }
@@ -170,6 +188,88 @@ function buildSourceUserId(
     return new ObjectId(value);
   } catch {
     return null;
+  }
+}
+
+export async function sendGoogleSignInConnectedNoticeEmail(
+  input: SendGoogleSignInConnectedNoticeInput,
+): Promise<void> {
+  const template =
+    createGoogleSignInConnectedNoticeTemplate({
+      displayName:
+        input.displayName,
+      connectedAt:
+        input.connectedAt,
+      publicAppUrl:
+        env.CLIENT_APP_ORIGIN,
+    });
+
+  try {
+    await sendTransactionalEmail({
+      kind:
+        "google-signin-connected-notice",
+      recipientEmail:
+        input.recipientEmail,
+      subject:
+        template.subject,
+      html:
+        template.html,
+      text:
+        template.text,
+      idempotencyKey:
+        input.idempotencyKey,
+      source: {
+        type: "account-event",
+        id: input.idempotencyKey,
+        userId:
+          buildSourceUserId(
+            input.userId,
+          ),
+      },
+    });
+  } catch (error) {
+    mapEmailError(error);
+  }
+}
+
+export async function sendPasswordAddedNoticeEmail(
+  input: SendPasswordAddedNoticeInput,
+): Promise<void> {
+  const template =
+    createPasswordAddedNoticeTemplate({
+      displayName:
+        input.displayName,
+      addedAt:
+        input.addedAt,
+      publicAppUrl:
+        env.CLIENT_APP_ORIGIN,
+    });
+
+  try {
+    await sendTransactionalEmail({
+      kind:
+        "password-added-notice",
+      recipientEmail:
+        input.recipientEmail,
+      subject:
+        template.subject,
+      html:
+        template.html,
+      text:
+        template.text,
+      idempotencyKey:
+        input.idempotencyKey,
+      source: {
+        type: "account-event",
+        id: input.idempotencyKey,
+        userId:
+          buildSourceUserId(
+            input.userId,
+          ),
+      },
+    });
+  } catch (error) {
+    mapEmailError(error);
   }
 }
 

@@ -5,6 +5,8 @@ export const TRANSACTIONAL_EMAIL_KIND_VALUES = [
   "existing-account-registration-notice",
   "password-reset",
   "password-changed-notice",
+  "password-added-notice",
+  "google-signin-connected-notice",
   "password-reset-completed-notice",
   "email-change-verification",
   "email-changed-notice",

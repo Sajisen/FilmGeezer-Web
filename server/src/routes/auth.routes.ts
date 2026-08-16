@@ -17,6 +17,8 @@ import {
   verifyLocalEmailAddress,
 } from "../controllers/auth.controller.js";
 
+import { authenticateGoogleAccount } from "../controllers/authGoogle.controller.js";
+
 import {
   getCurrentAuthSession,
   logoutAllAuthSessions,
@@ -31,6 +33,7 @@ import {
 import {
   AUTH_EMAIL_VERIFICATION_HTTP_POLICY,
   AUTH_EMAIL_VERIFICATION_RESEND_HTTP_POLICY,
+  AUTH_GOOGLE_HTTP_POLICY,
   AUTH_LOGIN_HTTP_POLICY,
   AUTH_LOGOUT_HTTP_POLICY,
   AUTH_PASSWORD_RESET_HTTP_POLICY,
@@ -176,6 +179,26 @@ const loginRateLimit =
 
     message:
       "Too many sign-in attempts. Please wait before trying again.",
+  });
+
+const googleAuthRateLimit =
+  createAuthenticationRateLimit({
+    windowMs:
+      AUTH_GOOGLE_HTTP_POLICY
+        .rateLimitWindowMilliseconds,
+
+    limit:
+      AUTH_GOOGLE_HTTP_POLICY
+        .maximumRequestsPerWindow,
+
+    identifier:
+      "filmgeezer-auth-google",
+
+    code:
+      "AUTH_GOOGLE_RATE_LIMITED",
+
+    message:
+      "Too many Google sign-in attempts. Please wait before trying again.",
   });
 
 const passwordResetRequestRateLimit =
@@ -345,6 +368,25 @@ router.post(
   }),
 
   resendLocalEmailVerification,
+);
+
+router.post(
+  "/google",
+
+  googleAuthRateLimit,
+
+  requireJsonContentType,
+
+  json({
+    limit:
+      AUTH_GOOGLE_HTTP_POLICY
+        .requestBodyLimit,
+
+    strict:
+      true,
+  }),
+
+  authenticateGoogleAccount,
 );
 
 router.post(

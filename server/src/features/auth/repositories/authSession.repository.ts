@@ -13,6 +13,7 @@ import {
 } from "../auth.collections.js";
 
 import type {
+  AuthProvider,
   AuthSessionDocument,
   AuthSessionRevocationReason,
 } from "../auth.types.js";
@@ -20,6 +21,7 @@ import type {
 export interface CreateAuthSessionInput {
   sessionId: ObjectId;
   userId: ObjectId;
+  authProvider: AuthProvider;
 
   tokenHash: string;
   csrfSecretHash: string;
@@ -28,6 +30,7 @@ export interface CreateAuthSessionInput {
   ipHash: string | null;
 
   createdAt: Date;
+  recentAuthenticationAt?: Date | null;
   expiresAt: Date;
 }
 
@@ -45,7 +48,7 @@ export async function createAuthSession(
         AUTH_SCHEMA_VERSION,
 
       userId: input.userId,
-      authProvider: "local",
+      authProvider: input.authProvider,
 
       tokenHash:
         input.tokenHash,
@@ -59,7 +62,8 @@ export async function createAuthSession(
 
       createdAt: input.createdAt,
       lastSeenAt: input.createdAt,
-      recentAuthenticationAt: null,
+      recentAuthenticationAt:
+        input.recentAuthenticationAt ?? null,
       expiresAt: input.expiresAt,
 
       revokedAt: null,

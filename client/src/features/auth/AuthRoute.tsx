@@ -439,6 +439,8 @@ function AuthRoute({
 
       {mode === "register" && (
         <RegisterForm
+          onAuthenticated={handleAuthenticated}
+          onVerificationRequired={handleVerificationRequired}
           onBusyChange={setIsBusy}
           onDirtyChange={setHasFormInput}
           onRegistrationSubmitted={

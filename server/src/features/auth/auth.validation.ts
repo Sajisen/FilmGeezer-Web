@@ -24,7 +24,7 @@ export function normalizeDisplayName(displayName: string): string {
     .replace(MULTIPLE_WHITESPACE_PATTERN, " ");
 }
 
-const registrationEmailSchema = z
+export const registrationEmailSchema = z
   .string({
     error: "Email must be text.",
   })
@@ -592,4 +592,64 @@ export function parseAccountSessionReference(
   value: unknown,
 ): AccountSessionReferenceInput {
   return accountSessionReferenceSchema.parse(value);
+}
+
+const GOOGLE_ID_TOKEN_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
+
+export const googleAuthenticationInputSchema = z
+  .object({
+    credential: z
+      .string({
+        error: "Google credential must be text.",
+      })
+      .trim()
+      .min(100, "Google credential is invalid.")
+      .max(16_000, "Google credential is too large.")
+      .regex(
+        GOOGLE_ID_TOKEN_PATTERN,
+        "Google credential is invalid.",
+      ),
+
+    password: loginPasswordSchema.optional(),
+  })
+  .strict();
+
+export type GoogleAuthenticationInput = z.input<
+  typeof googleAuthenticationInputSchema
+>;
+
+export type NormalizedGoogleAuthenticationInput = z.output<
+  typeof googleAuthenticationInputSchema
+>;
+
+export function parseGoogleAuthenticationInput(
+  value: unknown,
+): NormalizedGoogleAuthenticationInput {
+  return googleAuthenticationInputSchema.parse(value);
+}
+
+export const googleRecentAuthenticationInputSchema = z
+  .object({
+    credential: z
+      .string({
+        error: "Google credential must be text.",
+      })
+      .trim()
+      .min(100, "Google credential is invalid.")
+      .max(16_000, "Google credential is too large.")
+      .regex(
+        GOOGLE_ID_TOKEN_PATTERN,
+        "Google credential is invalid.",
+      ),
+  })
+  .strict();
+
+export type GoogleRecentAuthenticationInput = z.input<
+  typeof googleRecentAuthenticationInputSchema
+>;
+
+export function parseGoogleRecentAuthenticationInput(
+  value: unknown,
+) {
+  return googleRecentAuthenticationInputSchema.parse(value);
 }

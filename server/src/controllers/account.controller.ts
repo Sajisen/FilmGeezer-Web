@@ -9,11 +9,16 @@ import {
 } from "zod";
 
 import {
+  addAccountPassword,
   changeAccountPassword,
   confirmAccountPassword,
   getAccountDetails,
   updateAccountProfile,
 } from "../features/account/account.service.js";
+
+import {
+  confirmAccountWithGoogle,
+} from "../features/account/account.google.service.js";
 
 import {
   getAccountSessions,
@@ -22,6 +27,9 @@ import {
 
 import {
   AuthCurrentPasswordInvalidError,
+  AuthGoogleAuthenticationError,
+  AuthGoogleConfigurationError,
+  AuthPasswordAlreadyConfiguredError,
   AuthPasswordReuseError,
   AuthPersistenceError,
   AuthSessionManagementError,
@@ -139,9 +147,16 @@ export async function getCurrentAccountDetails(
       },
 
       security: {
+        passwordConfigured:
+          result.security.passwordConfigured,
+
         passwordChangedAt:
           result.security.passwordChangedAt
-            .toISOString(),
+            ?.toISOString() ??
+          null,
+
+        googleConnected:
+          result.security.googleConnected,
 
         recentAuthenticationExpiresAt:
           result.security
@@ -290,6 +305,93 @@ export async function confirmCurrentAccountPassword(
   }
 }
 
+export async function confirmCurrentAccountGoogle(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  response.setHeader(
+    "Cache-Control",
+    "no-store",
+  );
+
+  try {
+    const auth =
+      getAuthenticatedSessionContext(
+        request,
+      );
+
+    const result =
+      await confirmAccountWithGoogle(
+        request.body,
+        auth,
+        createRequestMetadata(
+          request,
+        ),
+      );
+
+    response.status(200).json({
+      status: "success",
+      code:
+        "AUTH_RECENT_AUTHENTICATION_CONFIRMED",
+      message:
+        "Google confirmed your identity. You can continue with this security change.",
+      confirmedAt:
+        result.confirmedAt
+          .toISOString(),
+      expiresAt:
+        result.expiresAt
+          .toISOString(),
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      response.status(400).json({
+        status: "error",
+        code:
+          "AUTH_INVALID_RECENT_AUTHENTICATION_INPUT",
+        message:
+          "The Google confirmation response is invalid. Please try again.",
+      });
+      return;
+    }
+
+    if (error instanceof AuthGoogleAuthenticationError) {
+      response.status(401).json({
+        status: "error",
+        code:
+          "AUTH_GOOGLE_REAUTHENTICATION_REJECTED",
+        message:
+          "Use the Google account connected to this FilmGeezer account.",
+      });
+      return;
+    }
+
+    if (error instanceof AuthGoogleConfigurationError) {
+      response.status(503).json({
+        status: "error",
+        code:
+          "AUTH_GOOGLE_TEMPORARILY_UNAVAILABLE",
+        message:
+          "Google confirmation is temporarily unavailable. Please try again shortly.",
+      });
+      return;
+    }
+
+    if (error instanceof AuthPersistenceError) {
+      response.status(503).json({
+        status: "error",
+        code:
+          "ACCOUNT_TEMPORARILY_UNAVAILABLE",
+        message:
+          "Your identity could not be confirmed right now. Please try again shortly.",
+      });
+      return;
+    }
+
+    next(error);
+  }
+}
+
 export async function updateCurrentAccountProfile(
   request: Request,
   response: Response,
@@ -366,6 +468,105 @@ export async function updateCurrentAccountProfile(
           "Your profile cannot be updated right now. Please try again shortly.",
       });
 
+      return;
+    }
+
+    next(error);
+  }
+}
+
+export async function addCurrentAccountPassword(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  response.setHeader(
+    "Cache-Control",
+    "no-store",
+  );
+
+  try {
+    const auth =
+      getAuthenticatedSessionContext(
+        request,
+      );
+
+    const result =
+      await addAccountPassword(
+        request.body,
+        auth,
+        createRequestMetadata(
+          request,
+        ),
+      );
+
+    response.status(200).json({
+      status: "success",
+      code: "ACCOUNT_PASSWORD_ADDED",
+      message:
+        "A FilmGeezer password has been added to your account.",
+      addedAt:
+        result.addedAt.toISOString(),
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      response.status(400).json({
+        status: "error",
+        code:
+          "ACCOUNT_INVALID_PASSWORD_INPUT",
+        message:
+          "Check the new password and try again.",
+        errors:
+          createValidationDetails(
+            error,
+            ["newPassword"],
+          ),
+      });
+      return;
+    }
+
+    if (error instanceof AuthWeakPasswordError) {
+      response.status(400).json({
+        status: "error",
+        code: error.code,
+        message: error.message,
+        errors: {
+          form: [],
+          fields: {
+            newPassword: [
+              error.message,
+            ],
+          },
+        },
+      });
+      return;
+    }
+
+    if (error instanceof AuthPasswordAlreadyConfiguredError) {
+      response.status(409).json({
+        status: "error",
+        code: error.code,
+        message: error.message,
+      });
+      return;
+    }
+
+    if (error instanceof AuthPersistenceError) {
+      console.error(
+        "[account-password] Password setup failed.",
+        {
+          name: error.name,
+          code: error.code,
+        },
+      );
+
+      response.status(503).json({
+        status: "error",
+        code:
+          "ACCOUNT_TEMPORARILY_UNAVAILABLE",
+        message:
+          "Your password cannot be added right now. Please try again shortly.",
+      });
       return;
     }
 

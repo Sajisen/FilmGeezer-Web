@@ -578,6 +578,124 @@ export function createPasswordChangedNoticeTemplate(input: {
   };
 }
 
+export function createGoogleSignInConnectedNoticeTemplate(input: {
+  displayName: string;
+  connectedAt: Date;
+  publicAppUrl: string;
+}): EmailTemplate {
+  const accountUrl =
+    createPublicUrl(
+      input.publicAppUrl,
+      "/account?section=security",
+    );
+  const contactUrl =
+    createPublicUrl(
+      input.publicAppUrl,
+      "/contact",
+    );
+
+  return {
+    subject:
+      "Google sign-in was connected to your FilmGeezer account",
+    html: renderEmailShell({
+      publicAppUrl: input.publicAppUrl,
+      eyebrow:
+        "FilmGeezer account security",
+      title: "Google sign-in connected",
+      previewText:
+        "Google is now a sign-in method for your FilmGeezer account.",
+      bodyHtml:
+        paragraph(`Hi ${input.displayName},`) +
+        paragraph(
+          "Google sign-in was connected to your FilmGeezer account. You can now use Continue with Google to access this same FilmGeezer account.",
+        ) +
+        renderEventDetails([
+          {
+            label: "Connected",
+            value: formatUtcDate(
+              input.connectedAt,
+            ),
+          },
+        ]) +
+        renderButton(
+          "Review account security",
+          accountUrl,
+        ) +
+        renderSecurityNotice(
+          "If you did not connect Google sign-in, secure your account and",
+          contactUrl,
+        ),
+    }),
+    text: [
+      `Hi ${input.displayName},`,
+      "Google sign-in was connected to your FilmGeezer account.",
+      "You can now use Continue with Google to access this same FilmGeezer account.",
+      `Connected: ${formatUtcDate(input.connectedAt)}`,
+      `Review account security: ${accountUrl}`,
+      `If you did not connect Google sign-in, contact FilmGeezer Support immediately: ${contactUrl}`,
+    ].join("\n\n"),
+  };
+}
+
+export function createPasswordAddedNoticeTemplate(input: {
+  displayName: string;
+  addedAt: Date;
+  publicAppUrl: string;
+}): EmailTemplate {
+  const accountUrl =
+    createPublicUrl(
+      input.publicAppUrl,
+      "/account?section=security",
+    );
+  const contactUrl =
+    createPublicUrl(
+      input.publicAppUrl,
+      "/contact",
+    );
+
+  return {
+    subject:
+      "A FilmGeezer password was added to your account",
+    html: renderEmailShell({
+      publicAppUrl: input.publicAppUrl,
+      eyebrow:
+        "FilmGeezer account security",
+      title: "A password was added",
+      previewText:
+        "A FilmGeezer password was added as a new sign-in method for your account.",
+      bodyHtml:
+        paragraph(`Hi ${input.displayName},`) +
+        paragraph(
+          "A FilmGeezer password was added to your account. You can now sign in with your FilmGeezer email and password as well as any other connected sign-in method.",
+        ) +
+        renderEventDetails([
+          {
+            label: "Added",
+            value: formatUtcDate(
+              input.addedAt,
+            ),
+          },
+        ]) +
+        renderButton(
+          "Review account security",
+          accountUrl,
+        ) +
+        renderSecurityNotice(
+          "If you did not add this password, secure your account and",
+          contactUrl,
+        ),
+    }),
+    text: [
+      `Hi ${input.displayName},`,
+      "A FilmGeezer password was added to your account.",
+      "You can now sign in with your FilmGeezer email and password as well as any other connected sign-in method.",
+      `Added: ${formatUtcDate(input.addedAt)}`,
+      `Review account security: ${accountUrl}`,
+      `If you did not add this password, contact FilmGeezer Support immediately: ${contactUrl}`,
+    ].join("\n\n"),
+  };
+}
+
 export function createPasswordResetCompletedNoticeTemplate(input: {
   displayName: string;
   resetAt: Date;

@@ -184,6 +184,10 @@ function ForgotPasswordForm({
       />
 
       <p className="text-center text-sm leading-6 text-slate-400">
+        If you normally use Google, return to sign in and choose Continue with Google.
+      </p>
+
+      <p className="text-center text-sm leading-6 text-slate-400">
         Remembered your password?{" "}
 
         <button

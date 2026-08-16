@@ -1,11 +1,12 @@
 import type {
+  AuthProvider,
   AuthSessionSummary,
   AuthUser,
 } from "./auth";
 
 export interface AccountSummary {
   userId: string;
-  provider: "local";
+  provider: AuthProvider;
   email: string;
   displayName: string;
   profileImagePath: string | null;
@@ -16,7 +17,9 @@ export interface AccountSummary {
 }
 
 export interface AccountSecuritySummary {
-  passwordChangedAt: string;
+  passwordConfigured: boolean;
+  passwordChangedAt: string | null;
+  googleConnected: boolean;
   recentAuthenticationExpiresAt:
     | string
     | null;
@@ -45,6 +48,13 @@ export interface RecentAuthenticationResponse {
   message: string;
   confirmedAt: string;
   expiresAt: string;
+}
+
+export interface AccountPasswordAddResponse {
+  status: "success";
+  code: "ACCOUNT_PASSWORD_ADDED";
+  message: string;
+  addedAt: string;
 }
 
 export interface AccountPasswordChangeResponse {

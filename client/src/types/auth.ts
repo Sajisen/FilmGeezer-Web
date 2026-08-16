@@ -1,4 +1,4 @@
-export type AuthProvider = "local" | "clerk";
+export type AuthProvider = "local" | "google" | "clerk";
 
 export type AuthRole = "user" | "admin";
 
@@ -38,6 +38,29 @@ export interface AuthLoginResponse {
   user: AuthUser;
   session: AuthSessionSummary;
 }
+
+
+export interface AuthGoogleAuthenticatedResponse {
+  status: "success";
+  code: "AUTH_GOOGLE_AUTHENTICATION_SUCCEEDED";
+  message: string;
+  createdAccount: boolean;
+  linkedExistingAccount: boolean;
+  user: AuthUser;
+  session: AuthSessionSummary;
+}
+
+export interface AuthGoogleVerificationRequiredResponse {
+  status: "success";
+  code: "AUTH_GOOGLE_EMAIL_VERIFICATION_REQUIRED";
+  message: string;
+  email: string;
+  verification: AuthVerificationReceipt;
+}
+
+export type AuthGoogleAuthenticationResponse =
+  | AuthGoogleAuthenticatedResponse
+  | AuthGoogleVerificationRequiredResponse;
 
 export interface AuthEmailVerificationResponse {
   status: "success";

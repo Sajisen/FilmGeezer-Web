@@ -17,6 +17,7 @@ import {
 import type {
   AuthChallengeDocument,
   AuthChallengePurpose,
+  AuthProvider,
 } from "../auth.types.js";
 
 export interface InvalidateActiveChallengesInput {
@@ -97,6 +98,7 @@ export interface CreateEmailVerificationChallengeInput {
 
   sendCount?: number;
   lastSentAt?: Date | null;
+  authenticationProvider?: AuthProvider | null;
 }
 
 export async function createEmailVerificationChallenge(
@@ -124,6 +126,9 @@ export async function createEmailVerificationChallenge(
         "verify-email",
 
       emailChange: null,
+
+      authenticationProvider:
+        input.authenticationProvider ?? null,
 
       secretHash:
         input.secretHash,

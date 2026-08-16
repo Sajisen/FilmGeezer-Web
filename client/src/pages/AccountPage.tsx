@@ -588,7 +588,9 @@ function AccountPage() {
   const recentPasswordDialogTitle =
     pendingSensitiveAction ===
       "change-password"
-      ? "Confirm password change"
+      ? details?.security.passwordConfigured
+        ? "Confirm password change"
+        : "Confirm password setup"
       : pendingSensitiveAction ===
           "change-email"
         ? "Confirm email change"
@@ -603,17 +605,19 @@ function AccountPage() {
   const recentPasswordDialogDescription =
     pendingSensitiveAction ===
       "change-password"
-      ? "Enter your current password before choosing a new one."
+      ? details?.security.passwordConfigured
+        ? "Confirm your identity before choosing a new FilmGeezer password."
+        : "Confirm your identity before adding a FilmGeezer password to this account."
       : pendingSensitiveAction ===
           "change-email"
-        ? "Enter your current password before sending a code to a new email address."
+        ? "Confirm your identity before sending a code to a new email address."
         : pendingSensitiveAction ===
             "sign-out-all"
-          ? "Enter your current password before signing out every device."
+          ? "Confirm your identity before signing out every device."
           : pendingSensitiveAction ===
               "deactivate-account"
-            ? "Enter your current password before deactivating your FilmGeezer account."
-            : "Enter your current password before signing out this device.";
+            ? "Confirm your identity before deactivating your FilmGeezer account."
+            : "Confirm your identity before signing out this device.";
 
   if (
     auth.status === "loading" ||
@@ -879,7 +883,9 @@ function AccountPage() {
                             </p>
                           ) : (
                             <p className="mt-2 text-sm text-slate-500">
-                              Used to sign in and recover your account.
+                              {details.security.passwordConfigured
+                                ? "Used to sign in and recover your account."
+                                : "Used for account communication and security notices."}
                             </p>
                           )}
                         </div>
@@ -897,8 +903,38 @@ function AccountPage() {
                     </section>
                   )}
 
+                  {details.security.googleConnected && (
+                    <section className="flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-xl shadow-black/15 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+                      <div className="flex min-w-0 items-start gap-3.5">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-300/15 bg-sky-400/10 text-sky-200">
+                          <AccountIcon name="check" />
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-white">
+                            Google sign-in
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-300">
+                            Connected to this FilmGeezer account.
+                          </p>
+                          <p className="mt-2 text-sm text-slate-500">
+                            You can use Continue with Google when signing in.
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="inline-flex min-h-9 w-fit items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 text-xs font-bold text-emerald-200">
+                        Connected
+                      </span>
+                    </section>
+                  )}
+
                   {showChangePassword ? (
                     <ChangePasswordPanel
+                      mode={
+                        details.security.passwordConfigured
+                          ? "change"
+                          : "add"
+                      }
                       csrfToken={csrfToken}
                       email={details.account.email}
                       displayName={details.account.displayName}
@@ -928,12 +964,16 @@ function AccountPage() {
                             Password
                           </h3>
                           <p className="mt-1 text-sm text-slate-300">
-                            Last changed {formatDateOnly(
-                              details.security.passwordChangedAt,
-                            )}
+                            {details.security.passwordConfigured
+                              ? `Last changed ${formatDateOnly(
+                                  details.security.passwordChangedAt,
+                                )}`
+                              : "No FilmGeezer password is set yet."}
                           </p>
                           <p className="mt-2 text-sm text-slate-500">
-                            Use a password you do not use on another service.
+                            {details.security.passwordConfigured
+                              ? "Use a password you do not use on another service."
+                              : "Add one if you also want to sign in with your FilmGeezer email and password."}
                           </p>
                         </div>
                       </div>
@@ -947,7 +987,9 @@ function AccountPage() {
                         }}
                         className="mt-auto min-h-10 w-full rounded-xl border border-sky-300/20 bg-sky-400/10 px-4 text-sm font-bold text-sky-100 transition hover:bg-sky-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:mt-0 lg:w-auto lg:min-w-36"
                       >
-                        Change password
+                        {details.security.passwordConfigured
+                          ? "Change password"
+                          : "Add password"}
                       </button>
                     </section>
                   )}
@@ -1033,6 +1075,8 @@ function AccountPage() {
           csrfToken={csrfToken}
           title={recentPasswordDialogTitle}
           description={recentPasswordDialogDescription}
+          passwordConfigured={details.security.passwordConfigured}
+          googleConnected={details.security.googleConnected}
           onCancel={() => {
             setPendingSensitiveAction(null);
             setPendingSessionToRevoke(null);

@@ -16,6 +16,7 @@ import {
 } from "../../../services/authService";
 
 import {
+  confirmAccountGoogle,
   confirmAccountPassword,
 } from "../../../services/accountService";
 
@@ -25,12 +26,16 @@ import {
   PasswordField,
 } from "../../auth/components/AuthFields";
 
+import GoogleIdentityButton from "../../auth/components/GoogleIdentityButton";
+
 import AccountIcon from "./AccountSectionIcons";
 
 interface RecentPasswordDialogProps {
   csrfToken: string;
   title: string;
   description: string;
+  passwordConfigured: boolean;
+  googleConnected: boolean;
   onCancel: () => void;
   onConfirmed: (
     expiresAt: string,
@@ -59,13 +64,18 @@ function RecentPasswordDialog({
   csrfToken,
   title,
   description,
+  passwordConfigured,
+  googleConnected,
   onCancel,
   onConfirmed,
 }: RecentPasswordDialogProps) {
   const [password, setPassword] =
     useState("");
 
-  const [isSubmitting, setIsSubmitting] =
+  const [isPasswordSubmitting, setIsPasswordSubmitting] =
+    useState(false);
+
+  const [isGoogleSubmitting, setIsGoogleSubmitting] =
     useState(false);
 
   const [errorMessage, setErrorMessage] =
@@ -74,27 +84,32 @@ function RecentPasswordDialog({
   const [passwordErrors, setPasswordErrors] =
     useState<string[]>([]);
 
+  const isSubmitting =
+    isPasswordSubmitting || isGoogleSubmitting;
+
   const dialogRef =
     useRef<HTMLDivElement | null>(null);
 
   useModalAccessibility({
     isOpen: true,
     dialogRef,
-    initialFocusSelector: "[autofocus]",
+    initialFocusSelector: passwordConfigured
+      ? "[autofocus]"
+      : "button",
     onEscape: onCancel,
     escapeEnabled: !isSubmitting,
   });
 
-  async function handleSubmit(
+  async function handlePasswordSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (isSubmitting || !passwordConfigured) {
       return;
     }
 
-    setIsSubmitting(true);
+    setIsPasswordSubmitting(true);
     setErrorMessage(null);
     setPasswordErrors([]);
 
@@ -125,7 +140,37 @@ function RecentPasswordDialog({
             : "FilmGeezer could not confirm your password.",
       );
     } finally {
-      setIsSubmitting(false);
+      setIsPasswordSubmitting(false);
+    }
+  }
+
+  async function handleGoogleCredential(
+    credential: string,
+  ) {
+    if (isSubmitting || !googleConnected) {
+      return;
+    }
+
+    setIsGoogleSubmitting(true);
+    setErrorMessage(null);
+    setPasswordErrors([]);
+
+    try {
+      const response =
+        await confirmAccountGoogle(
+          { credential },
+          csrfToken,
+        );
+
+      onConfirmed(response.expiresAt);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "FilmGeezer could not confirm your Google account.",
+      );
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   }
 
@@ -145,8 +190,8 @@ function RecentPasswordDialog({
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="recent-password-title"
-        aria-describedby="recent-password-description"
+        aria-labelledby="recent-authentication-title"
+        aria-describedby="recent-authentication-description"
         aria-busy={isSubmitting}
         className="w-full max-w-md overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/60"
       >
@@ -155,7 +200,7 @@ function RecentPasswordDialog({
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            aria-label="Close password confirmation"
+            aria-label="Close identity confirmation"
             className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-slate-950/55 text-slate-300 transition hover:border-white/20 hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-50"
           >
             <CloseIcon />
@@ -170,52 +215,109 @@ function RecentPasswordDialog({
           </p>
 
           <h2
-            id="recent-password-title"
+            id="recent-authentication-title"
             className="mt-2 pr-10 text-2xl font-black tracking-tight text-white"
           >
             {title}
           </h2>
 
           <p
-            id="recent-password-description"
+            id="recent-authentication-description"
             className="mt-2 max-w-sm text-sm leading-6 text-slate-400"
           >
             {description}
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 p-5 sm:p-6"
-          noValidate
-        >
+        <div className="space-y-4 p-5 sm:p-6">
           <AuthFormMessage
             message={errorMessage}
           />
 
-          <PasswordField
-            id="account-current-password"
-            label="Current password"
-            autoComplete="current-password"
-            autoFocus
-            required
-            maxLength={128}
-            value={password}
-            disabled={isSubmitting}
-            errorMessages={passwordErrors}
-            placeholder="Enter your current password"
-            onChange={(event: ChangeEvent<HTMLInputElement>) => {
-              setPassword(event.target.value);
+          {googleConnected ? (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-slate-200">
+                Continue with Google
+              </p>
 
-              if (passwordErrors.length > 0) {
-                setPasswordErrors([]);
-              }
+              <GoogleIdentityButton
+                disabled={isSubmitting}
+                onCredential={(credential) => {
+                  void handleGoogleCredential(
+                    credential,
+                  );
+                }}
+                onUnavailable={(message) => {
+                  if (!passwordConfigured) {
+                    setErrorMessage(message);
+                  }
+                }}
+              />
+            </div>
+          ) : null}
 
-              if (errorMessage) {
-                setErrorMessage(null);
-              }
-            }}
-          />
+          {googleConnected && passwordConfigured ? (
+            <div
+              aria-hidden="true"
+              className="flex items-center gap-3"
+            >
+              <span className="h-px flex-1 bg-white/10" />
+              <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                or use your password
+              </span>
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+          ) : null}
+
+          {passwordConfigured ? (
+            <form
+              onSubmit={handlePasswordSubmit}
+              className="space-y-4"
+              noValidate
+            >
+              <PasswordField
+                id="account-current-password"
+                label="Current password"
+                autoComplete="current-password"
+                autoFocus
+                required
+                maxLength={128}
+                value={password}
+                disabled={isSubmitting}
+                errorMessages={passwordErrors}
+                placeholder="Enter your current password"
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  setPassword(event.target.value);
+
+                  if (passwordErrors.length > 0) {
+                    setPasswordErrors([]);
+                  }
+
+                  if (errorMessage) {
+                    setErrorMessage(null);
+                  }
+                }}
+              />
+
+              <div className="pt-1">
+                <AuthSubmitButton
+                  label="Continue"
+                  loadingLabel="Checking…"
+                  isSubmitting={isPasswordSubmitting}
+                  disabled={
+                    password.length === 0 ||
+                    isGoogleSubmitting
+                  }
+                />
+              </div>
+            </form>
+          ) : null}
+
+          {!passwordConfigured && !googleConnected ? (
+            <p className="rounded-xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100">
+              FilmGeezer could not find a sign-in method that can confirm this security change.
+            </p>
+          ) : null}
 
           <p className="flex items-start gap-2 text-xs leading-5 text-slate-500">
             <span className="mt-0.5 text-sky-300">
@@ -223,16 +325,7 @@ function RecentPasswordDialog({
             </span>
             This confirmation stays active briefly so you can finish the selected account change.
           </p>
-
-          <div className="pt-1">
-            <AuthSubmitButton
-              label="Continue"
-              loadingLabel="Checking…"
-              isSubmitting={isSubmitting}
-              disabled={password.length === 0}
-            />
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );

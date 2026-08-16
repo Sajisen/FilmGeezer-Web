@@ -34,10 +34,10 @@ import {
 } from "../auth/auth.indexes.js";
 
 import {
-  createLocalAuthSessionResult,
-  createPreparedLocalAuthSession,
-  prepareLocalAuthSession,
-  type LocalAuthSessionResult,
+  createAuthSessionResult,
+  createPreparedAuthSession,
+  prepareAuthSession,
+  type AuthSessionResult,
 } from "../auth/auth.session-creation.service.js";
 
 import {
@@ -115,7 +115,7 @@ export interface AccountEmailChangeStatusResult {
 }
 
 export interface AccountEmailChangeCompletedResult
-  extends LocalAuthSessionResult {
+  extends AuthSessionResult {
   previousEmail: string;
   changedAt: Date;
   sessionsRevoked: number;
@@ -1014,7 +1014,7 @@ export async function verifyAccountEmailChange(
 
   const changedAt = new Date();
   const preparedSession =
-    prepareLocalAuthSession(
+    prepareAuthSession(
       requestMetadata,
       changedAt,
     );
@@ -1114,8 +1114,9 @@ export async function verifyAccountEmailChange(
               session,
             );
 
-          await createPreparedLocalAuthSession(
+          await createPreparedAuthSession(
             user._id,
+            auth.provider,
             preparedSession,
             session,
           );
@@ -1130,6 +1131,7 @@ export async function verifyAccountEmailChange(
                 requestMetadata,
               ),
               details: {
+                provider: auth.provider,
                 sessionsRevoked,
                 sessionRotated: true,
               },
@@ -1139,8 +1141,9 @@ export async function verifyAccountEmailChange(
           );
 
           return {
-            ...createLocalAuthSessionResult(
+            ...createAuthSessionResult(
               updatedUser,
+              auth.provider,
               preparedSession,
             ),
             previousEmail: user.emailDisplay,

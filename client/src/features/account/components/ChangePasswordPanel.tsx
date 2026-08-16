@@ -12,6 +12,7 @@ import {
 } from "../../../services/authService";
 
 import {
+  addAccountPassword,
   changeAccountPassword,
 } from "../../../services/accountService";
 
@@ -30,6 +31,7 @@ import PasswordStrengthMeter from "../../auth/components/PasswordStrengthMeter";
 import AccountIcon from "./AccountSectionIcons";
 
 interface ChangePasswordPanelProps {
+  mode: "add" | "change";
   csrfToken: string;
   email: string;
   displayName: string;
@@ -41,6 +43,7 @@ interface ChangePasswordPanelProps {
 }
 
 function ChangePasswordPanel({
+  mode,
   csrfToken,
   email,
   displayName,
@@ -121,12 +124,19 @@ function ChangePasswordPanel({
 
     try {
       const response =
-        await changeAccountPassword(
-          {
-            newPassword,
-          },
-          csrfToken,
-        );
+        mode === "add"
+          ? await addAccountPassword(
+              {
+                newPassword,
+              },
+              csrfToken,
+            )
+          : await changeAccountPassword(
+              {
+                newPassword,
+              },
+              csrfToken,
+            );
 
       await onChanged(response.message);
     } catch (error) {
@@ -173,7 +183,9 @@ function ChangePasswordPanel({
               ? null
               : error instanceof Error
                 ? error.message
-                : "FilmGeezer could not change your password."
+                : mode === "add"
+                  ? "FilmGeezer could not add your password."
+                  : "FilmGeezer could not change your password."
           ),
       );
     } finally {
@@ -203,10 +215,14 @@ function ChangePasswordPanel({
 
           <div>
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Choose a new password
+              {mode === "add"
+                ? "Add a FilmGeezer password"
+                : "Choose a new password"}
             </h2>
             <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-400">
-              Use a password you do not use elsewhere. Other signed-in devices will be signed out after the change.
+              {mode === "add"
+                ? "Add a password so you can also sign in with your FilmGeezer email. Your existing sign-in methods will stay connected."
+                : "Use a password you do not use elsewhere. Other signed-in devices will be signed out after the change."}
             </p>
           </div>
         </div>
@@ -293,13 +309,15 @@ function ChangePasswordPanel({
             <span className="mt-0.5 text-sky-300">
               <AccountIcon name="shield" className="h-4 w-4" />
             </span>
-            This device will stay signed in after your password changes.
+            {mode === "add"
+              ? "Adding a password keeps your existing sign-in methods connected and does not sign out your current devices."
+              : "This device will stay signed in after your password changes."}
           </div>
 
           <div className="w-full sm:w-52">
             <AuthSubmitButton
-              label="Update password"
-              loadingLabel="Updating…"
+              label={mode === "add" ? "Add password" : "Update password"}
+              loadingLabel={mode === "add" ? "Adding…" : "Updating…"}
               isSubmitting={isSubmitting}
               disabled={
                 !passwordIsReady ||

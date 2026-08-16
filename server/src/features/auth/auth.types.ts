@@ -2,6 +2,7 @@ import type { ObjectId } from "mongodb";
 
 export const AUTH_PROVIDER_VALUES = [
   "local",
+  "google",
   "clerk",
 ] as const;
 
@@ -212,6 +213,13 @@ export interface AuthChallengeDocument {
   emailChange?:
     | AuthEmailChangeChallengeContext
     | null;
+
+  /*
+   * Verification challenges created by older FilmGeezer versions do not
+   * include this field. Those challenges are treated as local-auth
+   * registration challenges by the verification service.
+   */
+  authenticationProvider?: AuthProvider | null;
 
   secretHash: string;
 
