@@ -623,18 +623,17 @@ export async function addAccountPassword(
           );
         }
 
-        const [existingCredential, existingLocalIdentity] =
-          await Promise.all([
-            findAuthCredentialByUserId(
-              user._id,
-              session,
-            ),
-            findAuthIdentityByUserAndProvider(
-              user._id,
-              "local",
-              session,
-            ),
-          ]);
+        const existingCredential =
+          await findAuthCredentialByUserId(
+            user._id,
+            session,
+          );
+        const existingLocalIdentity =
+          await findAuthIdentityByUserAndProvider(
+            user._id,
+            "local",
+            session,
+          );
 
         if (
           existingCredential ||

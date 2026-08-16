@@ -101,14 +101,15 @@ async function requireLocalPasswordMethod(
   userId: ObjectId,
   session: ClientSession,
 ): Promise<void> {
-  const [identity, credential] = await Promise.all([
-    findAuthIdentityByUserAndProvider(
-      userId,
-      "local",
-      session,
-    ),
-    findAuthCredentialByUserId(userId, session),
-  ]);
+  const identity = await findAuthIdentityByUserAndProvider(
+    userId,
+    "local",
+    session,
+  );
+  const credential = await findAuthCredentialByUserId(
+    userId,
+    session,
+  );
 
   if (!identity || !credential) {
     throw new AccountGoogleManagementError(
@@ -153,19 +154,18 @@ export async function replaceAccountGoogleConnection(
         throw new AccountGoogleManagementError("email-mismatch");
       }
 
-      const [currentGoogle, ownerOfNewGoogle] =
-        await Promise.all([
-          findAuthIdentityByUserAndProvider(
-            auth.userId,
-            "google",
-            session,
-          ),
-          findAuthIdentityByProviderAndSubject(
-            "google",
-            google.subject,
-            session,
-          ),
-        ]);
+      const currentGoogle =
+        await findAuthIdentityByUserAndProvider(
+          auth.userId,
+          "google",
+          session,
+        );
+      const ownerOfNewGoogle =
+        await findAuthIdentityByProviderAndSubject(
+          "google",
+          google.subject,
+          session,
+        );
 
       if (
         ownerOfNewGoogle &&

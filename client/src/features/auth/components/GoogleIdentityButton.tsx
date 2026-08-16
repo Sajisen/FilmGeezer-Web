@@ -57,19 +57,10 @@ function GoogleIdentityButton({
     };
   }, [disabled]);
 
+  const clientId = getGoogleClientId();
+
   useEffect(() => {
-    const clientId = getGoogleClientId();
-
-    setIsReady(false);
-    setAvailabilityError(null);
-
     if (!clientId) {
-      hostRef.current?.replaceChildren();
-      setAvailabilityError({
-        message:
-          "Google sign-in is unavailable right now. Please use another sign-in method or try again later.",
-        retryable: false,
-      });
       return;
     }
 
@@ -116,6 +107,16 @@ function GoogleIdentityButton({
           lastRenderedWidth = width;
           host.replaceChildren();
 
+          /*
+           * FilmGeezer declares a dark color scheme globally. Google's
+           * personalized button is rendered inside a cross-origin iframe,
+           * and inheriting the dark scheme can make Chromium paint an
+           * additional light iframe surface around Google's own outlined
+           * button. Keep the GIS host/iframe explicitly light so the official
+           * white button is the only white surface.
+           */
+          host.style.colorScheme = "light";
+
           api.accounts.id.renderButton(host, {
             type: "standard",
             theme: "outline",
@@ -126,6 +127,10 @@ function GoogleIdentityButton({
             width,
             locale: "en",
           });
+
+          for (const iframe of host.querySelectorAll("iframe")) {
+            iframe.style.colorScheme = "light";
+          }
 
           setAvailabilityError(null);
           setIsReady(true);
@@ -155,7 +160,19 @@ function GoogleIdentityButton({
       cleanupHandler();
       resizeObserver?.disconnect();
     };
-  }, [loadAttempt]);
+  }, [clientId, loadAttempt]);
+
+  if (!clientId) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-11 w-full items-center rounded-xl border border-amber-300/20 bg-amber-400/[0.07] px-3.5 py-2 text-xs leading-5 text-amber-100"
+      >
+        Google sign-in is unavailable right now. Please use another sign-in method or try again later.
+      </div>
+    );
+  }
 
   if (availabilityError) {
     return (
@@ -171,6 +188,8 @@ function GoogleIdentityButton({
             type="button"
             disabled={disabled}
             onClick={() => {
+              setIsReady(false);
+              setAvailabilityError(null);
               setLoadAttempt(
                 (currentAttempt) => currentAttempt + 1,
               );
@@ -185,10 +204,14 @@ function GoogleIdentityButton({
   }
 
   return (
-    <div className="relative mx-auto min-h-11 w-full max-w-[400px] bg-transparent">
+    <div
+      className="relative mx-auto min-h-11 w-full max-w-[400px] bg-transparent"
+      style={{ colorScheme: "light" }}
+    >
       <div
         ref={hostRef}
         aria-hidden={!isReady}
+        style={{ colorScheme: "light" }}
         className={
           disabled
             ? "pointer-events-none flex min-h-11 w-full justify-center bg-transparent opacity-50"

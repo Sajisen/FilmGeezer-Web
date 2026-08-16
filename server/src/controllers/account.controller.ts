@@ -429,6 +429,11 @@ export async function replaceCurrentAccountGoogleConnection(
     }
 
     if (error instanceof AuthPersistenceError) {
+      console.error("[account-google] Google connection update failed.", {
+        name: error.name,
+        causeName:
+          error.cause instanceof Error ? error.cause.name : null,
+      });
       response.status(503).json({
         status: "error",
         code: "ACCOUNT_TEMPORARILY_UNAVAILABLE",
@@ -477,6 +482,11 @@ export async function disconnectCurrentAccountGoogleConnection(
     }
 
     if (error instanceof AuthPersistenceError) {
+      console.error("[account-google] Google disconnect failed.", {
+        name: error.name,
+        causeName:
+          error.cause instanceof Error ? error.cause.name : null,
+      });
       response.status(503).json({
         status: "error",
         code: "ACCOUNT_TEMPORARILY_UNAVAILABLE",
