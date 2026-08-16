@@ -161,7 +161,7 @@ function PasswordStrengthMeter({
 
   return (
     <div
-      className="mt-2.5"
+      className="mt-2"
       aria-live="polite"
       aria-atomic="true"
     >

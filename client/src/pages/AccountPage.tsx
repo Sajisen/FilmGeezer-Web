@@ -909,20 +909,29 @@ function AccountPage() {
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-300/15 bg-sky-400/10 text-sky-200">
                           <AccountIcon name="check" />
                         </span>
-                        <div>
+                        <div className="min-w-0">
                           <h3 className="font-bold text-white">
                             Google sign-in
                           </h3>
-                          <p className="mt-1 text-sm text-slate-300">
-                            Connected to this FilmGeezer account.
-                          </p>
+                          {details.security.googleEmail ? (
+                            <p className="mt-1 break-all text-sm font-medium text-slate-300">
+                              {details.security.googleEmail}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-sm text-slate-300">
+                              Connected to this FilmGeezer account.
+                            </p>
+                          )}
                           <p className="mt-2 text-sm text-slate-500">
-                            You can use Continue with Google when signing in.
+                            {details.security.googleEmail
+                              ? "This is the Google account connected to FilmGeezer. It can be different from your FilmGeezer email."
+                              : "Use Continue with Google when signing in. The connected Google email will appear after your next Google sign-in."}
                           </p>
                         </div>
                       </div>
 
-                      <span className="inline-flex min-h-9 w-fit items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 text-xs font-bold text-emerald-200">
+                      <span className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 text-sm font-bold text-emerald-100 lg:w-auto lg:min-w-36">
+                        <AccountIcon name="check" className="h-4 w-4" />
                         Connected
                       </span>
                     </section>

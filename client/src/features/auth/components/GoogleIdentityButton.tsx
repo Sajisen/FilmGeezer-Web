@@ -13,26 +13,28 @@ import {
 interface GoogleIdentityButtonProps {
   disabled?: boolean;
   onCredential: (credential: string) => void;
-  onUnavailable?: (message: string) => void;
+}
+
+interface GoogleAvailabilityError {
+  message: string;
+  retryable: boolean;
 }
 
 function GoogleIdentityButton({
   disabled = false,
   onCredential,
-  onUnavailable,
 }: GoogleIdentityButtonProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const onCredentialRef = useRef(onCredential);
-  const onUnavailableRef = useRef(onUnavailable);
+
   const [isReady, setIsReady] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [availabilityError, setAvailabilityError] =
+    useState<GoogleAvailabilityError | null>(null);
 
   useEffect(() => {
     onCredentialRef.current = onCredential;
   }, [onCredential]);
-
-  useEffect(() => {
-    onUnavailableRef.current = onUnavailable;
-  }, [onUnavailable]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -58,10 +60,16 @@ function GoogleIdentityButton({
   useEffect(() => {
     const clientId = getGoogleClientId();
 
+    setIsReady(false);
+    setAvailabilityError(null);
+
     if (!clientId) {
-      onUnavailableRef.current?.(
-        "Google sign in is temporarily unavailable. Please try again shortly.",
-      );
+      hostRef.current?.replaceChildren();
+      setAvailabilityError({
+        message:
+          "Google sign-in is unavailable right now. Please use another sign-in method or try again later.",
+        retryable: false,
+      });
       return;
     }
 
@@ -107,6 +115,7 @@ function GoogleIdentityButton({
 
           lastRenderedWidth = width;
           host.replaceChildren();
+
           api.accounts.id.renderButton(host, {
             type: "standard",
             theme: "outline",
@@ -116,6 +125,8 @@ function GoogleIdentityButton({
             logo_alignment: "left",
             width,
           });
+
+          setAvailabilityError(null);
           setIsReady(true);
         };
 
@@ -124,16 +135,18 @@ function GoogleIdentityButton({
         resizeObserver = new ResizeObserver(render);
         resizeObserver.observe(hostRef.current);
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (cancelled) {
           return;
         }
 
-        onUnavailableRef.current?.(
-          error instanceof Error
-            ? error.message
-            : "Google sign in could not be loaded.",
-        );
+        hostRef.current?.replaceChildren();
+
+        setAvailabilityError({
+          message:
+            "Google sign-in could not be loaded. Check your connection and try again.",
+          retryable: true,
+        });
       });
 
     return () => {
@@ -141,7 +154,34 @@ function GoogleIdentityButton({
       cleanupHandler();
       resizeObserver?.disconnect();
     };
-  }, []);
+  }, [loadAttempt]);
+
+  if (availabilityError) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-400/[0.07] px-3.5 py-2 text-xs leading-5 text-amber-100"
+      >
+        <span>{availabilityError.message}</span>
+
+        {availabilityError.retryable ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setLoadAttempt(
+                (currentAttempt) => currentAttempt + 1,
+              );
+            }}
+            className="shrink-0 rounded-lg border border-amber-200/20 bg-amber-300/10 px-2.5 py-1.5 font-bold text-amber-50 transition hover:bg-amber-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Retry
+          </button>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-11 w-full overflow-hidden rounded-md">
@@ -154,6 +194,13 @@ function GoogleIdentityButton({
             : "flex min-h-11 w-full justify-center"
         }
       />
+
+      {!isReady ? (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 animate-pulse rounded-xl border border-white/10 bg-white/[0.035] motion-reduce:animate-none"
+        />
+      ) : null}
 
       {disabled && isReady ? (
         <span

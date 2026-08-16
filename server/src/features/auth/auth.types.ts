@@ -149,6 +149,11 @@ export interface AuthIdentityDocument {
   provider: AuthProvider;
   providerSubject: string;
 
+  // Provider-owned profile data is optional for backward compatibility
+  // with identities created before Google sign-in metadata was stored.
+  providerEmailNormalized?: string | null;
+  providerEmailDisplay?: string | null;
+
   createdAt: Date;
   updatedAt: Date;
 }

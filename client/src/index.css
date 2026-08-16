@@ -42,6 +42,32 @@ body {
   }
 }
 
+.auth-surface-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(56 189 248 / 48%) rgb(15 23 42 / 35%);
+  scrollbar-gutter: stable;
+}
+
+.auth-surface-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.auth-surface-scrollbar::-webkit-scrollbar-track {
+  background: rgb(15 23 42 / 35%);
+}
+
+.auth-surface-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(56 189 248 / 48%);
+  background-clip: padding-box;
+}
+
+.auth-surface-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(125 211 252 / 62%);
+  background-clip: padding-box;
+}
+
 .media-row-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

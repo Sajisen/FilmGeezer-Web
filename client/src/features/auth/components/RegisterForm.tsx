@@ -272,7 +272,7 @@ function RegisterForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-3.5"
+      className="space-y-3"
       noValidate
     >
       <GoogleAuthPanel

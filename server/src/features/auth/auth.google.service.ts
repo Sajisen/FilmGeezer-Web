@@ -1,4 +1,4 @@
-import { ObjectId, type TransactionOptions } from "mongodb";
+import { ObjectId, type ClientSession, type TransactionOptions } from "mongodb";
 import { OAuth2Client, type TokenPayload } from "google-auth-library";
 
 import { env } from "../../config/env.js";
@@ -61,6 +61,7 @@ import {
   deleteAuthIdentityByUserAndProvider,
   findAuthIdentityByProviderAndSubject,
   findAuthIdentityByUserAndProvider,
+  updateAuthIdentityProviderEmail,
 } from "./repositories/authIdentity.repository.js";
 import {
   createActiveUser,
@@ -214,6 +215,40 @@ async function verifyGoogleCredential(
     ),
     authoritativeEmail,
   };
+}
+
+async function syncVerifiedGoogleIdentityEmail(
+  identity: {
+    _id: ObjectId;
+    providerEmailNormalized?: string | null;
+    providerEmailDisplay?: string | null;
+  },
+  google: VerifiedGoogleIdentity,
+  updatedAt: Date,
+  session?: ClientSession,
+): Promise<void> {
+  if (
+    identity.providerEmailNormalized === google.emailNormalized &&
+    identity.providerEmailDisplay === google.emailDisplay
+  ) {
+    return;
+  }
+
+  const updated = await updateAuthIdentityProviderEmail(
+    {
+      identityId: identity._id,
+      providerEmailNormalized: google.emailNormalized,
+      providerEmailDisplay: google.emailDisplay,
+      updatedAt,
+    },
+    session,
+  );
+
+  if (!updated) {
+    throw new AuthPersistenceError(
+      "The Google authentication identity could not be updated.",
+    );
+  }
 }
 
 async function recordGoogleAuthenticationFailure(
@@ -416,7 +451,7 @@ async function createGoogleSessionForActiveUser(
 
 async function linkGoogleIdentityToPendingAccount(
   userId: ObjectId,
-  subject: string,
+  google: VerifiedGoogleIdentity,
   authenticatedAt: Date,
 ): Promise<GoogleAuthenticationResult> {
   const client = await getMongoClient();
@@ -449,17 +484,26 @@ async function linkGoogleIdentityToPendingAccount(
               identityId: new ObjectId(),
               userId: user._id,
               provider: "google",
-              providerSubject: subject,
+              providerSubject: google.subject,
+              providerEmailNormalized: google.emailNormalized,
+              providerEmailDisplay: google.emailDisplay,
               createdAt: authenticatedAt,
             },
             session,
           );
         } else if (
           existingGoogleIdentity.providerSubject !==
-          subject
+          google.subject
         ) {
           throw new AuthGoogleAuthenticationError(
             "account-unavailable",
+          );
+        } else {
+          await syncVerifiedGoogleIdentityEmail(
+            existingGoogleIdentity,
+            google,
+            authenticatedAt,
+            session,
           );
         }
 
@@ -519,7 +563,7 @@ async function linkGoogleIdentityToPendingAccount(
 
 async function activatePendingAccountWithGoogle(
   userId: ObjectId,
-  subject: string,
+  google: VerifiedGoogleIdentity,
   requestMetadata: AuthRequestMetadata,
   authenticatedAt: Date,
 ): Promise<GoogleAuthenticationResult> {
@@ -551,13 +595,22 @@ async function activatePendingAccountWithGoogle(
             identityId: new ObjectId(),
             userId: user._id,
             provider: "google",
-            providerSubject: subject,
+            providerSubject: google.subject,
+            providerEmailNormalized: google.emailNormalized,
+            providerEmailDisplay: google.emailDisplay,
             createdAt: authenticatedAt,
           },
           session,
         );
-      } else if (existingGoogleIdentity.providerSubject !== subject) {
+      } else if (existingGoogleIdentity.providerSubject !== google.subject) {
         throw new AuthGoogleAuthenticationError("account-unavailable");
+      } else {
+        await syncVerifiedGoogleIdentityEmail(
+          existingGoogleIdentity,
+          google,
+          authenticatedAt,
+          session,
+        );
       }
 
       /*
@@ -728,6 +781,8 @@ async function createActiveGoogleAccount(
           userId: user._id,
           provider: "google",
           providerSubject: identity.subject,
+          providerEmailNormalized: identity.emailNormalized,
+          providerEmailDisplay: identity.emailDisplay,
           createdAt: authenticatedAt,
         },
         session,
@@ -868,6 +923,8 @@ async function createPendingGoogleAccount(
           userId: user._id,
           provider: "google",
           providerSubject: identity.subject,
+          providerEmailNormalized: identity.emailNormalized,
+          providerEmailDisplay: identity.emailDisplay,
           createdAt: authenticatedAt,
         },
         session,
@@ -973,7 +1030,7 @@ async function createPendingGoogleAccount(
 
 async function linkGoogleIdentityToExistingActiveAccount(
   userId: ObjectId,
-  subject: string,
+  google: VerifiedGoogleIdentity,
   requestMetadata: AuthRequestMetadata,
   authenticatedAt: Date,
 ): Promise<GoogleAuthenticationResult> {
@@ -999,16 +1056,25 @@ async function linkGoogleIdentityToExistingActiveAccount(
       );
 
       if (alreadyLinked) {
-        if (alreadyLinked.providerSubject !== subject) {
+        if (alreadyLinked.providerSubject !== google.subject) {
           throw new AuthGoogleAuthenticationError("account-unavailable");
         }
+
+        await syncVerifiedGoogleIdentityEmail(
+          alreadyLinked,
+          google,
+          authenticatedAt,
+          session,
+        );
       } else {
         await createAuthIdentity(
           {
             identityId: new ObjectId(),
             userId: user._id,
             provider: "google",
-            providerSubject: subject,
+            providerSubject: google.subject,
+            providerEmailNormalized: google.emailNormalized,
+            providerEmailDisplay: google.emailDisplay,
             createdAt: authenticatedAt,
           },
           session,
@@ -1120,6 +1186,12 @@ export async function authenticateWithGoogle(
     );
 
   if (existingIdentity) {
+    await syncVerifiedGoogleIdentityEmail(
+      existingIdentity,
+      google,
+      authenticatedAt,
+    );
+
     const user = await findUserById(existingIdentity.userId);
 
     if (
@@ -1205,13 +1277,13 @@ export async function authenticateWithGoogle(
         return google.authoritativeEmail
           ? await activatePendingAccountWithGoogle(
               emailMatchedUser._id,
-              google.subject,
+              google,
               requestMetadata,
               authenticatedAt,
             )
           : await linkGoogleIdentityToPendingAccount(
               emailMatchedUser._id,
-              google.subject,
+              google,
               authenticatedAt,
             );
       } catch (error) {
@@ -1320,7 +1392,7 @@ export async function authenticateWithGoogle(
     try {
       return await linkGoogleIdentityToExistingActiveAccount(
         emailMatchedUser._id,
-        google.subject,
+        google,
         requestMetadata,
         authenticatedAt,
       );
@@ -1440,4 +1512,10 @@ export async function verifyGoogleCredentialForUser(
   if (!identity || !identity.userId.equals(expectedUserId)) {
     throw new AuthGoogleAuthenticationError("account-unavailable");
   }
+
+  await syncVerifiedGoogleIdentityEmail(
+    identity,
+    google,
+    new Date(),
+  );
 }

@@ -158,6 +158,9 @@ export async function getCurrentAccountDetails(
         googleConnected:
           result.security.googleConnected,
 
+        googleEmail:
+          result.security.googleEmail,
+
         recentAuthenticationExpiresAt:
           result.security
             .recentAuthenticationExpiresAt

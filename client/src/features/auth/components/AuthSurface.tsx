@@ -253,9 +253,9 @@ function AuthSurface({
         aria-describedby="filmgeezer-auth-description"
         aria-busy={isBusy || undefined}
         tabIndex={-1}
-        className="relative z-10 grid max-h-[calc(100dvh-1rem)] w-full max-w-[28rem] min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/70 sm:max-h-[calc(100dvh-2rem)] sm:rounded-[1.75rem] lg:max-w-[58rem] lg:grid-cols-[0.82fr_1.18fr]"
+        className="relative z-10 grid max-h-[calc(100dvh-1rem)] w-full max-w-[28rem] min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/70 sm:max-h-[calc(100dvh-2rem)] sm:rounded-[1.75rem] lg:max-w-[56rem] lg:grid-cols-[0.82fr_1.18fr]"
       >
-        <div className="relative hidden min-h-[32rem] overflow-hidden border-r border-white/10 bg-slate-950 lg:flex lg:flex-col lg:justify-between lg:p-9">
+        <div className="relative hidden min-h-[30rem] overflow-hidden border-r border-white/10 bg-slate-950 lg:flex lg:flex-col lg:justify-between lg:p-8">
           <div
             aria-hidden="true"
             className="absolute -left-32 -top-32 h-80 w-80 rounded-full bg-sky-500/20 blur-3xl"
@@ -282,15 +282,15 @@ function AuthSurface({
               </span>
             </div>
 
-            <p className="mt-10 text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
+            <p className="mt-8 text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
               FilmGeezer account
             </p>
 
-            <h2 className="mt-4 max-w-sm text-4xl font-black leading-tight text-white">
+            <h2 className="mt-3 max-w-sm text-[2.15rem] font-black leading-tight text-white">
               {sideTitle}
             </h2>
 
-            <p className="mt-5 max-w-sm leading-7 text-slate-400">
+            <p className="mt-4 max-w-sm leading-7 text-slate-400">
               {sideDescription}
             </p>
           </div>
@@ -301,7 +301,7 @@ function AuthSurface({
         </div>
 
         <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.09),transparent_34%)]">
-          <div className="z-20 flex items-center justify-between border-b border-white/8 bg-[radial-gradient(circle_at_left,rgba(14,165,233,0.2),transparent_48%),linear-gradient(to_bottom,rgba(15,23,42,0.98),rgba(15,23,42,0.94))] px-4 py-2.5 backdrop-blur lg:justify-end lg:border-b-0 lg:bg-gradient-to-b lg:from-slate-900 lg:via-slate-900/95 lg:to-transparent lg:px-5 lg:pb-1.5 lg:pt-3">
+          <div className="z-20 flex items-center justify-between border-b border-white/8 bg-[radial-gradient(circle_at_left,rgba(14,165,233,0.2),transparent_48%),linear-gradient(to_bottom,rgba(15,23,42,0.98),rgba(15,23,42,0.94))] px-4 py-2.5 backdrop-blur lg:justify-end lg:border-b-0 lg:bg-gradient-to-b lg:from-slate-900 lg:via-slate-900/95 lg:to-transparent lg:px-4 lg:pb-0 lg:pt-2">
             <div className="inline-flex items-center gap-3 lg:hidden">
               <img
                 src="/filmgeezer-logo-v1.webp"
@@ -342,27 +342,27 @@ function AuthSurface({
             </span>
           </div>
 
-          <div className="min-h-0 overflow-y-auto overscroll-contain [scrollbar-color:rgba(56,189,248,0.35)_rgba(15,23,42,0.65)] [scrollbar-gutter:stable] [scrollbar-width:thin]">
-            <div className="mx-auto w-full max-w-[32rem] px-5 pb-5 pt-4 sm:px-8 sm:pb-7 sm:pt-5 lg:px-9 lg:pb-8 lg:pt-2">
+          <div className="auth-surface-scrollbar min-h-0 overflow-y-auto overscroll-contain">
+            <div className="mx-auto w-full max-w-[30rem] px-5 pb-5 pt-4 sm:px-7 sm:pb-6 sm:pt-4 lg:px-8 lg:pb-6 lg:pt-1">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
               {eyebrow}
             </p>
 
             <h1
               id="filmgeezer-auth-title"
-              className="mt-2 text-3xl font-black tracking-tight text-white sm:text-[2.15rem]"
+              className="mt-1.5 text-3xl font-black tracking-tight text-white sm:text-[2rem]"
             >
               {title}
             </h1>
 
             <p
               id="filmgeezer-auth-description"
-              className="mt-2 max-w-lg text-sm leading-6 text-slate-400 sm:text-base"
+              className="mt-1.5 max-w-lg text-sm leading-6 text-slate-400 sm:text-[0.95rem]"
             >
               {description}
             </p>
 
-            <div className="mt-5 sm:mt-6">
+            <div className="mt-4 sm:mt-5">
               {children}
             </div>
             </div>

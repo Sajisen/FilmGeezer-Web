@@ -250,7 +250,7 @@ function GoogleAuthPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <AuthFormMessage
         message={errorMessage}
       />
@@ -261,9 +261,6 @@ function GoogleAuthPanel({
           void completeGoogleAuthentication(
             credential,
           );
-        }}
-        onUnavailable={(message) => {
-          setErrorMessage(message);
         }}
       />
 

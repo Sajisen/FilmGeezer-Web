@@ -173,6 +173,7 @@ function isAccountSecuritySummary(
     typeof value.passwordConfigured === "boolean" &&
     isNullableString(value.passwordChangedAt) &&
     typeof value.googleConnected === "boolean" &&
+    isNullableString(value.googleEmail) &&
     isNullableString(
       value.recentAuthenticationExpiresAt,
     )

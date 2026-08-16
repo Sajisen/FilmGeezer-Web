@@ -63,7 +63,7 @@ const AUTH_COPY = {
     eyebrow: "Join FilmGeezer",
     title: "Create an account",
     description:
-      "Add your details. We’ll email you a six-digit code to verify your address.",
+      "Continue with Google, or create your account with email and password.",
     sideTitle: "Make FilmGeezer yours.",
     sideDescription:
       "Save titles to your Watchlist, set your preferences, and get recommendations shaped around what you enjoy.",

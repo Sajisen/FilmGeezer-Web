@@ -20,6 +20,7 @@ export interface AccountSecuritySummary {
   passwordConfigured: boolean;
   passwordChangedAt: string | null;
   googleConnected: boolean;
+  googleEmail: string | null;
   recentAuthenticationExpiresAt:
     | string
     | null;

@@ -132,6 +132,7 @@ export interface AccountDetailsResult {
     passwordConfigured: boolean;
     passwordChangedAt: Date | null;
     googleConnected: boolean;
+    googleEmail: string | null;
     recentAuthenticationExpiresAt: Date | null;
   };
 
@@ -266,6 +267,9 @@ export async function getAccountDetails(
 
       googleConnected:
         googleIdentity !== null,
+
+      googleEmail:
+        googleIdentity?.providerEmailDisplay ?? null,
 
       recentAuthenticationExpiresAt:
         createRecentAuthenticationExpiry(

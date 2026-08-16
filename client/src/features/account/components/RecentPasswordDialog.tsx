@@ -247,11 +247,6 @@ function RecentPasswordDialog({
                     credential,
                   );
                 }}
-                onUnavailable={(message) => {
-                  if (!passwordConfigured) {
-                    setErrorMessage(message);
-                  }
-                }}
               />
             </div>
           ) : null}

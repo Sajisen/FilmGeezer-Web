@@ -22,6 +22,8 @@ export interface CreateAuthIdentityInput {
 
   provider: AuthProvider;
   providerSubject: string;
+  providerEmailNormalized?: string | null;
+  providerEmailDisplay?: string | null;
 
   createdAt: Date;
 }
@@ -43,6 +45,10 @@ export async function createAuthIdentity(
       provider: input.provider,
       providerSubject:
         input.providerSubject,
+      providerEmailNormalized:
+        input.providerEmailNormalized ?? null,
+      providerEmailDisplay:
+        input.providerEmailDisplay ?? null,
 
       createdAt: input.createdAt,
       updatedAt: input.createdAt,
@@ -99,6 +105,44 @@ export async function findAuthIdentityByUserAndProvider(
         }
       : undefined,
   );
+}
+
+
+export interface UpdateAuthIdentityProviderEmailInput {
+  identityId: ObjectId;
+  providerEmailNormalized: string;
+  providerEmailDisplay: string;
+  updatedAt: Date;
+}
+
+export async function updateAuthIdentityProviderEmail(
+  input: UpdateAuthIdentityProviderEmailInput,
+  session?: ClientSession,
+): Promise<boolean> {
+  const { identities } =
+    await getAuthCollections();
+
+  const result = await identities.updateOne(
+    {
+      _id: input.identityId,
+    },
+    {
+      $set: {
+        providerEmailNormalized:
+          input.providerEmailNormalized,
+        providerEmailDisplay:
+          input.providerEmailDisplay,
+        updatedAt: input.updatedAt,
+      },
+    },
+    session
+      ? {
+          session,
+        }
+      : undefined,
+  );
+
+  return result.matchedCount === 1;
 }
 
 export async function deleteAuthIdentityByUserAndProvider(
