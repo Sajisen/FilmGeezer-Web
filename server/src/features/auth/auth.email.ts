@@ -8,6 +8,8 @@ import {
   createEmailVerificationTemplate,
   createExistingAccountRegistrationNoticeTemplate,
   createGoogleSignInConnectedNoticeTemplate,
+  createGoogleSignInChangedNoticeTemplate,
+  createGoogleSignInDisconnectedNoticeTemplate,
   createPasswordAddedNoticeTemplate,
   createPasswordChangedNoticeTemplate,
   createPasswordResetCompletedNoticeTemplate,
@@ -90,6 +92,23 @@ export interface SendGoogleSignInConnectedNoticeInput {
   recipientEmail: string;
   displayName: string;
   connectedAt: Date;
+  idempotencyKey: string;
+  userId: string;
+}
+
+export interface SendGoogleSignInChangedNoticeInput {
+  recipientEmail: string;
+  displayName: string;
+  googleEmail: string;
+  changedAt: Date;
+  idempotencyKey: string;
+  userId: string;
+}
+
+export interface SendGoogleSignInDisconnectedNoticeInput {
+  recipientEmail: string;
+  displayName: string;
+  disconnectedAt: Date;
   idempotencyKey: string;
   userId: string;
 }
@@ -225,6 +244,63 @@ export async function sendGoogleSignInConnectedNoticeEmail(
           buildSourceUserId(
             input.userId,
           ),
+      },
+    });
+  } catch (error) {
+    mapEmailError(error);
+  }
+}
+
+export async function sendGoogleSignInChangedNoticeEmail(
+  input: SendGoogleSignInChangedNoticeInput,
+): Promise<void> {
+  const template = createGoogleSignInChangedNoticeTemplate({
+    displayName: input.displayName,
+    googleEmail: input.googleEmail,
+    changedAt: input.changedAt,
+    publicAppUrl: env.CLIENT_APP_ORIGIN,
+  });
+
+  try {
+    await sendTransactionalEmail({
+      kind: "google-signin-changed-notice",
+      recipientEmail: input.recipientEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      idempotencyKey: input.idempotencyKey,
+      source: {
+        type: "account-event",
+        id: input.idempotencyKey,
+        userId: buildSourceUserId(input.userId),
+      },
+    });
+  } catch (error) {
+    mapEmailError(error);
+  }
+}
+
+export async function sendGoogleSignInDisconnectedNoticeEmail(
+  input: SendGoogleSignInDisconnectedNoticeInput,
+): Promise<void> {
+  const template = createGoogleSignInDisconnectedNoticeTemplate({
+    displayName: input.displayName,
+    disconnectedAt: input.disconnectedAt,
+    publicAppUrl: env.CLIENT_APP_ORIGIN,
+  });
+
+  try {
+    await sendTransactionalEmail({
+      kind: "google-signin-disconnected-notice",
+      recipientEmail: input.recipientEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      idempotencyKey: input.idempotencyKey,
+      source: {
+        type: "account-event",
+        id: input.idempotencyKey,
+        userId: buildSourceUserId(input.userId),
       },
     });
   } catch (error) {

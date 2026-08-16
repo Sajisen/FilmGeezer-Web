@@ -163,7 +163,9 @@ export class AuthGoogleAuthenticationError extends Error {
     readonly reason:
       | "invalid-token"
       | "email-unverified"
-      | "account-unavailable",
+      | "account-unavailable"
+      | "different-google-account-connected"
+      | "google-email-mismatch",
   ) {
     super("Google authentication could not be completed.");
     this.name = "AuthGoogleAuthenticationError";

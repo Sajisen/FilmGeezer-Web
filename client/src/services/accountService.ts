@@ -20,6 +20,9 @@ import type {
   AccountEmailChangeStatusResponse,
   AccountPasswordAddResponse,
   AccountPasswordChangeResponse,
+  AccountPasswordSetupRequestResponse,
+  AccountGoogleConnectionChangeResponse,
+  AccountGoogleDisconnectResponse,
   AccountProfileUpdateResponse,
   AccountSecuritySummary,
   AccountSession,
@@ -344,6 +347,7 @@ function isAccountEmailChangeCompleteResponse(
     typeof value.previousEmail === "string" &&
     typeof value.changedAt === "string" &&
     typeof value.sessionsRevoked === "number" &&
+    typeof value.googleDisconnected === "boolean" &&
     isAuthUser(value.user) &&
     isSessionSummary(value.session)
   );
@@ -515,6 +519,45 @@ async function requestAccountApi<T>(
   return payload;
 }
 
+function isAccountPasswordSetupRequestResponse(
+  value: unknown,
+): value is AccountPasswordSetupRequestResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ACCOUNT_PASSWORD_SETUP_EMAIL_SENT" &&
+    typeof value.message === "string"
+  );
+}
+
+function isAccountGoogleConnectionChangeResponse(
+  value: unknown,
+): value is AccountGoogleConnectionChangeResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    (value.code === "ACCOUNT_GOOGLE_CONNECTION_CHANGED" ||
+      value.code === "ACCOUNT_GOOGLE_CONNECTION_UNCHANGED") &&
+    typeof value.message === "string" &&
+    typeof value.googleEmail === "string" &&
+    typeof value.changed === "boolean" &&
+    typeof value.sessionsRevoked === "number"
+  );
+}
+
+function isAccountGoogleDisconnectResponse(
+  value: unknown,
+): value is AccountGoogleDisconnectResponse {
+  return (
+    isRecord(value) &&
+    value.status === "success" &&
+    value.code === "ACCOUNT_GOOGLE_CONNECTION_DISCONNECTED" &&
+    typeof value.message === "string" &&
+    typeof value.disconnectedAt === "string" &&
+    typeof value.sessionsRevoked === "number"
+  );
+}
+
 export function getAccountDetails(
   signal?: AbortSignal,
 ): Promise<AccountDetailsResponse> {
@@ -561,20 +604,38 @@ export function confirmAccountPassword(
   );
 }
 
-export function confirmAccountGoogle(
-  input: {
-    credential: string;
-  },
+export function requestAccountPasswordSetup(
   csrfToken: string,
-): Promise<RecentAuthenticationResponse> {
+): Promise<AccountPasswordSetupRequestResponse> {
   return requestAccountApi(
-    "/api/account/confirm-google",
-    isRecentAuthenticationResponse,
+    "/api/account/password-setup/request",
+    isAccountPasswordSetupRequestResponse,
+    { method: "POST", csrfToken },
+  );
+}
+
+export function replaceAccountGoogleConnection(
+  credential: string,
+  csrfToken: string,
+): Promise<AccountGoogleConnectionChangeResponse> {
+  return requestAccountApi(
+    "/api/account/google",
+    isAccountGoogleConnectionChangeResponse,
     {
       method: "POST",
-      body: input,
+      body: { credential },
       csrfToken,
     },
+  );
+}
+
+export function disconnectAccountGoogleConnection(
+  csrfToken: string,
+): Promise<AccountGoogleDisconnectResponse> {
+  return requestAccountApi(
+    "/api/account/google",
+    isAccountGoogleDisconnectResponse,
+    { method: "DELETE", csrfToken },
   );
 }
 

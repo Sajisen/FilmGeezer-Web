@@ -13,8 +13,10 @@ import {
 import {
   addCurrentAccountPassword,
   changeCurrentAccountPassword,
-  confirmCurrentAccountGoogle,
   confirmCurrentAccountPassword,
+  disconnectCurrentAccountGoogleConnection,
+  replaceCurrentAccountGoogleConnection,
+  requestCurrentAccountPasswordSetup,
   getCurrentAccountDetails,
   getCurrentAccountSessions,
   revokeCurrentAccountSession,
@@ -407,18 +409,34 @@ router.post(
 );
 
 router.post(
-  "/confirm-google",
+  "/password-setup/request",
+  passwordChangeRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requestCurrentAccountPasswordSetup,
+);
+
+router.post(
+  "/google",
   recentAuthenticationRateLimit,
   requireAuthenticatedSession,
   requireAuthCsrfProtection,
+  requireRecentAuthentication,
   requireJsonContentType,
   json({
-    limit:
-      AUTH_GOOGLE_HTTP_POLICY
-        .requestBodyLimit,
+    limit: AUTH_GOOGLE_HTTP_POLICY.requestBodyLimit,
     strict: true,
   }),
-  confirmCurrentAccountGoogle,
+  replaceCurrentAccountGoogleConnection,
+);
+
+router.delete(
+  "/google",
+  recentAuthenticationRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requireRecentAuthentication,
+  disconnectCurrentAccountGoogleConnection,
 );
 
 router.post(

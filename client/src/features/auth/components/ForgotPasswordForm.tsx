@@ -184,7 +184,7 @@ function ForgotPasswordForm({
       />
 
       <p className="text-center text-sm leading-6 text-slate-400">
-        If you normally use Google, return to sign in and choose Continue with Google.
+        If your account only uses Google, this secure link can also create your first FilmGeezer password.
       </p>
 
       <p className="text-center text-sm leading-6 text-slate-400">

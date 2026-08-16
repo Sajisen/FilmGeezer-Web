@@ -127,6 +127,7 @@ export async function confirmAccountWithGoogle(
               sessionId: auth.sessionId,
               userId: auth.userId,
               confirmedAt,
+              method: "google",
             },
             session,
           );

@@ -477,14 +477,17 @@ export async function verifyCurrentEmailChange(
       status: "success",
       code:
         "ACCOUNT_EMAIL_CHANGED",
-      message:
-        "Your email address has been updated. Your other devices were signed out.",
+      message: result.googleDisconnected
+        ? "Your email address has been updated. Google sign-in was disconnected because FilmGeezer keeps one account email, and your other devices were signed out."
+        : "Your email address has been updated. Your other devices were signed out.",
       previousEmail:
         result.previousEmail,
       changedAt:
         result.changedAt.toISOString(),
       sessionsRevoked:
         result.sessionsRevoked,
+      googleDisconnected:
+        result.googleDisconnected,
       user: result.user,
       session: {
         expiresAt:

@@ -142,6 +142,7 @@ export interface AccountEmailChangeCompleteResponse {
   previousEmail: string;
   changedAt: string;
   sessionsRevoked: number;
+  googleDisconnected: boolean;
   user: AuthUser;
   session: AuthSessionSummary;
 }
@@ -159,5 +160,30 @@ export interface AccountDeactivationResponse {
   code: "ACCOUNT_DEACTIVATED";
   message: string;
   deactivatedAt: string;
+  sessionsRevoked: number;
+}
+
+export interface AccountPasswordSetupRequestResponse {
+  status: "success";
+  code: "ACCOUNT_PASSWORD_SETUP_EMAIL_SENT";
+  message: string;
+}
+
+export interface AccountGoogleConnectionChangeResponse {
+  status: "success";
+  code:
+    | "ACCOUNT_GOOGLE_CONNECTION_CHANGED"
+    | "ACCOUNT_GOOGLE_CONNECTION_UNCHANGED";
+  message: string;
+  googleEmail: string;
+  changed: boolean;
+  sessionsRevoked: number;
+}
+
+export interface AccountGoogleDisconnectResponse {
+  status: "success";
+  code: "ACCOUNT_GOOGLE_CONNECTION_DISCONNECTED";
+  message: string;
+  disconnectedAt: string;
   sessionsRevoked: number;
 }

@@ -36,6 +36,7 @@ import AccountIcon from "./AccountSectionIcons";
 
 interface EmailChangePanelProps {
   currentEmail: string;
+  googleConnected: boolean;
   csrfToken: string;
   initialPending:
     | AccountEmailChangeReceipt
@@ -185,6 +186,7 @@ function EmailChangeProgress({
 
 function EmailChangePanel({
   currentEmail,
+  googleConnected,
   csrfToken,
   initialPending,
   onCancelPanel,
@@ -607,6 +609,17 @@ function EmailChangePanel({
             </p>
 
             <EmailChangeProgress verificationStep={Boolean(pending)} />
+
+            {googleConnected ? (
+              <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-400/[0.07] px-4 py-3">
+                <p className="text-sm font-bold text-amber-100">
+                  Google sign-in will be disconnected
+                </p>
+                <p className="mt-1 text-xs leading-5 text-amber-100/75">
+                  FilmGeezer keeps one account email. After this email change is verified, the current Google connection will be removed. You can reconnect Google afterward only if the Google account uses your new FilmGeezer email.
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       </header>

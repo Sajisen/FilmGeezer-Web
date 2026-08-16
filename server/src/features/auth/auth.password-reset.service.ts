@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   ObjectId,
   type TransactionOptions,
@@ -12,6 +14,7 @@ import {
 } from "./auth.challenge.js";
 
 import {
+  sendPasswordAddedNoticeEmail,
   sendPasswordResetCompletedNoticeEmail,
 } from "./auth.email.js";
 
@@ -52,11 +55,13 @@ import {
 } from "./repositories/authChallenge.repository.js";
 
 import {
+  createAuthCredential,
   findAuthCredentialByUserId,
   resetCredentialPassword,
 } from "./repositories/authCredential.repository.js";
 
 import {
+  createAuthIdentity,
   findAuthIdentityByUserAndProvider,
 } from "./repositories/authIdentity.repository.js";
 
@@ -87,6 +92,7 @@ const PASSWORD_RESET_TRANSACTION_OPTIONS:
 export interface PasswordResetResult {
   resetAt: Date;
   sessionsRevoked: number;
+  createdCredential: boolean;
 }
 
 async function recordPasswordResetFailure(
@@ -253,11 +259,19 @@ export async function resetLocalPassword(
       ),
     ]);
 
-  if (!identity || !credential) {
+  const hasCompleteLocalCredential = Boolean(identity && credential);
+  const hasNoLocalCredential = !identity && !credential;
+
+  if (
+    (!hasCompleteLocalCredential && !hasNoLocalCredential) ||
+    (user.status === "pending" && !hasCompleteLocalCredential)
+  ) {
     throw new AuthPasswordResetError(
       "account-unavailable",
     );
   }
+
+  const isPasswordSetup = hasNoLocalCredential;
 
   const passwordAssessment =
     assessPasswordQuality({
@@ -275,25 +289,25 @@ export async function resetLocalPassword(
     );
   }
 
-  let matchesCurrentPassword: boolean;
+  if (credential) {
+    let matchesCurrentPassword: boolean;
 
-  try {
-    matchesCurrentPassword =
-      await verifyPassword(
-        credential.passwordHash,
-        reset.password,
+    try {
+      matchesCurrentPassword =
+        await verifyPassword(
+          credential.passwordHash,
+          reset.password,
+        );
+    } catch (error) {
+      throw new AuthPersistenceError(
+        "The current local credential could not be checked.",
+        { cause: error },
       );
-  } catch (error) {
-    throw new AuthPersistenceError(
-      "The current local credential could not be checked.",
-      {
-        cause: error,
-      },
-    );
-  }
+    }
 
-  if (matchesCurrentPassword) {
-    throw new AuthPasswordReuseError();
+    if (matchesCurrentPassword) {
+      throw new AuthPasswordReuseError();
+    }
   }
 
   let newPasswordHash: string;
@@ -357,24 +371,44 @@ export async function resetLocalPassword(
             );
           }
 
-          const passwordWasReplaced =
-            await resetCredentialPassword(
+          if (credential && identity) {
+            const passwordWasReplaced =
+              await resetCredentialPassword(
+                {
+                  credentialId: credential._id,
+                  userId: user._id,
+                  expectedPasswordHash: credential.passwordHash,
+                  passwordHash: newPasswordHash,
+                  changedAt: resetAt,
+                },
+                session,
+              );
+
+            if (!passwordWasReplaced) {
+              throw new AuthPersistenceError(
+                "The local credential changed before the reset completed.",
+              );
+            }
+          } else {
+            await createAuthIdentity(
               {
-                credentialId:
-                  credential._id,
+                identityId: new ObjectId(),
                 userId: user._id,
-                expectedPasswordHash:
-                  credential.passwordHash,
-                passwordHash:
-                  newPasswordHash,
-                changedAt: resetAt,
+                provider: "local",
+                providerSubject: randomUUID(),
+                createdAt: resetAt,
               },
               session,
             );
 
-          if (!passwordWasReplaced) {
-            throw new AuthPersistenceError(
-              "The local credential changed before the reset completed.",
+            await createAuthCredential(
+              {
+                credentialId: new ObjectId(),
+                userId: user._id,
+                passwordHash: newPasswordHash,
+                createdAt: resetAt,
+              },
+              session,
             );
           }
 
@@ -400,6 +434,7 @@ export async function resetLocalPassword(
               details: {
                 provider: "local",
                 sessionsRevoked,
+                passwordSetup: isPasswordSetup,
               },
               createdAt: resetAt,
             },
@@ -415,7 +450,9 @@ export async function resetLocalPassword(
                 "password-changed",
               outcome: "success",
               details: {
-                source: "password-reset",
+                source: isPasswordSetup
+                  ? "password-setup-email"
+                  : "password-reset",
               },
               createdAt: resetAt,
             },
@@ -425,6 +462,7 @@ export async function resetLocalPassword(
           return {
             resetAt,
             sessionsRevoked,
+            createdCredential: isPasswordSetup,
           } satisfies
             PasswordResetResult;
         },
@@ -466,17 +504,25 @@ export async function resetLocalPassword(
   }
 
   try {
-    await sendPasswordResetCompletedNoticeEmail({
-      recipientEmail:
-        user.emailDisplay,
-      displayName:
-        user.displayName,
-      resetAt,
-      idempotencyKey:
-        `password-reset-completed-notice/${resetAuditEventId.toHexString()}`,
-      userId:
-        user._id.toHexString(),
-    });
+    if (completedReset.createdCredential) {
+      await sendPasswordAddedNoticeEmail({
+        recipientEmail: user.emailDisplay,
+        displayName: user.displayName,
+        addedAt: resetAt,
+        idempotencyKey:
+          `password-added-notice/${resetAuditEventId.toHexString()}`,
+        userId: user._id.toHexString(),
+      });
+    } else {
+      await sendPasswordResetCompletedNoticeEmail({
+        recipientEmail: user.emailDisplay,
+        displayName: user.displayName,
+        resetAt,
+        idempotencyKey:
+          `password-reset-completed-notice/${resetAuditEventId.toHexString()}`,
+        userId: user._id.toHexString(),
+      });
+    }
   } catch (error) {
     /*
      * The credential reset has already committed. Provider availability must

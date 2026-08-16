@@ -93,6 +93,9 @@ export const AUTH_AUDIT_EVENT_VALUES = [
   "profile-image-updated",
   "profile-image-removed",
   "account-reactivated",
+  "google-identity-connected",
+  "google-identity-replaced",
+  "google-identity-disconnected",
 ] as const;
 
 export type AuthAuditEvent =
@@ -188,6 +191,7 @@ export interface AuthSessionDocument {
   createdAt: Date;
   lastSeenAt: Date;
   recentAuthenticationAt: Date | null;
+  recentAuthenticationMethod?: "password" | "google" | null;
   expiresAt: Date;
 
   revokedAt: Date | null;

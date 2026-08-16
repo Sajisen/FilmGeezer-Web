@@ -18,6 +18,7 @@ import {
 
 import {
   developmentAuthEmailService,
+  sendGoogleSignInDisconnectedNoticeEmail,
   type AuthEmailService,
 } from "../auth/auth.email.js";
 
@@ -77,6 +78,11 @@ import {
 } from "../auth/repositories/authChallenge.repository.js";
 
 import {
+  deleteAuthIdentityByUserAndProvider,
+  findAuthIdentityByUserAndProvider,
+} from "../auth/repositories/authIdentity.repository.js";
+
+import {
   revokeAllActiveAuthSessions,
 } from "../auth/repositories/authSession.repository.js";
 
@@ -119,6 +125,7 @@ export interface AccountEmailChangeCompletedResult
   previousEmail: string;
   changedAt: Date;
   sessionsRevoked: number;
+  googleDisconnected: boolean;
 }
 
 export interface AccountEmailChangeCancelledResult {
@@ -1067,6 +1074,13 @@ export async function verifyAccountEmailChange(
             );
           }
 
+          const googleIdentity =
+            await findAuthIdentityByUserAndProvider(
+              user._id,
+              "google",
+              session,
+            );
+
           const challengeWasConsumed =
             await consumeEmailChangeChallenge(
               {
@@ -1104,6 +1118,23 @@ export async function verifyAccountEmailChange(
             );
           }
 
+          const googleDisconnected = googleIdentity !== null;
+
+          if (googleDisconnected) {
+            const deletedGoogleIdentities =
+              await deleteAuthIdentityByUserAndProvider(
+                user._id,
+                "google",
+                session,
+              );
+
+            if (deletedGoogleIdentities !== 1) {
+              throw new AuthPersistenceError(
+                "Google sign-in could not be disconnected during the email change.",
+              );
+            }
+          }
+
           const sessionsRevoked =
             await revokeAllActiveAuthSessions(
               {
@@ -1114,9 +1145,32 @@ export async function verifyAccountEmailChange(
               session,
             );
 
+          if (googleDisconnected) {
+            await createAuthAuditEvent(
+              {
+                auditEventId: new ObjectId(),
+                userId: user._id,
+                eventType: "google-identity-disconnected",
+                outcome: "success",
+                ...createAuditMetadata(requestMetadata),
+                details: {
+                  provider: "google",
+                  reason: "email-changed",
+                  sessionsRevoked,
+                },
+                createdAt: changedAt,
+              },
+              session,
+            );
+          }
+
+          const replacementProvider = googleDisconnected
+            ? "local"
+            : auth.provider;
+
           await createPreparedAuthSession(
             user._id,
-            auth.provider,
+            replacementProvider,
             preparedSession,
             session,
           );
@@ -1131,9 +1185,11 @@ export async function verifyAccountEmailChange(
                 requestMetadata,
               ),
               details: {
-                provider: auth.provider,
+                providerBefore: auth.provider,
+                providerAfter: replacementProvider,
                 sessionsRevoked,
                 sessionRotated: true,
+                googleDisconnected,
               },
               createdAt: changedAt,
             },
@@ -1143,12 +1199,13 @@ export async function verifyAccountEmailChange(
           return {
             ...createAuthSessionResult(
               updatedUser,
-              auth.provider,
+              replacementProvider,
               preparedSession,
             ),
             previousEmail: user.emailDisplay,
             changedAt,
             sessionsRevoked,
+            googleDisconnected,
           } satisfies
             AccountEmailChangeCompletedResult;
         },
@@ -1238,6 +1295,26 @@ export async function verifyAccountEmailChange(
     } catch {
       // The email change already committed. Secondary reporting must not
       // alter the successful account response.
+    }
+  }
+
+  if (result.googleDisconnected) {
+    try {
+      await sendGoogleSignInDisconnectedNoticeEmail({
+        recipientEmail: result.user.email,
+        displayName: result.user.displayName,
+        disconnectedAt: changedAt,
+        idempotencyKey:
+          `google-signin-disconnected/email-change/${auth.userId.toHexString()}/${changedAt.toISOString()}`,
+        userId: auth.userId.toHexString(),
+      });
+    } catch (error) {
+      console.error(
+        "[account-email-change] Google disconnect notice could not be submitted.",
+        {
+          name: error instanceof Error ? error.name : "UnknownError",
+        },
+      );
     }
   }
 

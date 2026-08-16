@@ -16,7 +16,6 @@ import {
 } from "../../../services/authService";
 
 import {
-  confirmAccountGoogle,
   confirmAccountPassword,
 } from "../../../services/accountService";
 
@@ -26,7 +25,6 @@ import {
   PasswordField,
 } from "../../auth/components/AuthFields";
 
-import GoogleIdentityButton from "../../auth/components/GoogleIdentityButton";
 
 import AccountIcon from "./AccountSectionIcons";
 
@@ -35,7 +33,6 @@ interface RecentPasswordDialogProps {
   title: string;
   description: string;
   passwordConfigured: boolean;
-  googleConnected: boolean;
   onCancel: () => void;
   onConfirmed: (
     expiresAt: string,
@@ -65,7 +62,6 @@ function RecentPasswordDialog({
   title,
   description,
   passwordConfigured,
-  googleConnected,
   onCancel,
   onConfirmed,
 }: RecentPasswordDialogProps) {
@@ -75,8 +71,6 @@ function RecentPasswordDialog({
   const [isPasswordSubmitting, setIsPasswordSubmitting] =
     useState(false);
 
-  const [isGoogleSubmitting, setIsGoogleSubmitting] =
-    useState(false);
 
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
@@ -84,8 +78,7 @@ function RecentPasswordDialog({
   const [passwordErrors, setPasswordErrors] =
     useState<string[]>([]);
 
-  const isSubmitting =
-    isPasswordSubmitting || isGoogleSubmitting;
+  const isSubmitting = isPasswordSubmitting;
 
   const dialogRef =
     useRef<HTMLDivElement | null>(null);
@@ -144,35 +137,6 @@ function RecentPasswordDialog({
     }
   }
 
-  async function handleGoogleCredential(
-    credential: string,
-  ) {
-    if (isSubmitting || !googleConnected) {
-      return;
-    }
-
-    setIsGoogleSubmitting(true);
-    setErrorMessage(null);
-    setPasswordErrors([]);
-
-    try {
-      const response =
-        await confirmAccountGoogle(
-          { credential },
-          csrfToken,
-        );
-
-      onConfirmed(response.expiresAt);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "FilmGeezer could not confirm your Google account.",
-      );
-    } finally {
-      setIsGoogleSubmitting(false);
-    }
-  }
 
   return (
     <div
@@ -234,36 +198,6 @@ function RecentPasswordDialog({
             message={errorMessage}
           />
 
-          {googleConnected ? (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-slate-200">
-                Continue with Google
-              </p>
-
-              <GoogleIdentityButton
-                disabled={isSubmitting}
-                onCredential={(credential) => {
-                  void handleGoogleCredential(
-                    credential,
-                  );
-                }}
-              />
-            </div>
-          ) : null}
-
-          {googleConnected && passwordConfigured ? (
-            <div
-              aria-hidden="true"
-              className="flex items-center gap-3"
-            >
-              <span className="h-px flex-1 bg-white/10" />
-              <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                or use your password
-              </span>
-              <span className="h-px flex-1 bg-white/10" />
-            </div>
-          ) : null}
-
           {passwordConfigured ? (
             <form
               onSubmit={handlePasswordSubmit}
@@ -299,18 +233,15 @@ function RecentPasswordDialog({
                   label="Continue"
                   loadingLabel="Checking…"
                   isSubmitting={isPasswordSubmitting}
-                  disabled={
-                    password.length === 0 ||
-                    isGoogleSubmitting
-                  }
+                  disabled={password.length === 0}
                 />
               </div>
             </form>
           ) : null}
 
-          {!passwordConfigured && !googleConnected ? (
+          {!passwordConfigured ? (
             <p className="rounded-xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100">
-              FilmGeezer could not find a sign-in method that can confirm this security change.
+              Add a FilmGeezer password before making sensitive account changes.
             </p>
           ) : null}
 
@@ -318,7 +249,7 @@ function RecentPasswordDialog({
             <span className="mt-0.5 text-sky-300">
               <AccountIcon name="check" className="h-4 w-4" />
             </span>
-            This confirmation stays active briefly so you can finish the selected account change.
+            For your security, sensitive account changes require your current FilmGeezer password.
           </p>
         </div>
       </div>

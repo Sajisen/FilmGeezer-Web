@@ -637,6 +637,105 @@ export function createGoogleSignInConnectedNoticeTemplate(input: {
   };
 }
 
+export function createGoogleSignInChangedNoticeTemplate(input: {
+  displayName: string;
+  googleEmail: string;
+  changedAt: Date;
+  publicAppUrl: string;
+}): EmailTemplate {
+  const accountUrl = createPublicUrl(
+    input.publicAppUrl,
+    "/account?section=security",
+  );
+  const contactUrl = createPublicUrl(
+    input.publicAppUrl,
+    "/contact",
+  );
+
+  return {
+    subject: "Your Google sign-in account was changed on FilmGeezer",
+    html: renderEmailShell({
+      publicAppUrl: input.publicAppUrl,
+      eyebrow: "FilmGeezer account security",
+      title: "Google sign-in changed",
+      previewText:
+        "The Google account connected to FilmGeezer was changed.",
+      bodyHtml:
+        paragraph(`Hi ${input.displayName},`) +
+        paragraph(
+          "The Google account used as a FilmGeezer sign-in method was changed.",
+        ) +
+        renderEventDetails([
+          { label: "Google account", value: input.googleEmail },
+          { label: "Changed", value: formatUtcDate(input.changedAt) },
+        ]) +
+        renderButton("Review account security", accountUrl) +
+        renderSecurityNotice(
+          "If you did not make this change, secure your account and",
+          contactUrl,
+        ),
+    }),
+    text: [
+      `Hi ${input.displayName},`,
+      "The Google account used as a FilmGeezer sign-in method was changed.",
+      `Google account: ${input.googleEmail}`,
+      `Changed: ${formatUtcDate(input.changedAt)}`,
+      `Review account security: ${accountUrl}`,
+      `If you did not make this change, contact FilmGeezer Support immediately: ${contactUrl}`,
+    ].join("\n\n"),
+  };
+}
+
+export function createGoogleSignInDisconnectedNoticeTemplate(input: {
+  displayName: string;
+  disconnectedAt: Date;
+  publicAppUrl: string;
+}): EmailTemplate {
+  const accountUrl = createPublicUrl(
+    input.publicAppUrl,
+    "/account?section=security",
+  );
+  const contactUrl = createPublicUrl(
+    input.publicAppUrl,
+    "/contact",
+  );
+
+  return {
+    subject: "Google sign-in was disconnected from your FilmGeezer account",
+    html: renderEmailShell({
+      publicAppUrl: input.publicAppUrl,
+      eyebrow: "FilmGeezer account security",
+      title: "Google sign-in disconnected",
+      previewText:
+        "Google is no longer a sign-in method for your FilmGeezer account.",
+      bodyHtml:
+        paragraph(`Hi ${input.displayName},`) +
+        paragraph(
+          "Google sign-in was disconnected from your FilmGeezer account. Your FilmGeezer email and password remain available for sign-in.",
+        ) +
+        renderEventDetails([
+          {
+            label: "Disconnected",
+            value: formatUtcDate(input.disconnectedAt),
+          },
+        ]) +
+        renderButton("Review account security", accountUrl) +
+        renderSecurityNotice(
+          "If you did not disconnect Google sign-in, secure your account and",
+          contactUrl,
+        ),
+    }),
+    text: [
+      `Hi ${input.displayName},`,
+      "Google sign-in was disconnected from your FilmGeezer account.",
+      "Your FilmGeezer email and password remain available for sign-in.",
+      `Disconnected: ${formatUtcDate(input.disconnectedAt)}`,
+      `Review account security: ${accountUrl}`,
+      `If you did not disconnect Google sign-in, contact FilmGeezer Support immediately: ${contactUrl}`,
+    ].join("\n\n"),
+  };
+}
+
 export function createPasswordAddedNoticeTemplate(input: {
   displayName: string;
   addedAt: Date;

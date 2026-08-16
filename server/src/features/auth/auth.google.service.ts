@@ -107,6 +107,12 @@ interface VerifiedGoogleIdentity {
   authoritativeEmail: boolean;
 }
 
+export interface VerifiedGoogleConnectionIdentity {
+  subject: string;
+  emailNormalized: string;
+  emailDisplay: string;
+}
+
 let googleClient: OAuth2Client | null = null;
 
 function getGoogleClient(): OAuth2Client {
@@ -471,6 +477,12 @@ async function linkGoogleIdentityToPendingAccount(
           );
         }
 
+        if (user.emailNormalized !== google.emailNormalized) {
+          throw new AuthGoogleAuthenticationError(
+            "google-email-mismatch",
+          );
+        }
+
         const existingGoogleIdentity =
           await findAuthIdentityByUserAndProvider(
             user._id,
@@ -580,6 +592,10 @@ async function activatePendingAccountWithGoogle(
 
       if (!user) {
         throw new AuthGoogleAuthenticationError("account-unavailable");
+      }
+
+      if (user.emailNormalized !== google.emailNormalized) {
+        throw new AuthGoogleAuthenticationError("google-email-mismatch");
       }
 
       const existingGoogleIdentity =
@@ -1049,6 +1065,10 @@ async function linkGoogleIdentityToExistingActiveAccount(
         throw new AuthGoogleAuthenticationError("account-unavailable");
       }
 
+      if (user.emailNormalized !== google.emailNormalized) {
+        throw new AuthGoogleAuthenticationError("google-email-mismatch");
+      }
+
       const alreadyLinked = await findAuthIdentityByUserAndProvider(
         user._id,
         "google",
@@ -1186,12 +1206,6 @@ export async function authenticateWithGoogle(
     );
 
   if (existingIdentity) {
-    await syncVerifiedGoogleIdentityEmail(
-      existingIdentity,
-      google,
-      authenticatedAt,
-    );
-
     const user = await findUserById(existingIdentity.userId);
 
     if (
@@ -1220,6 +1234,23 @@ export async function authenticateWithGoogle(
     if (!user || user.status !== "active" || !user.emailVerifiedAt) {
       throw new AuthGoogleAuthenticationError("account-unavailable");
     }
+
+    if (user.emailNormalized !== google.emailNormalized) {
+      await recordGoogleAuthenticationFailure({
+        userId: user._id,
+        reason: "google-email-mismatch",
+        requestMetadata,
+        createdAt: authenticatedAt,
+      });
+
+      throw new AuthGoogleAuthenticationError("google-email-mismatch");
+    }
+
+    await syncVerifiedGoogleIdentityEmail(
+      existingIdentity,
+      google,
+      authenticatedAt,
+    );
 
     return createGoogleSessionForActiveUser(
       user._id,
@@ -1300,6 +1331,7 @@ export async function authenticateWithGoogle(
 
             if (
               winnerUser?.status === "pending" &&
+              winnerUser.emailNormalized === google.emailNormalized &&
               winnerUser.emailVerifiedAt === null &&
               winnerUser.suspendedAt === null &&
               winnerUser.deactivatedAt === null &&
@@ -1322,6 +1354,7 @@ export async function authenticateWithGoogle(
 
             if (
               winnerUser?.status === "active" &&
+              winnerUser.emailNormalized === google.emailNormalized &&
               winnerUser.emailVerifiedAt !== null &&
               winnerUser.suspendedAt === null &&
               winnerUser.deactivatedAt === null &&
@@ -1359,34 +1392,64 @@ export async function authenticateWithGoogle(
       throw new AuthGoogleAuthenticationError("account-unavailable");
     }
 
-    if (!google.authoritativeEmail) {
-      const credential = await findAuthCredentialByUserId(
+    /*
+     * Connecting Google to an already-active FilmGeezer account is an
+     * explicit account-security change. Even when Google is authoritative
+     * for a matching Gmail/Workspace address, require the existing
+     * FilmGeezer password once before creating the new provider link.
+     *
+     * This also makes an explicit Google disconnect persistent: using the
+     * same Google account later cannot silently recreate the link merely
+     * because the email addresses still match.
+     */
+    const [credential, existingGoogleForUser] = await Promise.all([
+      findAuthCredentialByUserId(emailMatchedUser._id),
+      findAuthIdentityByUserAndProvider(
         emailMatchedUser._id,
+        "google",
+      ),
+    ]);
+
+    if (existingGoogleForUser) {
+      if (existingGoogleForUser.providerSubject !== google.subject) {
+        throw new AuthGoogleAuthenticationError(
+          "different-google-account-connected",
+        );
+      }
+
+      return createGoogleSessionForActiveUser(
+        emailMatchedUser._id,
+        requestMetadata,
+        authenticatedAt,
+        {
+          createdAccount: false,
+          linkedExistingAccount: false,
+        },
       );
+    }
 
-      if (!credential) {
-        throw new AuthGoogleAuthenticationError("account-unavailable");
-      }
+    if (!credential) {
+      throw new AuthGoogleAuthenticationError("account-unavailable");
+    }
 
-      if (!parsed.password) {
-        throw new AuthGoogleLinkConfirmationRequiredError(false);
-      }
+    if (!parsed.password) {
+      throw new AuthGoogleLinkConfirmationRequiredError(false);
+    }
 
-      const valid = await verifyPassword(
-        credential.passwordHash,
-        parsed.password,
-      );
+    const valid = await verifyPassword(
+      credential.passwordHash,
+      parsed.password,
+    );
 
-      if (!valid) {
-        await recordGoogleAuthenticationFailure({
-          userId: emailMatchedUser._id,
-          reason: "link-confirmation-invalid-password",
-          requestMetadata,
-          createdAt: authenticatedAt,
-        });
+    if (!valid) {
+      await recordGoogleAuthenticationFailure({
+        userId: emailMatchedUser._id,
+        reason: "link-confirmation-invalid-password",
+        requestMetadata,
+        createdAt: authenticatedAt,
+      });
 
-        throw new AuthGoogleLinkConfirmationRequiredError(true);
-      }
+      throw new AuthGoogleLinkConfirmationRequiredError(true);
     }
 
     try {
@@ -1403,16 +1466,27 @@ export async function authenticateWithGoogle(
           google.subject,
         );
 
-        if (winner) {
-          return createGoogleSessionForActiveUser(
-            winner.userId,
-            requestMetadata,
-            authenticatedAt,
-            {
-              createdAccount: false,
-              linkedExistingAccount: true,
-            },
-          );
+        if (winner && winner.userId.equals(emailMatchedUser._id)) {
+          const winnerUser = await findUserById(winner.userId);
+
+          if (
+            winnerUser?.status === "active" &&
+            winnerUser.emailNormalized === google.emailNormalized &&
+            winnerUser.emailVerifiedAt !== null &&
+            winnerUser.suspendedAt === null &&
+            winnerUser.deactivatedAt === null &&
+            winnerUser.deletedAt === null
+          ) {
+            return createGoogleSessionForActiveUser(
+              winner.userId,
+              requestMetadata,
+              authenticatedAt,
+              {
+                createdAccount: false,
+                linkedExistingAccount: true,
+              },
+            );
+          }
         }
 
         throw new AuthPersistenceError(
@@ -1449,6 +1523,7 @@ export async function authenticateWithGoogle(
 
         if (
           winnerUser?.status === "pending" &&
+          winnerUser.emailNormalized === google.emailNormalized &&
           winnerUser.emailVerifiedAt === null &&
           winnerUser.suspendedAt === null &&
           winnerUser.deactivatedAt === null &&
@@ -1471,6 +1546,7 @@ export async function authenticateWithGoogle(
 
         if (
           winnerUser?.status === "active" &&
+          winnerUser.emailNormalized === google.emailNormalized &&
           winnerUser.emailVerifiedAt !== null &&
           winnerUser.suspendedAt === null &&
           winnerUser.deactivatedAt === null &&
@@ -1498,6 +1574,18 @@ export async function authenticateWithGoogle(
   }
 }
 
+export async function verifyGoogleCredentialForConnection(
+  credential: string,
+): Promise<VerifiedGoogleConnectionIdentity> {
+  const google = await verifyGoogleCredential(credential);
+
+  return {
+    subject: google.subject,
+    emailNormalized: google.emailNormalized,
+    emailDisplay: google.emailDisplay,
+  };
+}
+
 export async function verifyGoogleCredentialForUser(
   credential: string,
   expectedUserId: ObjectId,
@@ -1511,6 +1599,17 @@ export async function verifyGoogleCredentialForUser(
 
   if (!identity || !identity.userId.equals(expectedUserId)) {
     throw new AuthGoogleAuthenticationError("account-unavailable");
+  }
+
+  const user = await findUserById(expectedUserId);
+
+  if (
+    !user ||
+    user.status !== "active" ||
+    !user.emailVerifiedAt ||
+    user.emailNormalized !== google.emailNormalized
+  ) {
+    throw new AuthGoogleAuthenticationError("google-email-mismatch");
   }
 
   await syncVerifiedGoogleIdentityEmail(

@@ -145,6 +145,41 @@ export async function updateAuthIdentityProviderEmail(
   return result.matchedCount === 1;
 }
 
+export async function replaceGoogleIdentityForUser(
+  input: {
+    identityId: ObjectId;
+    userId: ObjectId;
+    expectedProviderSubject: string;
+    providerSubject: string;
+    providerEmailNormalized: string;
+    providerEmailDisplay: string;
+    updatedAt: Date;
+  },
+  session: ClientSession,
+): Promise<boolean> {
+  const { identities } = await getAuthCollections();
+
+  const result = await identities.updateOne(
+    {
+      _id: input.identityId,
+      userId: input.userId,
+      provider: "google",
+      providerSubject: input.expectedProviderSubject,
+    },
+    {
+      $set: {
+        providerSubject: input.providerSubject,
+        providerEmailNormalized: input.providerEmailNormalized,
+        providerEmailDisplay: input.providerEmailDisplay,
+        updatedAt: input.updatedAt,
+      },
+    },
+    { session },
+  );
+
+  return result.matchedCount === 1;
+}
+
 export async function deleteAuthIdentityByUserAndProvider(
   userId: ObjectId,
   provider: AuthProvider,

@@ -31,6 +31,7 @@ export interface CreateAuthSessionInput {
 
   createdAt: Date;
   recentAuthenticationAt?: Date | null;
+  recentAuthenticationMethod?: "password" | "google" | null;
   expiresAt: Date;
 }
 
@@ -301,6 +302,7 @@ export interface RecordRecentAuthenticationInput {
   sessionId: ObjectId;
   userId: ObjectId;
   confirmedAt: Date;
+  method: "password" | "google";
 }
 
 export async function recordRecentAuthentication(
@@ -324,6 +326,8 @@ export async function recordRecentAuthentication(
         $set: {
           recentAuthenticationAt:
             input.confirmedAt,
+          recentAuthenticationMethod:
+            input.method,
         },
       },
       session
@@ -334,6 +338,35 @@ export async function recordRecentAuthentication(
     );
 
   return result.matchedCount === 1;
+}
+
+export async function revokeActiveAuthSessionsByProvider(
+  input: {
+    userId: ObjectId;
+    provider: AuthProvider;
+    revokedAt: Date;
+  },
+  session: ClientSession,
+): Promise<number> {
+  const { sessions } = await getAuthCollections();
+
+  const result = await sessions.updateMany(
+    {
+      userId: input.userId,
+      authProvider: input.provider,
+      revokedAt: null,
+      expiresAt: { $gt: input.revokedAt },
+    },
+    {
+      $set: {
+        revokedAt: input.revokedAt,
+        revocationReason: "provider-migration",
+      },
+    },
+    { session },
+  );
+
+  return result.modifiedCount;
 }
 
 export interface ListActiveAuthSessionsInput {

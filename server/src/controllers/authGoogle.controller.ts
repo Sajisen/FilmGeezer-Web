@@ -106,7 +106,11 @@ export async function authenticateGoogleAccount(
         message:
           error.reason === "email-unverified"
             ? "Google did not provide a verified email address for this account."
-            : "Google sign in could not be completed. Please try again.",
+            : error.reason === "different-google-account-connected"
+              ? "A different Google account is already connected to this FilmGeezer account. Sign in with your FilmGeezer password and manage Google sign-in from Account Security."
+              : error.reason === "google-email-mismatch"
+                ? "This Google account no longer uses the same email as your FilmGeezer account. Sign in with your FilmGeezer email and password, then update the connection from Account Security."
+                : "Google sign in could not be completed. Please try again.",
       });
       return;
     }

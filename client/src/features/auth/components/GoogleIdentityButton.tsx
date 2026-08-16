@@ -124,6 +124,7 @@ function GoogleIdentityButton({
             shape: "rectangular",
             logo_alignment: "left",
             width,
+            locale: "en",
           });
 
           setAvailabilityError(null);
@@ -184,14 +185,14 @@ function GoogleIdentityButton({
   }
 
   return (
-    <div className="relative min-h-11 w-full overflow-hidden rounded-md">
+    <div className="relative mx-auto min-h-11 w-full max-w-[400px] bg-transparent">
       <div
         ref={hostRef}
         aria-hidden={!isReady}
         className={
           disabled
-            ? "pointer-events-none flex min-h-11 w-full justify-center opacity-50"
-            : "flex min-h-11 w-full justify-center"
+            ? "pointer-events-none flex min-h-11 w-full justify-center bg-transparent opacity-50"
+            : "flex min-h-11 w-full justify-center bg-transparent"
         }
       />
 

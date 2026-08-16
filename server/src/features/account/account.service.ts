@@ -272,9 +272,11 @@ export async function getAccountDetails(
         googleIdentity?.providerEmailDisplay ?? null,
 
       recentAuthenticationExpiresAt:
-        createRecentAuthenticationExpiry(
-          auth.recentAuthenticationAt,
-        ),
+        auth.recentAuthenticationMethod === "password"
+          ? createRecentAuthenticationExpiry(
+              auth.recentAuthenticationAt,
+            )
+          : null,
     },
 
     session: {
@@ -368,6 +370,7 @@ export async function confirmAccountPassword(
               sessionId: auth.sessionId,
               userId: auth.userId,
               confirmedAt,
+              method: "password",
             },
             session,
           );
