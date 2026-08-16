@@ -74,16 +74,21 @@ export function loadGoogleIdentityServices(): Promise<GoogleIdentityServicesApi>
   }
 
   scriptPromise = new Promise((resolve, reject) => {
-    const finish = () => {
+    const rejectLoad = (script: HTMLScriptElement) => {
+      script.remove();
+      scriptPromise = null;
+      reject(
+        new Error(
+          "Google sign in could not be loaded.",
+        ),
+      );
+    };
+
+    const finish = (script: HTMLScriptElement) => {
       const api = getGoogleApi();
 
       if (!api) {
-        scriptPromise = null;
-        reject(
-          new Error(
-            "Google sign in could not be loaded.",
-          ),
-        );
+        rejectLoad(script);
         return;
       }
 
@@ -95,19 +100,14 @@ export function loadGoogleIdentityServices(): Promise<GoogleIdentityServicesApi>
     ) as HTMLScriptElement | null;
 
     if (existingScript) {
-      existingScript.addEventListener("load", finish, {
-        once: true,
-      });
+      existingScript.addEventListener(
+        "load",
+        () => finish(existingScript),
+        { once: true },
+      );
       existingScript.addEventListener(
         "error",
-        () => {
-          scriptPromise = null;
-          reject(
-            new Error(
-              "Google sign in could not be loaded.",
-            ),
-          );
-        },
+        () => rejectLoad(existingScript),
         { once: true },
       );
       return;
@@ -119,17 +119,14 @@ export function loadGoogleIdentityServices(): Promise<GoogleIdentityServicesApi>
     script.async = true;
     script.defer = true;
     script.referrerPolicy = "strict-origin-when-cross-origin";
-    script.addEventListener("load", finish, { once: true });
+    script.addEventListener(
+      "load",
+      () => finish(script),
+      { once: true },
+    );
     script.addEventListener(
       "error",
-      () => {
-        scriptPromise = null;
-        reject(
-          new Error(
-            "Google sign in could not be loaded.",
-          ),
-        );
-      },
+      () => rejectLoad(script),
       { once: true },
     );
 

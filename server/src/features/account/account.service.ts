@@ -37,10 +37,10 @@ import {
 } from "../auth/auth.password.js";
 
 import {
-  createLocalAuthSessionResult,
-  createPreparedLocalAuthSession,
-  prepareLocalAuthSession,
-  type LocalAuthSessionResult,
+  createAuthSessionResult,
+  createPreparedAuthSession,
+  prepareAuthSession,
+  type AuthSessionResult,
 } from "../auth/auth.session-creation.service.js";
 
 import {
@@ -162,7 +162,7 @@ export interface AccountProfileUpdateResult {
 }
 
 export interface AccountPasswordChangeResult
-  extends LocalAuthSessionResult {
+  extends AuthSessionResult {
   changedAt: Date;
   sessionsRevoked: number;
 }
@@ -791,7 +791,7 @@ export async function changeAccountPassword(
     );
 
   const preparedSession =
-    prepareLocalAuthSession(
+    prepareAuthSession(
       requestMetadata,
       changedAt,
     );
@@ -872,8 +872,9 @@ export async function changeAccountPassword(
               session,
             );
 
-          await createPreparedLocalAuthSession(
+          await createPreparedAuthSession(
             user._id,
+            auth.provider,
             preparedSession,
             session,
           );
@@ -897,6 +898,8 @@ export async function changeAccountPassword(
                   "authenticated-account",
                 sessionsRevoked,
                 sessionRotated: true,
+                sessionProvider:
+                  auth.provider,
               },
               createdAt: changedAt,
             },
@@ -904,8 +907,9 @@ export async function changeAccountPassword(
           );
 
           return {
-            ...createLocalAuthSessionResult(
+            ...createAuthSessionResult(
               user,
+              auth.provider,
               preparedSession,
             ),
             changedAt,

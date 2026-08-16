@@ -49,7 +49,7 @@ import { createAuthAuditEvent } from "./repositories/authAudit.repository.js";
 import {
   createEmailVerificationChallenge,
   findLatestEmailVerificationChallengeForUser,
-  invalidateActiveChallenges,
+  invalidateAllActiveChallengesForUser,
   recordEmailVerificationSendAttempt,
 } from "./repositories/authChallenge.repository.js";
 import {
@@ -580,14 +580,14 @@ async function activatePendingAccountWithGoogle(
           session,
         );
 
-      await invalidateActiveChallenges(
-        {
-          userId: user._id,
-          purpose: "verify-email",
-          invalidatedAt: authenticatedAt,
-        },
-        session,
-      );
+      const challengesInvalidated =
+        await invalidateAllActiveChallengesForUser(
+          {
+            userId: user._id,
+            invalidatedAt: authenticatedAt,
+          },
+          session,
+        );
 
       const activated = await activatePendingUser(
         {
@@ -625,6 +625,7 @@ async function activatePendingAccountWithGoogle(
               removedLocalCredentials > 0,
             discardedUnverifiedLocalIdentity:
               removedLocalIdentities > 0,
+            challengesInvalidated,
             sessionCreated: true,
           },
           createdAt: authenticatedAt,
@@ -1371,15 +1372,48 @@ export async function authenticateWithGoogle(
       );
 
       if (winner) {
-        return createGoogleSessionForActiveUser(
-          winner.userId,
-          requestMetadata,
-          authenticatedAt,
-          {
-            createdAccount: false,
-            linkedExistingAccount: false,
-          },
-        );
+        const winnerUser =
+          await findUserById(winner.userId);
+
+        if (
+          winnerUser?.status === "pending" &&
+          winnerUser.emailVerifiedAt === null &&
+          winnerUser.suspendedAt === null &&
+          winnerUser.deactivatedAt === null &&
+          winnerUser.deletedAt === null
+        ) {
+          const challenge =
+            await findLatestEmailVerificationChallengeForUser(
+              winnerUser._id,
+            );
+
+          if (challenge) {
+            return {
+              outcome: "verification-required",
+              email: winnerUser.emailDisplay,
+              verification:
+                createVerificationReceipt(challenge),
+            };
+          }
+        }
+
+        if (
+          winnerUser?.status === "active" &&
+          winnerUser.emailVerifiedAt !== null &&
+          winnerUser.suspendedAt === null &&
+          winnerUser.deactivatedAt === null &&
+          winnerUser.deletedAt === null
+        ) {
+          return createGoogleSessionForActiveUser(
+            winnerUser._id,
+            requestMetadata,
+            authenticatedAt,
+            {
+              createdAccount: false,
+              linkedExistingAccount: false,
+            },
+          );
+        }
       }
 
       throw new AuthPersistenceError(
