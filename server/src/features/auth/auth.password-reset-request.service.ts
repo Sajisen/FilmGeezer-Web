@@ -242,7 +242,13 @@ export async function requestPasswordReset(
         ),
       ]);
 
-    if (!identity || !credential) {
+    const hasCompleteLocalCredential = Boolean(identity && credential);
+    const hasNoLocalCredential = !identity && !credential;
+
+    if (
+      (!hasCompleteLocalCredential && !hasNoLocalCredential) ||
+      (user.status === "pending" && !hasCompleteLocalCredential)
+    ) {
       return {
         acceptedAt: requestedAt,
       };

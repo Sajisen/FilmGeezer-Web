@@ -146,6 +146,45 @@ export class AuthEmailVerificationResendError extends Error {
   }
 }
 
+
+export class AuthGoogleConfigurationError extends Error {
+  readonly code = "AUTH_GOOGLE_CONFIGURATION_ERROR";
+
+  constructor() {
+    super("Google authentication is not configured.");
+    this.name = "AuthGoogleConfigurationError";
+  }
+}
+
+export class AuthGoogleAuthenticationError extends Error {
+  readonly code = "AUTH_GOOGLE_AUTHENTICATION_REJECTED";
+
+  constructor(
+    readonly reason:
+      | "invalid-token"
+      | "email-unverified"
+      | "account-unavailable"
+      | "different-google-account-connected"
+      | "google-email-mismatch",
+  ) {
+    super("Google authentication could not be completed.");
+    this.name = "AuthGoogleAuthenticationError";
+  }
+}
+
+export class AuthGoogleLinkConfirmationRequiredError extends Error {
+  readonly code = "AUTH_GOOGLE_LINK_CONFIRMATION_REQUIRED";
+
+  constructor(readonly passwordWasInvalid = false) {
+    super(
+      passwordWasInvalid
+        ? "The FilmGeezer password is incorrect."
+        : "Confirm your FilmGeezer password before connecting this Google account.",
+    );
+    this.name = "AuthGoogleLinkConfirmationRequiredError";
+  }
+}
+
 export class AuthInvalidCredentialsError
   extends Error {
   readonly code =
@@ -238,6 +277,18 @@ export class AuthPasswordResetError extends Error {
     );
 
     this.name = "AuthPasswordResetError";
+  }
+}
+
+export class AuthPasswordAlreadyConfiguredError extends Error {
+  readonly code = "ACCOUNT_PASSWORD_ALREADY_CONFIGURED";
+
+  constructor() {
+    super(
+      "A FilmGeezer password is already configured for this account.",
+    );
+
+    this.name = "AuthPasswordAlreadyConfiguredError";
   }
 }
 

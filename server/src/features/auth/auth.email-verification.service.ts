@@ -26,10 +26,10 @@ import type {
 } from "./auth.session.js";
 
 import {
-  createLocalAuthSessionResult,
-  createPreparedLocalAuthSession,
-  prepareLocalAuthSession,
-  type LocalAuthSessionResult,
+  createAuthSessionResult,
+  createPreparedAuthSession,
+  prepareAuthSession,
+  type AuthSessionResult,
 } from "./auth.session-creation.service.js";
 import {
   createWelcomeNotification,
@@ -74,7 +74,7 @@ const EMAIL_VERIFICATION_TRANSACTION_OPTIONS:
   };
 
 export interface VerifiedEmailResult
-  extends LocalAuthSessionResult {
+  extends AuthSessionResult {
   verifiedAt: Date;
 }
 
@@ -289,7 +289,7 @@ export async function verifyEmailAddress(
    * callback after a transient transaction error.
    */
   const preparedSession =
-    prepareLocalAuthSession(
+    prepareAuthSession(
       requestMetadata,
       verifiedAt,
     );
@@ -325,16 +325,19 @@ export async function verifyEmailAddress(
             );
           }
 
+          const authenticationProvider =
+            challenge.authenticationProvider ?? "local";
+
           const identity =
             await findAuthIdentityByUserAndProvider(
               pendingUser._id,
-              "local",
+              authenticationProvider,
               session,
             );
 
           if (!identity) {
             throw new AuthPersistenceError(
-              "The local authentication identity could not be found.",
+              "The authentication identity for this verification could not be found.",
             );
           }
 
@@ -380,8 +383,9 @@ export async function verifyEmailAddress(
           }
 
           const sessionsRevokedForLimit =
-            await createPreparedLocalAuthSession(
+            await createPreparedAuthSession(
               pendingUser._id,
+              authenticationProvider,
               preparedSession,
               session,
             );
@@ -444,7 +448,7 @@ export async function verifyEmailAddress(
 
               details: {
                 provider:
-                  "local",
+                  authenticationProvider,
 
                 finalStatus:
                   "active",
@@ -482,7 +486,7 @@ export async function verifyEmailAddress(
 
               details: {
                 provider:
-                  "local",
+                  authenticationProvider,
 
                 source:
                   "email-verification",
@@ -508,8 +512,9 @@ export async function verifyEmailAddress(
           );
 
           return {
-            ...createLocalAuthSessionResult(
+            ...createAuthSessionResult(
               pendingUser,
+              authenticationProvider,
               preparedSession,
             ),
 

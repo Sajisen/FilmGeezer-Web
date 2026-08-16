@@ -350,7 +350,7 @@ export interface AdminManagedUserSummary {
 
 export interface AdminManagedUserSession {
   sessionId: string;
-  provider: "local" | "clerk";
+  provider: "local" | "google" | "clerk";
   userAgentSummary: string | null;
   createdAt: string;
   lastSeenAt: string;
@@ -366,7 +366,7 @@ export interface AdminManagedUserDetail {
     deletedAt: string | null;
   };
   identities: Array<{
-    provider: "local" | "clerk";
+    provider: "local" | "google" | "clerk";
     createdAt: string;
   }>;
   activeSessions: AdminManagedUserSession[];

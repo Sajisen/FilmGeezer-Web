@@ -13,6 +13,7 @@ import {
 } from "../auth.collections.js";
 
 import type {
+  AuthProvider,
   AuthSessionDocument,
   AuthSessionRevocationReason,
 } from "../auth.types.js";
@@ -20,6 +21,7 @@ import type {
 export interface CreateAuthSessionInput {
   sessionId: ObjectId;
   userId: ObjectId;
+  authProvider: AuthProvider;
 
   tokenHash: string;
   csrfSecretHash: string;
@@ -28,6 +30,8 @@ export interface CreateAuthSessionInput {
   ipHash: string | null;
 
   createdAt: Date;
+  recentAuthenticationAt?: Date | null;
+  recentAuthenticationMethod?: "password" | "google" | null;
   expiresAt: Date;
 }
 
@@ -45,7 +49,7 @@ export async function createAuthSession(
         AUTH_SCHEMA_VERSION,
 
       userId: input.userId,
-      authProvider: "local",
+      authProvider: input.authProvider,
 
       tokenHash:
         input.tokenHash,
@@ -59,7 +63,8 @@ export async function createAuthSession(
 
       createdAt: input.createdAt,
       lastSeenAt: input.createdAt,
-      recentAuthenticationAt: null,
+      recentAuthenticationAt:
+        input.recentAuthenticationAt ?? null,
       expiresAt: input.expiresAt,
 
       revokedAt: null,
@@ -297,6 +302,7 @@ export interface RecordRecentAuthenticationInput {
   sessionId: ObjectId;
   userId: ObjectId;
   confirmedAt: Date;
+  method: "password" | "google";
 }
 
 export async function recordRecentAuthentication(
@@ -320,6 +326,8 @@ export async function recordRecentAuthentication(
         $set: {
           recentAuthenticationAt:
             input.confirmedAt,
+          recentAuthenticationMethod:
+            input.method,
         },
       },
       session
@@ -330,6 +338,35 @@ export async function recordRecentAuthentication(
     );
 
   return result.matchedCount === 1;
+}
+
+export async function revokeActiveAuthSessionsByProvider(
+  input: {
+    userId: ObjectId;
+    provider: AuthProvider;
+    revokedAt: Date;
+  },
+  session: ClientSession,
+): Promise<number> {
+  const { sessions } = await getAuthCollections();
+
+  const result = await sessions.updateMany(
+    {
+      userId: input.userId,
+      authProvider: input.provider,
+      revokedAt: null,
+      expiresAt: { $gt: input.revokedAt },
+    },
+    {
+      $set: {
+        revokedAt: input.revokedAt,
+        revocationReason: "provider-migration",
+      },
+    },
+    { session },
+  );
+
+  return result.modifiedCount;
 }
 
 export interface ListActiveAuthSessionsInput {

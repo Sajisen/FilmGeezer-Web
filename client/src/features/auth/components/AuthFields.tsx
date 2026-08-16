@@ -100,7 +100,7 @@ export function AuthField({
         aria-describedby={
           errorId ?? hintId
         }
-        className={`mt-1.5 min-h-12 w-full rounded-xl border bg-slate-950/70 px-4 text-[16px] text-white outline-none transition placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`mt-1.5 min-h-11 w-full rounded-xl border bg-slate-950/70 px-4 text-[16px] text-white outline-none transition placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 ${
           errorMessages.length > 0
             ? "border-rose-400/70 focus:border-rose-300 focus:ring-2 focus:ring-rose-300/20"
             : "border-white/10 hover:border-white/20 focus:border-sky-300/70 focus:ring-2 focus:ring-sky-300/20"
@@ -186,7 +186,7 @@ export function PasswordField({
           aria-describedby={
             errorId ?? hintId
           }
-          className={`min-h-12 w-full rounded-xl border bg-slate-950/70 px-4 pr-12 text-[16px] text-white outline-none transition placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`min-h-11 w-full rounded-xl border bg-slate-950/70 px-4 pr-12 text-[16px] text-white outline-none transition placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 ${
             errorMessages.length > 0
               ? "border-rose-400/70 focus:border-rose-300 focus:ring-2 focus:ring-rose-300/20"
               : "border-white/10 hover:border-white/20 focus:border-sky-300/70 focus:ring-2 focus:ring-sky-300/20"
@@ -258,7 +258,7 @@ export function AuthSubmitButton({
         disabled ||
         isSubmitting
       }
-      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-5 font-bold text-white shadow-lg shadow-sky-950/30 transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-5 font-bold text-white shadow-lg shadow-sky-950/30 transition hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
     >
       {isSubmitting && (
         <span
@@ -288,7 +288,7 @@ export function AuthFormMessage({
   return (
     <div
       role="alert"
-      className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-3.5 py-2.5 text-sm leading-5 text-rose-100 shadow-sm shadow-rose-950/20"
+      className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-3.5 py-2 text-sm leading-5 text-rose-100 shadow-sm shadow-rose-950/20"
     >
       {message}
     </div>

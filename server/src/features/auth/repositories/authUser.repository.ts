@@ -68,6 +68,47 @@ export async function createPendingUser(
   return user;
 }
 
+export interface CreateActiveUserInput {
+  userId: ObjectId;
+  emailNormalized: string;
+  emailDisplay: string;
+  displayName: string;
+  verifiedAt: Date;
+}
+
+export async function createActiveUser(
+  input: CreateActiveUserInput,
+  session: ClientSession,
+): Promise<FilmGeezerUserDocument> {
+  const { users } =
+    await getAuthCollections();
+
+  const user: FilmGeezerUserDocument = {
+    _id: input.userId,
+    schemaVersion: AUTH_SCHEMA_VERSION,
+
+    emailNormalized: input.emailNormalized,
+    emailDisplay: input.emailDisplay,
+    displayName: input.displayName,
+    profileImage: null,
+
+    status: "active",
+    roles: ["user"],
+
+    emailVerifiedAt: input.verifiedAt,
+    lastLoginAt: input.verifiedAt,
+    suspendedAt: null,
+    deactivatedAt: null,
+    deletedAt: null,
+
+    createdAt: input.verifiedAt,
+    updatedAt: input.verifiedAt,
+  };
+
+  await users.insertOne(user, { session });
+  return user;
+}
+
 export async function findUserByNormalizedEmail(
   emailNormalized: string,
   session?: ClientSession,
@@ -84,6 +125,19 @@ export async function findUserByNormalizedEmail(
           session,
         }
       : undefined,
+  );
+}
+
+export async function findUserById(
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<FilmGeezerUserDocument | null> {
+  const { users } =
+    await getAuthCollections();
+
+  return users.findOne(
+    { _id: userId },
+    session ? { session } : undefined,
   );
 }
 

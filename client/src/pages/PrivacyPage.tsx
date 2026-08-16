@@ -14,7 +14,7 @@ function PrivacyPage() {
       eyebrow="Privacy & data"
       title="Privacy Policy"
       intro="This page explains, in plain language, what FilmGeezer stores, why it is needed, and the controls available to you."
-      updatedLabel="Last updated: August 9, 2026"
+      updatedLabel="Last updated: August 17, 2026"
       summary={PRIVACY_SUMMARY}
     >
       <LegalSection title="1. Information connected to your account">
@@ -24,8 +24,15 @@ function PrivacyPage() {
           role, and information needed to keep the account secure.
         </p>
         <p>
-          Your password is never stored as readable text. FilmGeezer stores a
-          secure password hash that is used to check future sign-ins.
+          If you set a FilmGeezer password, it is never stored as readable
+          text. FilmGeezer stores a secure password hash that is used to check
+          future password sign-ins.
+        </p>
+        <p>
+          If you choose Continue with Google, FilmGeezer receives the Google
+          account identifier, verified email address, and basic profile name
+          that Google provides for sign-in. FilmGeezer does not receive your
+          Google password.
         </p>
         <p>
           We also store information you create while using features such as
@@ -40,6 +47,14 @@ function PrivacyPage() {
           keep you signed in. We also keep limited security records that help
           us verify account actions, manage active sessions, prevent abuse, and
           investigate account problems.
+        </p>
+        <p>
+          Continue with Google uses Google Identity Services to confirm the
+          Google account you select. After that confirmation, FilmGeezer uses
+          its own account and session system. Sensitive account changes are not
+          approved through the Google account chooser; after a FilmGeezer
+          password is configured, FilmGeezer requires that current password for
+          step-up confirmation.
         </p>
         <p>
           Administrator passkeys work through WebAuthn. FilmGeezer stores the
@@ -96,8 +111,9 @@ function PrivacyPage() {
           FilmGeezer uses third-party services to operate the application.
           These currently include Railway for hosting and production object
           storage, MongoDB for databases, Cloudflare for DNS and related edge
-          infrastructure, Resend for automated account emails, and Zoho Mail
-          for the human support mailbox.
+          infrastructure, Resend for automated account emails, Zoho Mail for
+          the human support mailbox, and Google Identity Services when you
+          choose Google as a sign-in method.
         </p>
         <p>
           Entertainment information comes from or may be supplemented by

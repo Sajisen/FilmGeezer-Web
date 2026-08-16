@@ -2,6 +2,7 @@ import type { ObjectId } from "mongodb";
 
 export const AUTH_PROVIDER_VALUES = [
   "local",
+  "google",
   "clerk",
 ] as const;
 
@@ -92,6 +93,9 @@ export const AUTH_AUDIT_EVENT_VALUES = [
   "profile-image-updated",
   "profile-image-removed",
   "account-reactivated",
+  "google-identity-connected",
+  "google-identity-replaced",
+  "google-identity-disconnected",
 ] as const;
 
 export type AuthAuditEvent =
@@ -148,6 +152,11 @@ export interface AuthIdentityDocument {
   provider: AuthProvider;
   providerSubject: string;
 
+  // Provider-owned profile data is optional for backward compatibility
+  // with identities created before Google sign-in metadata was stored.
+  providerEmailNormalized?: string | null;
+  providerEmailDisplay?: string | null;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -182,6 +191,7 @@ export interface AuthSessionDocument {
   createdAt: Date;
   lastSeenAt: Date;
   recentAuthenticationAt: Date | null;
+  recentAuthenticationMethod?: "password" | "google" | null;
   expiresAt: Date;
 
   revokedAt: Date | null;
@@ -212,6 +222,13 @@ export interface AuthChallengeDocument {
   emailChange?:
     | AuthEmailChangeChallengeContext
     | null;
+
+  /*
+   * Verification challenges created by older FilmGeezer versions do not
+   * include this field. Those challenges are treated as local-auth
+   * registration challenges by the verification service.
+   */
+  authenticationProvider?: AuthProvider | null;
 
   secretHash: string;
 

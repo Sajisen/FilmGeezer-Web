@@ -77,6 +77,21 @@ export async function findAuthCredentialByUserId(
   );
 }
 
+export async function deleteAuthCredentialByUserId(
+  userId: ObjectId,
+  session: ClientSession,
+): Promise<number> {
+  const { credentials } =
+    await getAuthCollections();
+
+  const result = await credentials.deleteMany(
+    { userId },
+    { session },
+  );
+
+  return result.deletedCount;
+}
+
 export interface ReplaceCredentialPasswordHashInput {
   credentialId: ObjectId;
   userId: ObjectId;

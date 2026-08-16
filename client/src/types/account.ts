@@ -1,11 +1,12 @@
 import type {
+  AuthProvider,
   AuthSessionSummary,
   AuthUser,
 } from "./auth";
 
 export interface AccountSummary {
   userId: string;
-  provider: "local";
+  provider: AuthProvider;
   email: string;
   displayName: string;
   profileImagePath: string | null;
@@ -16,7 +17,10 @@ export interface AccountSummary {
 }
 
 export interface AccountSecuritySummary {
-  passwordChangedAt: string;
+  passwordConfigured: boolean;
+  passwordChangedAt: string | null;
+  googleConnected: boolean;
+  googleEmail: string | null;
   recentAuthenticationExpiresAt:
     | string
     | null;
@@ -45,6 +49,13 @@ export interface RecentAuthenticationResponse {
   message: string;
   confirmedAt: string;
   expiresAt: string;
+}
+
+export interface AccountPasswordAddResponse {
+  status: "success";
+  code: "ACCOUNT_PASSWORD_ADDED";
+  message: string;
+  addedAt: string;
 }
 
 export interface AccountPasswordChangeResponse {
@@ -131,6 +142,7 @@ export interface AccountEmailChangeCompleteResponse {
   previousEmail: string;
   changedAt: string;
   sessionsRevoked: number;
+  googleDisconnected: boolean;
   user: AuthUser;
   session: AuthSessionSummary;
 }
@@ -148,5 +160,30 @@ export interface AccountDeactivationResponse {
   code: "ACCOUNT_DEACTIVATED";
   message: string;
   deactivatedAt: string;
+  sessionsRevoked: number;
+}
+
+export interface AccountPasswordSetupRequestResponse {
+  status: "success";
+  code: "ACCOUNT_PASSWORD_SETUP_EMAIL_SENT";
+  message: string;
+}
+
+export interface AccountGoogleConnectionChangeResponse {
+  status: "success";
+  code:
+    | "ACCOUNT_GOOGLE_CONNECTION_CHANGED"
+    | "ACCOUNT_GOOGLE_CONNECTION_UNCHANGED";
+  message: string;
+  googleEmail: string;
+  changed: boolean;
+  sessionsRevoked: number;
+}
+
+export interface AccountGoogleDisconnectResponse {
+  status: "success";
+  code: "ACCOUNT_GOOGLE_CONNECTION_DISCONNECTED";
+  message: string;
+  disconnectedAt: string;
   sessionsRevoked: number;
 }

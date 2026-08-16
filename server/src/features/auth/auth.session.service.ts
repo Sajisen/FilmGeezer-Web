@@ -68,6 +68,7 @@ export interface AuthenticatedSessionContext {
   createdAt: Date;
   lastSeenAt: Date;
   recentAuthenticationAt: Date | null;
+  recentAuthenticationMethod: "password" | "google" | null;
   idleExpiresAt: Date;
   expiresAt: Date;
 }
@@ -350,6 +351,8 @@ export async function resolveAuthenticatedSession(
         effectiveLastSeenAt,
       recentAuthenticationAt:
         authSession.recentAuthenticationAt ?? null,
+      recentAuthenticationMethod:
+        authSession.recentAuthenticationMethod ?? null,
       idleExpiresAt:
         new Date(
           effectiveLastSeenAt.getTime() +

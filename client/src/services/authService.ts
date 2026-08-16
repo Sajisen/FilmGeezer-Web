@@ -2,6 +2,7 @@ import type {
   AuthEmailVerificationResponse,
   AuthErrorPayload,
   AuthFieldErrorPayload,
+  AuthGoogleAuthenticationResponse,
   AuthLoginResponse,
   AuthLogoutResponse,
   AuthPasswordResetRequestResponse,
@@ -98,6 +99,8 @@ function isAuthUser(
       "string" &&
     (value.provider ===
       "local" ||
+      value.provider ===
+        "google" ||
       value.provider ===
         "clerk") &&
     typeof value.email ===
@@ -209,6 +212,40 @@ function isLoginResponse(
       value.session,
     )
   );
+}
+
+function isGoogleAuthenticationResponse(
+  value: unknown,
+): value is AuthGoogleAuthenticationResponse {
+  if (!isRecord(value) || value.status !== "success") {
+    return false;
+  }
+
+  if (
+    value.code ===
+      "AUTH_GOOGLE_AUTHENTICATION_SUCCEEDED"
+  ) {
+    return (
+      typeof value.message === "string" &&
+      typeof value.createdAccount === "boolean" &&
+      typeof value.linkedExistingAccount === "boolean" &&
+      isAuthUser(value.user) &&
+      isAuthSessionSummary(value.session)
+    );
+  }
+
+  if (
+    value.code ===
+      "AUTH_GOOGLE_EMAIL_VERIFICATION_REQUIRED"
+  ) {
+    return (
+      typeof value.message === "string" &&
+      typeof value.email === "string" &&
+      isVerificationReceipt(value.verification)
+    );
+  }
+
+  return false;
 }
 
 function isEmailVerificationResponse(
@@ -541,6 +578,22 @@ export async function loginLocalAccount(
   return requestAuthApi(
     "/api/auth/login",
     isLoginResponse,
+    {
+      method: "POST",
+      body: input,
+    },
+  );
+}
+
+export async function authenticateGoogleAccount(
+  input: {
+    credential: string;
+    password?: string;
+  },
+): Promise<AuthGoogleAuthenticationResponse> {
+  return requestAuthApi(
+    "/api/auth/google",
+    isGoogleAuthenticationResponse,
     {
       method: "POST",
       body: input,

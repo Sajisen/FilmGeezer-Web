@@ -379,6 +379,10 @@ export async function resendEmailVerificationCode(
 
               lastSentAt:
                 attemptedAt,
+
+              authenticationProvider:
+                latestChallenge.authenticationProvider ??
+                null,
             },
 
             session,

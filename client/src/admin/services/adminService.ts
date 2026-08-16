@@ -527,7 +527,9 @@ function isManagedUserSession(
   return (
     isRecord(value) &&
     typeof value.sessionId === "string" &&
-    (value.provider === "local" || value.provider === "clerk") &&
+    (value.provider === "local" ||
+      value.provider === "google" ||
+      value.provider === "clerk") &&
     (value.userAgentSummary === null ||
       typeof value.userAgentSummary === "string") &&
     typeof value.createdAt === "string" &&
@@ -566,6 +568,7 @@ function isManagedUserDetail(
       (identity) =>
         isRecord(identity) &&
         (identity.provider === "local" ||
+          identity.provider === "google" ||
           identity.provider === "clerk") &&
         typeof identity.createdAt === "string",
     ) &&

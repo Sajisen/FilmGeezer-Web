@@ -15,6 +15,7 @@ import {
 } from "./auth.session.js";
 
 import type {
+  AuthProvider,
   AuthRole,
   FilmGeezerUserDocument,
 } from "./auth.types.js";
@@ -28,7 +29,7 @@ import {
   createProfileImagePath,
 } from "../profile-image/profileImage.path.js";
 
-export interface PreparedLocalAuthSession {
+export interface PreparedAuthSession {
   sessionId: ObjectId;
 
   sessionToken: string;
@@ -42,10 +43,10 @@ export interface PreparedLocalAuthSession {
   expiresAt: Date;
 }
 
-export interface LocalAuthSessionResult {
+export interface AuthSessionResult {
   user: {
     userId: string;
-    provider: "local";
+    provider: AuthProvider;
     email: string;
     displayName: string;
     profileImagePath: string | null;
@@ -58,7 +59,7 @@ export interface LocalAuthSessionResult {
   };
 }
 
-type LocalSessionUser = Pick<
+type SessionUser = Pick<
   FilmGeezerUserDocument,
   | "_id"
   | "emailDisplay"
@@ -67,10 +68,10 @@ type LocalSessionUser = Pick<
   | "roles"
 >;
 
-export function prepareLocalAuthSession(
+export function prepareAuthSession(
   requestMetadata: AuthRequestMetadata,
   createdAt: Date,
-): PreparedLocalAuthSession {
+): PreparedAuthSession {
   const secrets =
     createAuthSessionSecrets();
 
@@ -106,10 +107,12 @@ export function prepareLocalAuthSession(
   };
 }
 
-export async function createPreparedLocalAuthSession(
+export async function createPreparedAuthSession(
   userId: ObjectId,
-  preparedSession: PreparedLocalAuthSession,
+  provider: AuthProvider,
+  preparedSession: PreparedAuthSession,
   session: ClientSession,
+  recentAuthenticationAt: Date | null = null,
 ): Promise<number> {
   const sessionsRevokedForLimit =
     await makeRoomForNewSession(
@@ -127,6 +130,7 @@ export async function createPreparedLocalAuthSession(
         preparedSession.sessionId,
 
       userId,
+      authProvider: provider,
 
       tokenHash:
         preparedSession.tokenHash,
@@ -145,6 +149,8 @@ export async function createPreparedLocalAuthSession(
       createdAt:
         preparedSession.createdAt,
 
+      recentAuthenticationAt,
+
       expiresAt:
         preparedSession.expiresAt,
     },
@@ -154,16 +160,17 @@ export async function createPreparedLocalAuthSession(
   return sessionsRevokedForLimit;
 }
 
-export function createLocalAuthSessionResult(
-  user: LocalSessionUser,
-  preparedSession: PreparedLocalAuthSession,
-): LocalAuthSessionResult {
+export function createAuthSessionResult(
+  user: SessionUser,
+  provider: AuthProvider,
+  preparedSession: PreparedAuthSession,
+): AuthSessionResult {
   return {
     user: {
       userId:
         user._id.toHexString(),
 
-      provider: "local",
+      provider,
 
       email:
         user.emailDisplay,
@@ -186,4 +193,42 @@ export function createLocalAuthSessionResult(
         preparedSession.expiresAt,
     },
   };
+}
+
+/*
+ * Compatibility wrappers keep the mature local-auth call sites focused while
+ * the shared session machinery remains provider-neutral for Google and any
+ * future authentication provider.
+ */
+export type PreparedLocalAuthSession = PreparedAuthSession;
+export type LocalAuthSessionResult = AuthSessionResult & {
+  user: AuthSessionResult["user"] & {
+    provider: "local";
+  };
+};
+
+export const prepareLocalAuthSession = prepareAuthSession;
+
+export async function createPreparedLocalAuthSession(
+  userId: ObjectId,
+  preparedSession: PreparedLocalAuthSession,
+  session: ClientSession,
+): Promise<number> {
+  return createPreparedAuthSession(
+    userId,
+    "local",
+    preparedSession,
+    session,
+  );
+}
+
+export function createLocalAuthSessionResult(
+  user: SessionUser,
+  preparedSession: PreparedLocalAuthSession,
+): LocalAuthSessionResult {
+  return createAuthSessionResult(
+    user,
+    "local",
+    preparedSession,
+  ) as LocalAuthSessionResult;
 }

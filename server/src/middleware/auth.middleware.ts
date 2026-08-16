@@ -272,6 +272,7 @@ export function requireRecentAuthentication(
 
   const isRecent =
     confirmedAt !== null &&
+    context.recentAuthenticationMethod === "password" &&
     confirmedAt.getTime() +
       AUTH_RECENT_AUTHENTICATION_POLICY
         .validForMilliseconds >

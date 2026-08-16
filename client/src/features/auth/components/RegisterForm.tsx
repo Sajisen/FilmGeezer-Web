@@ -28,8 +28,14 @@ import {
 } from "./AuthFields";
 
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
+import GoogleAuthPanel from "./GoogleAuthPanel";
 
 interface RegisterFormProps {
+  onAuthenticated: () => Promise<void>;
+  onVerificationRequired: (
+    verification: AuthVerificationReceipt,
+    email: string,
+  ) => void;
   onRegistrationSubmitted: (
     verification: AuthVerificationReceipt,
     email: string,
@@ -44,6 +50,8 @@ interface RegisterFormProps {
 }
 
 function RegisterForm({
+  onAuthenticated,
+  onVerificationRequired,
   onRegistrationSubmitted,
   onSwitchToLogin,
   onBusyChange,
@@ -74,6 +82,19 @@ function RegisterForm({
   ] = useState(false);
 
   const [
+    isGoogleSubmitting,
+    setIsGoogleSubmitting,
+  ] = useState(false);
+
+  const [
+    isGoogleDirty,
+    setIsGoogleDirty,
+  ] = useState(false);
+
+  const isBusy =
+    isSubmitting || isGoogleSubmitting;
+
+  const [
     submissionError,
     setSubmissionError,
   ] = useState<string | null>(
@@ -97,14 +118,29 @@ function RegisterForm({
   });
 
   useEffect(() => {
-    onBusyChange(isSubmitting);
+    onBusyChange(isBusy);
 
     return () => {
       onBusyChange(false);
     };
   }, [
-    isSubmitting,
+    isBusy,
     onBusyChange,
+  ]);
+
+  useEffect(() => {
+    onDirtyChange(
+      displayName.length > 0 ||
+        email.length > 0 ||
+        password.length > 0 ||
+        isGoogleDirty,
+    );
+  }, [
+    displayName,
+    email,
+    isGoogleDirty,
+    onDirtyChange,
+    password,
   ]);
 
   const handlePasswordAssessment =
@@ -127,7 +163,7 @@ function RegisterForm({
   ) {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (isBusy) {
       return;
     }
 
@@ -151,7 +187,7 @@ function RegisterForm({
           },
         );
 
-      onDirtyChange(false);
+      setIsGoogleDirty(false);
 
       onRegistrationSubmitted(
         response.verification,
@@ -236,9 +272,17 @@ function RegisterForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-3.5"
+      className="space-y-3"
       noValidate
     >
+      <GoogleAuthPanel
+        disabled={isBusy}
+        onAuthenticated={onAuthenticated}
+        onVerificationRequired={onVerificationRequired}
+        onBusyChange={setIsGoogleSubmitting}
+        onDirtyChange={setIsGoogleDirty}
+      />
+
       <AuthFormMessage
         message={submissionError}
       />
@@ -252,7 +296,7 @@ function RegisterForm({
         required
         maxLength={200}
         value={displayName}
-        disabled={isSubmitting}
+        disabled={isBusy}
         errorMessages={
           fieldErrors.displayName
         }
@@ -263,12 +307,6 @@ function RegisterForm({
 
           setDisplayName(
             nextDisplayName,
-          );
-
-          onDirtyChange(
-            nextDisplayName.length > 0 ||
-              email.length > 0 ||
-              password.length > 0,
           );
 
           if (
@@ -298,7 +336,7 @@ function RegisterForm({
         spellCheck={false}
         required
         value={email}
-        disabled={isSubmitting}
+        disabled={isBusy}
         errorMessages={
           fieldErrors.email
         }
@@ -308,12 +346,6 @@ function RegisterForm({
             event.target.value;
 
           setEmail(nextEmail);
-
-          onDirtyChange(
-            displayName.length > 0 ||
-              nextEmail.length > 0 ||
-              password.length > 0,
-          );
 
           if (
             fieldErrors.email
@@ -338,7 +370,7 @@ function RegisterForm({
           autoComplete="new-password"
           required
           value={password}
-          disabled={isSubmitting}
+          disabled={isBusy}
           errorMessages={
             fieldErrors.password
           }
@@ -353,12 +385,6 @@ function RegisterForm({
 
             setPasswordAssessment(
               null,
-            );
-
-            onDirtyChange(
-              displayName.length > 0 ||
-                email.length > 0 ||
-                nextPassword.length > 0,
             );
 
             if (
@@ -396,6 +422,7 @@ function RegisterForm({
           isSubmitting
         }
         disabled={
+          isBusy ||
           email.trim().length === 0 ||
           displayName.trim()
             .length === 0 ||
@@ -409,7 +436,7 @@ function RegisterForm({
         <button
           type="button"
           onClick={onSwitchToLogin}
-          disabled={isSubmitting}
+          disabled={isBusy}
           className="font-semibold text-sky-300 transition hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Sign in

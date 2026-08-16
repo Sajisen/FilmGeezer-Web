@@ -152,8 +152,9 @@ export async function resetLocalAccountPassword(
       status: "success",
       code:
         "AUTH_PASSWORD_RESET_COMPLETED",
-      message:
-        "Your password has been reset. Sign in again with the new password.",
+      message: result.createdCredential
+        ? "Your FilmGeezer password has been created. Sign in again with your email and new password, or continue using Google."
+        : "Your password has been reset. Sign in again with the new password.",
       resetAt: result.resetAt.toISOString(),
       sessionsRevoked:
         result.sessionsRevoked,

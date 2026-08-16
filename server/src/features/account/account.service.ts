@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   ObjectId,
   type TransactionOptions,
@@ -12,14 +14,17 @@ import {
 } from "../auth/auth.constants.js";
 
 import {
+  sendPasswordAddedNoticeEmail,
   sendPasswordChangedNoticeEmail,
 } from "../auth/auth.email.js";
 
 import {
   AuthCurrentPasswordInvalidError,
+  AuthPasswordAlreadyConfiguredError,
   AuthPasswordReuseError,
   AuthPersistenceError,
   AuthWeakPasswordError,
+  isMongoDuplicateKeyError,
 } from "../auth/auth.errors.js";
 
 import {
@@ -32,10 +37,10 @@ import {
 } from "../auth/auth.password.js";
 
 import {
-  createLocalAuthSessionResult,
-  createPreparedLocalAuthSession,
-  prepareLocalAuthSession,
-  type LocalAuthSessionResult,
+  createAuthSessionResult,
+  createPreparedAuthSession,
+  prepareAuthSession,
+  type AuthSessionResult,
 } from "../auth/auth.session-creation.service.js";
 
 import {
@@ -45,6 +50,7 @@ import {
 } from "../auth/auth.session.js";
 
 import type {
+  AuthProvider,
   AuthRole,
   FilmGeezerUserDocument,
 } from "../auth/auth.types.js";
@@ -63,9 +69,15 @@ import {
 } from "../auth/repositories/authAudit.repository.js";
 
 import {
+  createAuthCredential,
   findAuthCredentialByUserId,
   resetCredentialPassword,
 } from "../auth/repositories/authCredential.repository.js";
+
+import {
+  createAuthIdentity,
+  findAuthIdentityByUserAndProvider,
+} from "../auth/repositories/authIdentity.repository.js";
 
 import {
   recordRecentAuthentication,
@@ -103,7 +115,7 @@ const ACCOUNT_MUTATION_TRANSACTION_OPTIONS:
 
 export interface AccountUserSummary {
   userId: string;
-  provider: "local";
+  provider: AuthProvider;
   email: string;
   displayName: string;
   profileImagePath: string | null;
@@ -117,7 +129,10 @@ export interface AccountDetailsResult {
   account: AccountUserSummary;
 
   security: {
-    passwordChangedAt: Date;
+    passwordConfigured: boolean;
+    passwordChangedAt: Date | null;
+    googleConnected: boolean;
+    googleEmail: string | null;
     recentAuthenticationExpiresAt: Date | null;
   };
 
@@ -137,7 +152,7 @@ export interface RecentAuthenticationResult {
 export interface AccountProfileUpdateResult {
   user: {
     userId: string;
-    provider: "local";
+    provider: AuthProvider;
     email: string;
     displayName: string;
     profileImagePath: string | null;
@@ -148,13 +163,18 @@ export interface AccountProfileUpdateResult {
 }
 
 export interface AccountPasswordChangeResult
-  extends LocalAuthSessionResult {
+  extends AuthSessionResult {
   changedAt: Date;
   sessionsRevoked: number;
 }
 
+export interface AccountPasswordAddResult {
+  addedAt: Date;
+}
+
 function createAccountUserSummary(
   user: FilmGeezerUserDocument,
+  provider: AuthProvider,
 ): AccountUserSummary {
   if (!user.emailVerifiedAt) {
     throw new AuthPersistenceError(
@@ -164,7 +184,7 @@ function createAccountUserSummary(
 
   return {
     userId: user._id.toHexString(),
-    provider: "local",
+    provider,
     email: user.emailDisplay,
     displayName: user.displayName,
     profileImagePath:
@@ -212,15 +232,19 @@ function createAuditMetadata(
 export async function getAccountDetails(
   auth: AuthenticatedSessionContext,
 ): Promise<AccountDetailsResult> {
-  const [user, credential] =
+  const [user, credential, googleIdentity] =
     await Promise.all([
       findActiveUserById(auth.userId),
       findAuthCredentialByUserId(
         auth.userId,
       ),
+      findAuthIdentityByUserAndProvider(
+        auth.userId,
+        "google",
+      ),
     ]);
 
-  if (!user || !credential) {
+  if (!user) {
     throw new AuthPersistenceError(
       "The FilmGeezer account details could not be loaded.",
     );
@@ -228,16 +252,31 @@ export async function getAccountDetails(
 
   return {
     account:
-      createAccountUserSummary(user),
+      createAccountUserSummary(
+        user,
+        auth.provider,
+      ),
 
     security: {
+      passwordConfigured:
+        credential !== null,
+
       passwordChangedAt:
-        credential.passwordChangedAt,
+        credential?.passwordChangedAt ??
+        null,
+
+      googleConnected:
+        googleIdentity !== null,
+
+      googleEmail:
+        googleIdentity?.providerEmailDisplay ?? null,
 
       recentAuthenticationExpiresAt:
-        createRecentAuthenticationExpiry(
-          auth.recentAuthenticationAt,
-        ),
+        auth.recentAuthenticationMethod === "password"
+          ? createRecentAuthenticationExpiry(
+              auth.recentAuthenticationAt,
+            )
+          : null,
     },
 
     session: {
@@ -331,6 +370,7 @@ export async function confirmAccountPassword(
               sessionId: auth.sessionId,
               userId: auth.userId,
               confirmedAt,
+              method: "password",
             },
             session,
           );
@@ -404,7 +444,7 @@ export async function updateAccountProfile(
       user: {
         userId:
           auth.userId.toHexString(),
-        provider: "local",
+        provider: auth.provider,
         email: auth.email,
         displayName:
           auth.displayName,
@@ -483,7 +523,7 @@ export async function updateAccountProfile(
       user: {
         userId:
           result._id.toHexString(),
-        provider: "local",
+        provider: auth.provider,
         email: result.emailDisplay,
         displayName:
           result.displayName,
@@ -507,6 +547,196 @@ export async function updateAccountProfile(
   } finally {
     await session.endSession();
   }
+}
+
+export async function addAccountPassword(
+  input: AccountPasswordChangeInput,
+  auth: AuthenticatedSessionContext,
+  requestMetadata: AuthRequestMetadata,
+): Promise<AccountPasswordAddResult> {
+  const parsedInput =
+    parseAccountPasswordChangeInput(
+      input,
+    );
+
+  const passwordQuality =
+    assessPasswordQuality({
+      password:
+        parsedInput.newPassword,
+      emailNormalized:
+        auth.email
+          .trim()
+          .toLowerCase(),
+      displayName:
+        auth.displayName,
+    });
+
+  if (!passwordQuality.accepted) {
+    throw new AuthWeakPasswordError(
+      passwordQuality.rejectionReason ??
+        "common-or-predictable",
+    );
+  }
+
+  const [credential, localIdentity] =
+    await Promise.all([
+      findAuthCredentialByUserId(
+        auth.userId,
+      ),
+      findAuthIdentityByUserAndProvider(
+        auth.userId,
+        "local",
+      ),
+    ]);
+
+  if (credential || localIdentity) {
+    throw new AuthPasswordAlreadyConfiguredError();
+  }
+
+  const passwordHash = await hashPassword(
+    parsedInput.newPassword,
+  );
+
+  const addedAt = new Date();
+  const passwordAddedAuditId =
+    new ObjectId();
+  const auditMetadata =
+    createAuditMetadata(
+      requestMetadata,
+    );
+
+  const client = await getMongoClient();
+  const session = client.startSession();
+
+  try {
+    await session.withTransaction(
+      async () => {
+        const user =
+          await findActiveUserById(
+            auth.userId,
+            session,
+          );
+
+        if (!user) {
+          throw new AuthPersistenceError(
+            "The active account could not be loaded.",
+          );
+        }
+
+        const existingCredential =
+          await findAuthCredentialByUserId(
+            user._id,
+            session,
+          );
+        const existingLocalIdentity =
+          await findAuthIdentityByUserAndProvider(
+            user._id,
+            "local",
+            session,
+          );
+
+        if (
+          existingCredential ||
+          existingLocalIdentity
+        ) {
+          throw new AuthPasswordAlreadyConfiguredError();
+        }
+
+        await createAuthIdentity(
+          {
+            identityId: new ObjectId(),
+            userId: user._id,
+            provider: "local",
+            providerSubject:
+              randomUUID(),
+            createdAt: addedAt,
+          },
+          session,
+        );
+
+        await createAuthCredential(
+          {
+            credentialId: new ObjectId(),
+            userId: user._id,
+            passwordHash,
+            createdAt: addedAt,
+          },
+          session,
+        );
+
+        await createAuthAuditEvent(
+          {
+            auditEventId:
+              passwordAddedAuditId,
+            userId: user._id,
+            eventType: "password-changed",
+            outcome: "success",
+            ...auditMetadata,
+            details: {
+              source:
+                "account-add-password",
+              passwordAdded: true,
+              sessionsRevoked: 0,
+              sessionRotated: false,
+            },
+            createdAt: addedAt,
+          },
+          session,
+        );
+      },
+      ACCOUNT_MUTATION_TRANSACTION_OPTIONS,
+    );
+  } catch (error) {
+    if (
+      error instanceof AuthPersistenceError ||
+      error instanceof AuthPasswordAlreadyConfiguredError
+    ) {
+      throw error;
+    }
+
+    if (isMongoDuplicateKeyError(error)) {
+      throw new AuthPasswordAlreadyConfiguredError();
+    }
+
+    throw new AuthPersistenceError(
+      "The FilmGeezer password could not be added.",
+      {
+        cause: error,
+      },
+    );
+  } finally {
+    await session.endSession();
+  }
+
+  try {
+    await sendPasswordAddedNoticeEmail({
+      recipientEmail: auth.email,
+      displayName: auth.displayName,
+      addedAt,
+      idempotencyKey:
+        `password-added-notice/${passwordAddedAuditId.toHexString()}`,
+      userId:
+        auth.userId.toHexString(),
+    });
+  } catch (error) {
+    /*
+     * The new local credential has already committed. Email-provider
+     * availability must not undo a successful sign-in-method change.
+     */
+    console.error(
+      "[account-password] Password-added security email could not be submitted.",
+      {
+        name:
+          error instanceof Error
+            ? error.name
+            : "UnknownError",
+      },
+    );
+  }
+
+  return {
+    addedAt,
+  };
 }
 
 export async function changeAccountPassword(
@@ -567,7 +797,7 @@ export async function changeAccountPassword(
     );
 
   const preparedSession =
-    prepareLocalAuthSession(
+    prepareAuthSession(
       requestMetadata,
       changedAt,
     );
@@ -648,8 +878,9 @@ export async function changeAccountPassword(
               session,
             );
 
-          await createPreparedLocalAuthSession(
+          await createPreparedAuthSession(
             user._id,
+            auth.provider,
             preparedSession,
             session,
           );
@@ -673,6 +904,8 @@ export async function changeAccountPassword(
                   "authenticated-account",
                 sessionsRevoked,
                 sessionRotated: true,
+                sessionProvider:
+                  auth.provider,
               },
               createdAt: changedAt,
             },
@@ -680,8 +913,9 @@ export async function changeAccountPassword(
           );
 
           return {
-            ...createLocalAuthSessionResult(
+            ...createAuthSessionResult(
               user,
+              auth.provider,
               preparedSession,
             ),
             changedAt,

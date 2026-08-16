@@ -273,6 +273,8 @@ const environmentSchema = z
 
     AUTH_SESSION_PEPPER: secretPepperSchema,
 
+    GOOGLE_AUTH_CLIENT_ID: optionalTrimmedStringSchema,
+
     ADMIN_MFA_REQUIRED: booleanEnvironmentSchema.default(false),
     ADMIN_MFA_ENCRYPTION_KEY: optionalAdminMfaEncryptionKeySchema,
     ADMIN_MFA_RECOVERY_PEPPER: optionalSecretPepperSchema,

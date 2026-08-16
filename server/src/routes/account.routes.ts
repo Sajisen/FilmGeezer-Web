@@ -11,8 +11,12 @@ import {
 } from "express-rate-limit";
 
 import {
+  addCurrentAccountPassword,
   changeCurrentAccountPassword,
   confirmCurrentAccountPassword,
+  disconnectCurrentAccountGoogleConnection,
+  replaceCurrentAccountGoogleConnection,
+  requestCurrentAccountPasswordSetup,
   getCurrentAccountDetails,
   getCurrentAccountSessions,
   revokeCurrentAccountSession,
@@ -42,6 +46,7 @@ import {
   AUTH_EMAIL_CHANGE_REQUEST_HTTP_POLICY,
   AUTH_EMAIL_CHANGE_RESEND_HTTP_POLICY,
   AUTH_EMAIL_CHANGE_VERIFY_HTTP_POLICY,
+  AUTH_GOOGLE_HTTP_POLICY,
   AUTH_PASSWORD_CHANGE_HTTP_POLICY,
   AUTH_RECENT_AUTHENTICATION_HTTP_POLICY,
 } from "../features/auth/auth.constants.js";
@@ -166,7 +171,7 @@ const recentAuthenticationRateLimit =
     code:
       "AUTH_RECENT_AUTHENTICATION_RATE_LIMITED",
     message:
-      "Too many password-confirmation attempts. Please wait before trying again.",
+      "Too many identity-confirmation attempts. Please wait before trying again.",
   });
 
 const passwordChangeRateLimit =
@@ -401,6 +406,53 @@ router.post(
     strict: true,
   }),
   confirmCurrentAccountPassword,
+);
+
+router.post(
+  "/password-setup/request",
+  passwordChangeRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requestCurrentAccountPasswordSetup,
+);
+
+router.post(
+  "/google",
+  recentAuthenticationRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requireRecentAuthentication,
+  requireJsonContentType,
+  json({
+    limit: AUTH_GOOGLE_HTTP_POLICY.requestBodyLimit,
+    strict: true,
+  }),
+  replaceCurrentAccountGoogleConnection,
+);
+
+router.delete(
+  "/google",
+  recentAuthenticationRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requireRecentAuthentication,
+  disconnectCurrentAccountGoogleConnection,
+);
+
+router.post(
+  "/add-password",
+  passwordChangeRateLimit,
+  requireAuthenticatedSession,
+  requireAuthCsrfProtection,
+  requireRecentAuthentication,
+  requireJsonContentType,
+  json({
+    limit:
+      AUTH_PASSWORD_CHANGE_HTTP_POLICY
+        .requestBodyLimit,
+    strict: true,
+  }),
+  addCurrentAccountPassword,
 );
 
 router.post(

@@ -9,11 +9,23 @@ import {
 } from "zod";
 
 import {
+  addAccountPassword,
   changeAccountPassword,
   confirmAccountPassword,
   getAccountDetails,
   updateAccountProfile,
 } from "../features/account/account.service.js";
+
+
+import {
+  AccountGoogleManagementError,
+  disconnectAccountGoogleConnection,
+  replaceAccountGoogleConnection,
+} from "../features/account/account.google-management.service.js";
+
+import {
+  requestPasswordReset,
+} from "../features/auth/auth.password-reset-request.service.js";
 
 import {
   getAccountSessions,
@@ -22,6 +34,9 @@ import {
 
 import {
   AuthCurrentPasswordInvalidError,
+  AuthGoogleAuthenticationError,
+  AuthGoogleConfigurationError,
+  AuthPasswordAlreadyConfiguredError,
   AuthPasswordReuseError,
   AuthPersistenceError,
   AuthSessionManagementError,
@@ -139,9 +154,19 @@ export async function getCurrentAccountDetails(
       },
 
       security: {
+        passwordConfigured:
+          result.security.passwordConfigured,
+
         passwordChangedAt:
           result.security.passwordChangedAt
-            .toISOString(),
+            ?.toISOString() ??
+          null,
+
+        googleConnected:
+          result.security.googleConnected,
+
+        googleEmail:
+          result.security.googleEmail,
 
         recentAuthenticationExpiresAt:
           result.security
@@ -290,6 +315,190 @@ export async function confirmCurrentAccountPassword(
   }
 }
 
+export async function requestCurrentAccountPasswordSetup(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  response.setHeader("Cache-Control", "no-store");
+
+  try {
+    const auth = getAuthenticatedSessionContext(request);
+    const details = await getAccountDetails(auth);
+
+    await requestPasswordReset(
+      { email: details.account.email },
+      createRequestMetadata(request),
+      request.get("origin"),
+    );
+
+    response.status(202).json({
+      status: "success",
+      code: "ACCOUNT_PASSWORD_SETUP_EMAIL_SENT",
+      message:
+        "We sent a secure password setup link to your FilmGeezer email address.",
+    });
+  } catch (error) {
+    if (error instanceof AuthPersistenceError) {
+      response.status(503).json({
+        status: "error",
+        code: "ACCOUNT_TEMPORARILY_UNAVAILABLE",
+        message:
+          "Password setup is temporarily unavailable. Please try again shortly.",
+      });
+      return;
+    }
+
+    next(error);
+  }
+}
+
+export async function replaceCurrentAccountGoogleConnection(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  response.setHeader("Cache-Control", "no-store");
+
+  try {
+    const auth = getAuthenticatedSessionContext(request);
+    const result = await replaceAccountGoogleConnection(
+      request.body,
+      auth,
+      createRequestMetadata(request),
+    );
+
+    response.status(200).json({
+      status: "success",
+      code: result.changed
+        ? "ACCOUNT_GOOGLE_CONNECTION_CHANGED"
+        : "ACCOUNT_GOOGLE_CONNECTION_UNCHANGED",
+      message: result.changed
+        ? "Google sign-in has been updated for your FilmGeezer email."
+        : "This Google account is already connected.",
+      googleEmail: result.googleEmail,
+      changed: result.changed,
+      sessionsRevoked: result.sessionsRevoked,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      response.status(400).json({
+        status: "error",
+        code: "AUTH_INVALID_GOOGLE_INPUT",
+        message: "The Google response is invalid. Please try again.",
+      });
+      return;
+    }
+
+    if (error instanceof AccountGoogleManagementError) {
+      const status =
+        error.reason === "google-account-in-use" ? 409 : 400;
+      const message =
+        error.reason === "password-required"
+          ? "Add and confirm your FilmGeezer password before changing Google sign-in."
+          : error.reason === "google-account-in-use"
+            ? "That Google account is already connected to another FilmGeezer account."
+            : error.reason === "email-mismatch"
+              ? "Choose the Google account that uses the same email as your FilmGeezer account."
+              : "No Google account is currently connected.";
+
+      response.status(status).json({
+        status: "error",
+        code: "ACCOUNT_GOOGLE_MANAGEMENT_REJECTED",
+        message,
+      });
+      return;
+    }
+
+    if (error instanceof AuthGoogleAuthenticationError) {
+      response.status(401).json({
+        status: "error",
+        code: "AUTH_GOOGLE_AUTHENTICATION_REJECTED",
+        message: "Google could not verify that account. Please try again.",
+      });
+      return;
+    }
+
+    if (error instanceof AuthGoogleConfigurationError) {
+      response.status(503).json({
+        status: "error",
+        code: "AUTH_GOOGLE_TEMPORARILY_UNAVAILABLE",
+        message: "Google sign-in is temporarily unavailable.",
+      });
+      return;
+    }
+
+    if (error instanceof AuthPersistenceError) {
+      console.error("[account-google] Google connection update failed.", {
+        name: error.name,
+        causeName:
+          error.cause instanceof Error ? error.cause.name : null,
+      });
+      response.status(503).json({
+        status: "error",
+        code: "ACCOUNT_TEMPORARILY_UNAVAILABLE",
+        message: "Google sign-in settings are temporarily unavailable.",
+      });
+      return;
+    }
+
+    next(error);
+  }
+}
+
+export async function disconnectCurrentAccountGoogleConnection(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  response.setHeader("Cache-Control", "no-store");
+
+  try {
+    const auth = getAuthenticatedSessionContext(request);
+    const result = await disconnectAccountGoogleConnection(
+      auth,
+      createRequestMetadata(request),
+    );
+
+    response.status(200).json({
+      status: "success",
+      code: "ACCOUNT_GOOGLE_CONNECTION_DISCONNECTED",
+      message: "Google sign-in has been disconnected from this account.",
+      disconnectedAt: result.disconnectedAt.toISOString(),
+      sessionsRevoked: result.sessionsRevoked,
+    });
+  } catch (error) {
+    if (error instanceof AccountGoogleManagementError) {
+      const message =
+        error.reason === "password-required"
+          ? "Add and confirm your FilmGeezer password before disconnecting Google sign-in."
+          : "No Google account is currently connected.";
+      response.status(400).json({
+        status: "error",
+        code: "ACCOUNT_GOOGLE_MANAGEMENT_REJECTED",
+        message,
+      });
+      return;
+    }
+
+    if (error instanceof AuthPersistenceError) {
+      console.error("[account-google] Google disconnect failed.", {
+        name: error.name,
+        causeName:
+          error.cause instanceof Error ? error.cause.name : null,
+      });
+      response.status(503).json({
+        status: "error",
+        code: "ACCOUNT_TEMPORARILY_UNAVAILABLE",
+        message: "Google sign-in settings are temporarily unavailable.",
+      });
+      return;
+    }
+
+    next(error);
+  }
+}
+
 export async function updateCurrentAccountProfile(
   request: Request,
   response: Response,
@@ -366,6 +575,105 @@ export async function updateCurrentAccountProfile(
           "Your profile cannot be updated right now. Please try again shortly.",
       });
 
+      return;
+    }
+
+    next(error);
+  }
+}
+
+export async function addCurrentAccountPassword(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  response.setHeader(
+    "Cache-Control",
+    "no-store",
+  );
+
+  try {
+    const auth =
+      getAuthenticatedSessionContext(
+        request,
+      );
+
+    const result =
+      await addAccountPassword(
+        request.body,
+        auth,
+        createRequestMetadata(
+          request,
+        ),
+      );
+
+    response.status(200).json({
+      status: "success",
+      code: "ACCOUNT_PASSWORD_ADDED",
+      message:
+        "A FilmGeezer password has been added to your account.",
+      addedAt:
+        result.addedAt.toISOString(),
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      response.status(400).json({
+        status: "error",
+        code:
+          "ACCOUNT_INVALID_PASSWORD_INPUT",
+        message:
+          "Check the new password and try again.",
+        errors:
+          createValidationDetails(
+            error,
+            ["newPassword"],
+          ),
+      });
+      return;
+    }
+
+    if (error instanceof AuthWeakPasswordError) {
+      response.status(400).json({
+        status: "error",
+        code: error.code,
+        message: error.message,
+        errors: {
+          form: [],
+          fields: {
+            newPassword: [
+              error.message,
+            ],
+          },
+        },
+      });
+      return;
+    }
+
+    if (error instanceof AuthPasswordAlreadyConfiguredError) {
+      response.status(409).json({
+        status: "error",
+        code: error.code,
+        message: error.message,
+      });
+      return;
+    }
+
+    if (error instanceof AuthPersistenceError) {
+      console.error(
+        "[account-password] Password setup failed.",
+        {
+          name: error.name,
+          code: error.code,
+        },
+      );
+
+      response.status(503).json({
+        status: "error",
+        code:
+          "ACCOUNT_TEMPORARILY_UNAVAILABLE",
+        message:
+          "Your password cannot be added right now. Please try again shortly.",
+      });
       return;
     }
 

@@ -22,6 +22,8 @@ export interface CreateAuthIdentityInput {
 
   provider: AuthProvider;
   providerSubject: string;
+  providerEmailNormalized?: string | null;
+  providerEmailDisplay?: string | null;
 
   createdAt: Date;
 }
@@ -43,6 +45,10 @@ export async function createAuthIdentity(
       provider: input.provider,
       providerSubject:
         input.providerSubject,
+      providerEmailNormalized:
+        input.providerEmailNormalized ?? null,
+      providerEmailDisplay:
+        input.providerEmailDisplay ?? null,
 
       createdAt: input.createdAt,
       updatedAt: input.createdAt,
@@ -56,6 +62,28 @@ export async function createAuthIdentity(
   );
 
   return identity;
+}
+
+
+export async function findAuthIdentityByProviderAndSubject(
+  provider: AuthProvider,
+  providerSubject: string,
+  session?: ClientSession,
+): Promise<AuthIdentityDocument | null> {
+  const { identities } =
+    await getAuthCollections();
+
+  return identities.findOne(
+    {
+      provider,
+      providerSubject,
+    },
+    session
+      ? {
+          session,
+        }
+      : undefined,
+  );
 }
 
 export async function findAuthIdentityByUserAndProvider(
@@ -77,4 +105,96 @@ export async function findAuthIdentityByUserAndProvider(
         }
       : undefined,
   );
+}
+
+
+export interface UpdateAuthIdentityProviderEmailInput {
+  identityId: ObjectId;
+  providerEmailNormalized: string;
+  providerEmailDisplay: string;
+  updatedAt: Date;
+}
+
+export async function updateAuthIdentityProviderEmail(
+  input: UpdateAuthIdentityProviderEmailInput,
+  session?: ClientSession,
+): Promise<boolean> {
+  const { identities } =
+    await getAuthCollections();
+
+  const result = await identities.updateOne(
+    {
+      _id: input.identityId,
+    },
+    {
+      $set: {
+        providerEmailNormalized:
+          input.providerEmailNormalized,
+        providerEmailDisplay:
+          input.providerEmailDisplay,
+        updatedAt: input.updatedAt,
+      },
+    },
+    session
+      ? {
+          session,
+        }
+      : undefined,
+  );
+
+  return result.matchedCount === 1;
+}
+
+export async function replaceGoogleIdentityForUser(
+  input: {
+    identityId: ObjectId;
+    userId: ObjectId;
+    expectedProviderSubject: string;
+    providerSubject: string;
+    providerEmailNormalized: string;
+    providerEmailDisplay: string;
+    updatedAt: Date;
+  },
+  session: ClientSession,
+): Promise<boolean> {
+  const { identities } = await getAuthCollections();
+
+  const result = await identities.updateOne(
+    {
+      _id: input.identityId,
+      userId: input.userId,
+      provider: "google",
+      providerSubject: input.expectedProviderSubject,
+    },
+    {
+      $set: {
+        providerSubject: input.providerSubject,
+        providerEmailNormalized: input.providerEmailNormalized,
+        providerEmailDisplay: input.providerEmailDisplay,
+        updatedAt: input.updatedAt,
+      },
+    },
+    { session },
+  );
+
+  return result.matchedCount === 1;
+}
+
+export async function deleteAuthIdentityByUserAndProvider(
+  userId: ObjectId,
+  provider: AuthProvider,
+  session: ClientSession,
+): Promise<number> {
+  const { identities } =
+    await getAuthCollections();
+
+  const result = await identities.deleteMany(
+    {
+      userId,
+      provider,
+    },
+    { session },
+  );
+
+  return result.deletedCount;
 }

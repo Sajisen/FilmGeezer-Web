@@ -22,6 +22,8 @@ import {
   PasswordField,
 } from "./AuthFields";
 
+import GoogleAuthPanel from "./GoogleAuthPanel";
+
 interface LoginFormProps {
   initialEmail?: string;
   notice?: string | null;
@@ -62,6 +64,19 @@ function LoginForm({
   ] = useState(false);
 
   const [
+    isGoogleSubmitting,
+    setIsGoogleSubmitting,
+  ] = useState(false);
+
+  const [
+    isGoogleDirty,
+    setIsGoogleDirty,
+  ] = useState(false);
+
+  const isBusy =
+    isSubmitting || isGoogleSubmitting;
+
+  const [
     submissionError,
     setSubmissionError,
   ] = useState<string | null>(
@@ -82,14 +97,27 @@ function LoginForm({
   });
 
   useEffect(() => {
-    onBusyChange(isSubmitting);
+    onBusyChange(isBusy);
 
     return () => {
       onBusyChange(false);
     };
   }, [
-    isSubmitting,
+    isBusy,
     onBusyChange,
+  ]);
+
+  useEffect(() => {
+    onDirtyChange(
+      email.length > 0 ||
+        password.length > 0 ||
+        isGoogleDirty,
+    );
+  }, [
+    email,
+    isGoogleDirty,
+    onDirtyChange,
+    password,
   ]);
 
   async function handleSubmit(
@@ -98,7 +126,7 @@ function LoginForm({
   ) {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (isBusy) {
       return;
     }
 
@@ -117,7 +145,7 @@ function LoginForm({
         password,
       });
 
-      onDirtyChange(false);
+      setIsGoogleDirty(false);
       await onAuthenticated();
     } catch (error) {
       if (
@@ -136,7 +164,7 @@ function LoginForm({
             "string" &&
           challengeId.length > 0
         ) {
-          onDirtyChange(false);
+          setIsGoogleDirty(false);
 
           onVerificationRequired(
             {
@@ -197,7 +225,7 @@ function LoginForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4"
+      className="space-y-3.5"
       noValidate
     >
       {notice ? (
@@ -208,6 +236,14 @@ function LoginForm({
           {notice}
         </div>
       ) : null}
+
+      <GoogleAuthPanel
+        disabled={isBusy}
+        onAuthenticated={onAuthenticated}
+        onVerificationRequired={onVerificationRequired}
+        onBusyChange={setIsGoogleSubmitting}
+        onDirtyChange={setIsGoogleDirty}
+      />
 
       <AuthFormMessage
         message={submissionError}
@@ -224,7 +260,7 @@ function LoginForm({
         autoFocus
         required
         value={email}
-        disabled={isSubmitting}
+        disabled={isBusy}
         errorMessages={
           fieldErrors.email
         }
@@ -234,11 +270,6 @@ function LoginForm({
             event.target.value;
 
           setEmail(nextEmail);
-
-          onDirtyChange(
-            nextEmail.length > 0 ||
-              password.length > 0,
-          );
 
           if (
             fieldErrors.email
@@ -262,7 +293,7 @@ function LoginForm({
         autoComplete="current-password"
         required
         value={password}
-        disabled={isSubmitting}
+        disabled={isBusy}
         errorMessages={
           fieldErrors.password
         }
@@ -273,11 +304,6 @@ function LoginForm({
 
           setPassword(
             nextPassword,
-          );
-
-          onDirtyChange(
-            email.length > 0 ||
-              nextPassword.length > 0,
           );
 
           if (
@@ -304,7 +330,7 @@ function LoginForm({
               email.trim(),
             );
           }}
-          disabled={isSubmitting}
+          disabled={isBusy}
           className="text-sm font-semibold text-sky-300 transition hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Forgot password?
@@ -318,6 +344,7 @@ function LoginForm({
           isSubmitting
         }
         disabled={
+          isBusy ||
           email.trim().length === 0 ||
           password.length === 0
         }
@@ -331,7 +358,7 @@ function LoginForm({
           onClick={
             onSwitchToRegistration
           }
-          disabled={isSubmitting}
+          disabled={isBusy}
           className="font-semibold text-sky-300 transition hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Create an account

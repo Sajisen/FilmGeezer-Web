@@ -24,6 +24,7 @@ import EmailChangePanel from "../features/account/components/EmailChangePanel";
 import EmailPreferencesPanel from "../features/account/components/EmailPreferencesPanel";
 import ProfileEditor from "../features/account/components/ProfileEditor";
 import RecentPasswordDialog from "../features/account/components/RecentPasswordDialog";
+import GoogleConnectionDialog from "../features/account/components/GoogleConnectionDialog";
 import SessionManager from "../features/account/components/SessionManager";
 import AccountIcon from "../features/account/components/AccountSectionIcons";
 
@@ -35,6 +36,7 @@ import {
   getAccountDetails,
   getAccountEmailChangeStatus,
   getAccountSessions,
+  requestAccountPasswordSetup,
   revokeAccountSession,
 } from "../services/accountService";
 
@@ -53,7 +55,8 @@ type SensitiveAction =
   | "change-email"
   | "sign-out-all"
   | "deactivate-account"
-  | "revoke-session";
+  | "revoke-session"
+  | "manage-google";
 
 function formatDateOnly(
   value: string | null | undefined,
@@ -166,6 +169,12 @@ function AccountPage() {
     useState(false);
 
   const [showAccountDeactivation, setShowAccountDeactivation] =
+    useState(false);
+
+  const [showGoogleConnection, setShowGoogleConnection] =
+    useState(false);
+
+  const [isRequestingPasswordSetup, setIsRequestingPasswordSetup] =
     useState(false);
 
   const [pendingSensitiveAction, setPendingSensitiveAction] =
@@ -540,12 +549,49 @@ function AccountPage() {
     }
   }
 
+  async function handlePasswordSetupRequest() {
+    if (isRequestingPasswordSetup || !csrfToken) {
+      return;
+    }
+
+    setIsRequestingPasswordSetup(true);
+    setSecurityError(null);
+    setSecurityMessage(null);
+
+    try {
+      const response = await requestAccountPasswordSetup(csrfToken);
+      setSecurityMessage(
+        `${response.message} Open the link in your inbox to create the password; FilmGeezer will sign out existing sessions when setup finishes.`,
+      );
+    } catch (error) {
+      setSecurityError(
+        error instanceof Error
+          ? error.message
+          : "FilmGeezer could not start secure password setup.",
+      );
+    } finally {
+      setIsRequestingPasswordSetup(false);
+    }
+  }
+
   function beginSensitiveAction(
     action: SensitiveAction,
     session: AccountSession | null = null,
   ) {
     setSecurityError(null);
     setSecurityMessage(null);
+
+    if (!details?.security.passwordConfigured) {
+      if (action === "change-password") {
+        void handlePasswordSetupRequest();
+      } else {
+        setActiveTab("security");
+        setSecurityError(
+          "Add a FilmGeezer password before making sensitive account changes. Password setup is verified through your FilmGeezer email, not an existing Google browser session.",
+        );
+      }
+      return;
+    }
 
     if (session) {
       setPendingSessionToRevoke(session);
@@ -564,6 +610,8 @@ function AccountPage() {
       void handleSignOutAll();
     } else if (action === "deactivate-account") {
       setShowAccountDeactivation(true);
+    } else if (action === "manage-google") {
+      setShowGoogleConnection(true);
     } else if (
       action === "revoke-session" &&
       session
@@ -588,7 +636,9 @@ function AccountPage() {
   const recentPasswordDialogTitle =
     pendingSensitiveAction ===
       "change-password"
-      ? "Confirm password change"
+      ? details?.security.passwordConfigured
+        ? "Confirm password change"
+        : "Confirm password setup"
       : pendingSensitiveAction ===
           "change-email"
         ? "Confirm email change"
@@ -598,22 +648,28 @@ function AccountPage() {
           : pendingSensitiveAction ===
               "deactivate-account"
             ? "Confirm account deactivation"
-            : "Confirm device sign out";
+            : pendingSensitiveAction === "manage-google"
+              ? "Confirm Google sign-in change"
+              : "Confirm device sign out";
 
   const recentPasswordDialogDescription =
     pendingSensitiveAction ===
       "change-password"
-      ? "Enter your current password before choosing a new one."
+      ? details?.security.passwordConfigured
+        ? "Confirm your identity before choosing a new FilmGeezer password."
+        : "Confirm your identity before adding a FilmGeezer password to this account."
       : pendingSensitiveAction ===
           "change-email"
-        ? "Enter your current password before sending a code to a new email address."
+        ? "Confirm your identity before sending a code to a new email address."
         : pendingSensitiveAction ===
             "sign-out-all"
-          ? "Enter your current password before signing out every device."
+          ? "Confirm your identity before signing out every device."
           : pendingSensitiveAction ===
               "deactivate-account"
-            ? "Enter your current password before deactivating your FilmGeezer account."
-            : "Enter your current password before signing out this device.";
+            ? "Confirm your identity before deactivating your FilmGeezer account."
+            : pendingSensitiveAction === "manage-google"
+              ? "Enter your current FilmGeezer password before connecting or disconnecting Google sign-in."
+              : "Confirm your identity before signing out this device.";
 
   if (
     auth.status === "loading" ||
@@ -842,6 +898,7 @@ function AccountPage() {
                   {showEmailChange ? (
                     <EmailChangePanel
                       currentEmail={details.account.email}
+                      googleConnected={details.security.googleConnected}
                       csrfToken={csrfToken}
                       initialPending={pendingEmailChange}
                       onPendingChange={setPendingEmailChange}
@@ -879,7 +936,9 @@ function AccountPage() {
                             </p>
                           ) : (
                             <p className="mt-2 text-sm text-slate-500">
-                              Used to sign in and recover your account.
+                              {details.security.passwordConfigured
+                                ? "Used to sign in and recover your account."
+                                : "Used for account communication and security notices."}
                             </p>
                           )}
                         </div>
@@ -897,8 +956,62 @@ function AccountPage() {
                     </section>
                   )}
 
+                  <section className="flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-xl shadow-black/15 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+                    <div className="flex min-w-0 items-start gap-3.5">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-300/15 bg-sky-400/10 text-sky-200">
+                        <AccountIcon name="check" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-white">
+                          Google sign-in
+                        </h3>
+                        <p className="mt-1 break-all text-sm font-medium text-slate-300">
+                          {details.security.googleConnected
+                            ? details.security.googleEmail ?? "Connected Google account"
+                            : "Not connected"}
+                        </p>
+                        {details.security.googleConnected &&
+                        details.security.googleEmail &&
+                        details.security.googleEmail.trim().toLowerCase() !==
+                          details.account.email.trim().toLowerCase() ? (
+                          <div className="mt-2 rounded-lg border border-amber-300/20 bg-amber-400/[0.07] px-3 py-2">
+                            <p className="text-xs font-semibold leading-5 text-amber-100">
+                              This Google connection uses a different email from your FilmGeezer account.
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-amber-100/70">
+                              Reconnect Google using {details.account.email}, or disconnect Google sign-in.
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm text-slate-500">
+                            {details.security.googleConnected
+                              ? "Use Google as an additional sign-in method for this same FilmGeezer email."
+                              : "Connect Google as an optional second sign-in method. The Google email must match your FilmGeezer email."}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        beginSensitiveAction("manage-google");
+                      }}
+                      className="mt-auto min-h-10 w-full rounded-xl border border-sky-300/20 bg-sky-400/10 px-4 text-sm font-bold text-sky-100 transition hover:bg-sky-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:mt-0 lg:w-auto lg:min-w-36"
+                    >
+                      {details.security.googleConnected
+                        ? "Manage Google"
+                        : "Connect Google"}
+                    </button>
+                  </section>
+
                   {showChangePassword ? (
                     <ChangePasswordPanel
+                      mode={
+                        details.security.passwordConfigured
+                          ? "change"
+                          : "add"
+                      }
                       csrfToken={csrfToken}
                       email={details.account.email}
                       displayName={details.account.displayName}
@@ -928,12 +1041,16 @@ function AccountPage() {
                             Password
                           </h3>
                           <p className="mt-1 text-sm text-slate-300">
-                            Last changed {formatDateOnly(
-                              details.security.passwordChangedAt,
-                            )}
+                            {details.security.passwordConfigured
+                              ? `Last changed ${formatDateOnly(
+                                  details.security.passwordChangedAt,
+                                )}`
+                              : "No FilmGeezer password is set yet."}
                           </p>
                           <p className="mt-2 text-sm text-slate-500">
-                            Use a password you do not use on another service.
+                            {details.security.passwordConfigured
+                              ? "Use a password you do not use on another service."
+                              : "Add one if you also want to sign in with your FilmGeezer email and password."}
                           </p>
                         </div>
                       </div>
@@ -945,9 +1062,14 @@ function AccountPage() {
                             "change-password",
                           );
                         }}
-                        className="mt-auto min-h-10 w-full rounded-xl border border-sky-300/20 bg-sky-400/10 px-4 text-sm font-bold text-sky-100 transition hover:bg-sky-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 lg:mt-0 lg:w-auto lg:min-w-36"
+                        disabled={isRequestingPasswordSetup}
+                        className="mt-auto min-h-10 w-full rounded-xl border border-sky-300/20 bg-sky-400/10 px-4 text-sm font-bold text-sky-100 transition hover:bg-sky-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-wait disabled:opacity-60 lg:mt-0 lg:w-auto lg:min-w-36"
                       >
-                        Change password
+                        {details.security.passwordConfigured
+                          ? "Change password"
+                          : isRequestingPasswordSetup
+                            ? "Sending link…"
+                            : "Add password"}
                       </button>
                     </section>
                   )}
@@ -1028,11 +1150,48 @@ function AccountPage() {
         />
       )}
 
+      {showGoogleConnection && (
+        <GoogleConnectionDialog
+          csrfToken={csrfToken}
+          connected={details.security.googleConnected}
+          accountEmail={details.account.email}
+          googleEmail={details.security.googleEmail}
+          onCancel={() => {
+            setShowGoogleConnection(false);
+          }}
+          onChanged={async (response) => {
+            setShowGoogleConnection(false);
+            setSecurityMessage(response.message);
+
+            if (details.account.provider === "google" && response.sessionsRevoked > 0) {
+              await refreshAuthSession();
+              navigate("/", { replace: true });
+              return;
+            }
+
+            await refreshAccountAfterMutation();
+          }}
+          onDisconnected={async (response) => {
+            setShowGoogleConnection(false);
+            setSecurityMessage(response.message);
+
+            if (details.account.provider === "google") {
+              await refreshAuthSession();
+              navigate("/", { replace: true });
+              return;
+            }
+
+            await refreshAccountAfterMutation();
+          }}
+        />
+      )}
+
       {pendingSensitiveAction && (
         <RecentPasswordDialog
           csrfToken={csrfToken}
           title={recentPasswordDialogTitle}
           description={recentPasswordDialogDescription}
+          passwordConfigured={details.security.passwordConfigured}
           onCancel={() => {
             setPendingSensitiveAction(null);
             setPendingSessionToRevoke(null);
@@ -1054,6 +1213,8 @@ function AccountPage() {
               void handleSignOutAll();
             } else if (action === "deactivate-account") {
               setShowAccountDeactivation(true);
+            } else if (action === "manage-google") {
+              setShowGoogleConnection(true);
             } else if (
               action === "revoke-session" &&
               session
