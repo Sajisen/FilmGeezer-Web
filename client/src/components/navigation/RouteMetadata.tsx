@@ -159,7 +159,7 @@ function getRouteMetadata(pathname: string): RouteMetadataDefinition {
       title: "Title details | FilmGeezer",
       description:
         "Explore title details, trailers, episodes, availability, and recommendations on FilmGeezer.",
-      indexable: false,
+      indexable: true,
     };
   }
 
