@@ -329,6 +329,7 @@ export async function replyToAdminSupportConversation(
           senderId: admin.userId,
           body: parsedInput.message,
           createdAt,
+          deleteAt: null,
         };
 
         const appended = await appendAdminSupportMessage(

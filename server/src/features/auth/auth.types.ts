@@ -270,4 +270,5 @@ export interface AuthAuditEventDocument {
   >;
 
   createdAt: Date;
+  deleteAt: Date;
 }

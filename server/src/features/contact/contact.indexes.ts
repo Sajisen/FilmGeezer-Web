@@ -7,12 +7,75 @@ import {
   getContactMessagesCollection,
   getContactThreadMessagesCollection,
 } from "./contact.collection.js";
+import { createContactDeleteAt } from "./contact.retention.js";
 
 let contactStoragePromise: Promise<void> | null = null;
+
+async function prepareContactRetentionStorage(): Promise<void> {
+  const conversations = await getContactMessagesCollection();
+  const threadMessages = await getContactThreadMessagesCollection();
+
+  await conversations.updateMany(
+    { status: { $in: ["new", "in-review"] } },
+    { $set: { deleteAt: null } },
+  );
+
+  const openConversationIds = await conversations
+    .find(
+      { status: { $in: ["new", "in-review"] } },
+      { projection: { _id: 1 } },
+    )
+    .map((document) => document._id)
+    .toArray();
+
+  if (openConversationIds.length > 0) {
+    await threadMessages.updateMany(
+      { conversationId: { $in: openConversationIds } },
+      { $set: { deleteAt: null } },
+    );
+  }
+
+  const retainedConversations = await conversations
+    .find(
+      { status: { $in: ["resolved", "spam"] } },
+      {
+        projection: {
+          _id: 1,
+          status: 1,
+          resolvedAt: 1,
+          updatedAt: 1,
+        },
+      },
+    )
+    .toArray();
+
+  for (const conversation of retainedConversations) {
+    const retentionStartedAt =
+      conversation.status === "resolved"
+        ? conversation.resolvedAt ?? conversation.updatedAt
+        : conversation.updatedAt;
+    const deleteAt = createContactDeleteAt(
+      conversation.status,
+      retentionStartedAt,
+    );
+
+    await conversations.updateOne(
+      { _id: conversation._id },
+      { $set: { deleteAt } },
+    );
+
+    await threadMessages.updateMany(
+      { conversationId: conversation._id },
+      { $set: { deleteAt } },
+    );
+  }
+}
 
 async function prepareContactStorage(): Promise<void> {
   const conversations = await getContactMessagesCollection();
   const threadMessages = await getContactThreadMessagesCollection();
+
+  await prepareContactRetentionStorage();
 
   /*
    * Schema version 1 stored the original message directly on the support
@@ -78,6 +141,11 @@ async function prepareContactStorage(): Promise<void> {
       key: { userId: 1, status: 1, lastMessageAt: -1 },
       name: "contact_requester_status_last_message_at",
     },
+    {
+      key: { deleteAt: 1 },
+      name: "contact_delete_at_ttl",
+      expireAfterSeconds: 0,
+    },
   ]);
 
   await threadMessages.updateMany(
@@ -102,6 +170,11 @@ async function prepareContactStorage(): Promise<void> {
       key: { senderId: 1, createdAt: -1 },
       name: "contact_thread_sender_created_at",
       sparse: true,
+    },
+    {
+      key: { deleteAt: 1 },
+      name: "contact_thread_delete_at_ttl",
+      expireAfterSeconds: 0,
     },
   ]);
 }

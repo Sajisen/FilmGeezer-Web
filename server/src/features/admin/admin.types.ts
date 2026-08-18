@@ -229,6 +229,7 @@ export interface AdminAuditEventDocument {
   userAgentSummary: string | null;
   details: Record<string, AdminAuditDetailValue>;
   createdAt: Date;
+  deleteAt: Date;
 }
 
 export interface AdminSessionContext {

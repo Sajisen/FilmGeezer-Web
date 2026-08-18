@@ -148,6 +148,7 @@ export async function submitContactMessage(
         createdAt,
         updatedAt: createdAt,
         resolvedAt: null,
+        deleteAt: null,
       };
 
       const firstMessage: ContactThreadMessageDocument = {
@@ -158,6 +159,7 @@ export async function submitContactMessage(
         ...(accountUserId ? { senderId: accountUserId } : {}),
         body: parsedInput.message,
         createdAt,
+        deleteAt: null,
       };
 
       const session = client.startSession();
@@ -333,6 +335,7 @@ export async function replyToContactConversation(
       senderId: userId,
       body: parsedInput.message,
       createdAt,
+      deleteAt: null,
     };
 
     try {

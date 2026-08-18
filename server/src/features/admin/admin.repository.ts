@@ -3,6 +3,7 @@ import {
   type ClientSession,
 } from "mongodb";
 
+import { DATA_RETENTION_POLICY } from "../../config/dataRetention.js";
 import { getAuthCollections } from "../auth/auth.collections.js";
 import { getAdminCollections } from "./admin.collections.js";
 import {
@@ -278,6 +279,10 @@ export async function createAdminAuditEvent(
     userAgentSummary: input.userAgentSummary ?? null,
     details: input.details ?? {},
     createdAt: input.createdAt,
+    deleteAt: new Date(
+      input.createdAt.getTime() +
+        DATA_RETENTION_POLICY.adminAuditSeconds * 1_000,
+    ),
   };
 
   await auditEvents.insertOne(

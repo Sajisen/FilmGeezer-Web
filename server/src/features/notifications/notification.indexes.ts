@@ -1,3 +1,4 @@
+import { DATA_RETENTION_POLICY } from "../../config/dataRetention.js";
 import { getUserNotificationsCollection } from "./notification.collection.js";
 
 let notificationStoragePromise: Promise<void> | null = null;
@@ -29,6 +30,11 @@ async function createNotificationIndexes(): Promise<void> {
       },
       name: "user_notifications_user_dedupe_unique",
       unique: true,
+    },
+    {
+      key: { createdAt: 1 },
+      name: "user_notifications_created_at_ttl",
+      expireAfterSeconds: DATA_RETENTION_POLICY.notificationsSeconds,
     },
   ]);
 }

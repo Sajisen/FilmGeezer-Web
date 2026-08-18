@@ -2,6 +2,7 @@ import {
   ObjectId,
   type ClientSession,
 } from "mongodb";
+import { DATA_RETENTION_POLICY } from "../../../config/dataRetention.js";
 import { AUTH_SCHEMA_VERSION } from "../auth.constants.js";
 import { getAuthCollections } from "../auth.collections.js";
 import type {
@@ -48,6 +49,10 @@ export async function createAuthAuditEvent(
     details: input.details ?? {},
 
     createdAt: input.createdAt,
+    deleteAt: new Date(
+      input.createdAt.getTime() +
+        DATA_RETENTION_POLICY.authAuditSeconds * 1_000,
+    ),
   };
 
 await auditEvents.insertOne(

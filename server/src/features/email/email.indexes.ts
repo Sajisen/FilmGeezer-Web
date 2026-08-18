@@ -1,3 +1,5 @@
+import { DATA_RETENTION_POLICY } from "../../config/dataRetention.js";
+
 import {
   getEmailDeliveryCollection,
 } from "./email.collection.js";
@@ -35,6 +37,11 @@ async function createIndexes(): Promise<void> {
       partialFilterExpression: {
         userId: { $type: "objectId" },
       },
+    },
+    {
+      key: { updatedAt: 1 },
+      name: "email_delivery_updated_at_ttl",
+      expireAfterSeconds: DATA_RETENTION_POLICY.emailDeliverySeconds,
     },
   ]);
 }

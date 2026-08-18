@@ -88,6 +88,7 @@ export async function appendOwnedContactConversationMessage(
   session: ClientSession,
 ): Promise<boolean> {
   const conversations = await getContactMessagesCollection();
+  const messages = await getContactThreadMessagesCollection();
 
   const updateResult = await conversations.updateOne(
     {
@@ -104,6 +105,7 @@ export async function appendOwnedContactConversationMessage(
         lastMessageAt: input.updatedAt,
         updatedAt: input.updatedAt,
         resolvedAt: null,
+        deleteAt: null,
       },
       $inc: {
         messageCount: 1,
@@ -115,6 +117,12 @@ export async function appendOwnedContactConversationMessage(
   if (updateResult.matchedCount !== 1) {
     return false;
   }
+
+  await messages.updateMany(
+    { conversationId: input.conversationId },
+    { $set: { deleteAt: null } },
+    { session },
+  );
 
   await insertContactThreadMessage(input.message, session);
   return true;

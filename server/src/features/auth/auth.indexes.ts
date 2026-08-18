@@ -1,3 +1,5 @@
+import { DATA_RETENTION_POLICY } from "../../config/dataRetention.js";
+
 import {
   AUTH_EMAIL_VERIFICATION_POLICY,
 } from "./auth.constants.js";
@@ -62,6 +64,31 @@ async function prepareUserAuthenticationStorage():
   );
 }
 
+
+async function prepareAuthenticationAuditRetention():
+  Promise<void> {
+  const { auditEvents } =
+    await getAuthCollections();
+
+  await auditEvents.updateMany(
+    {
+      createdAt: { $type: "date" },
+      deleteAt: { $exists: false },
+    },
+    [
+      {
+        $set: {
+          deleteAt: {
+            $add: [
+              "$createdAt",
+              DATA_RETENTION_POLICY.authAuditSeconds * 1_000,
+            ],
+          },
+        },
+      },
+    ],
+  );
+}
 
 async function prepareSessionAuthenticationStorage():
   Promise<void> {
@@ -146,6 +173,7 @@ async function createAuthenticationIndexes():
     prepareUserAuthenticationStorage(),
     prepareSessionAuthenticationStorage(),
     prepareChallengeRetentionStorage(),
+    prepareAuthenticationAuditRetention(),
   ]);
 
   await Promise.all([
@@ -335,6 +363,14 @@ async function createAuthenticationIndexes():
         },
         name:
           "auth_audit_events_created_at",
+      },
+      {
+        key: {
+          deleteAt: 1,
+        },
+        name:
+          "auth_audit_events_delete_at_ttl",
+        expireAfterSeconds: 0,
       },
     ]),
   ]);

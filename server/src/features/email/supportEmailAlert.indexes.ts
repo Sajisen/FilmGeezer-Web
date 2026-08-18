@@ -1,3 +1,4 @@
+import { DATA_RETENTION_POLICY } from "../../config/dataRetention.js";
 import { getSupportEmailAlertCollection } from "./supportEmailAlert.collection.js";
 
 let initializePromise: Promise<void> | null = null;
@@ -22,6 +23,15 @@ async function createIndexes(): Promise<void> {
     {
       key: { userId: 1, updatedAt: -1 },
       name: "support_email_alert_user_updated_at",
+    },
+    {
+      key: { updatedAt: 1 },
+      name: "support_email_alert_settled_ttl",
+      expireAfterSeconds:
+        DATA_RETENTION_POLICY.settledSupportEmailAlertSeconds,
+      partialFilterExpression: {
+        pendingMessageCount: 0,
+      },
     },
   ]);
 }

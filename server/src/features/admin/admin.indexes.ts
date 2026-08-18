@@ -1,3 +1,4 @@
+import { DATA_RETENTION_POLICY } from "../../config/dataRetention.js";
 import { ADMIN_SCHEMA_VERSION } from "./admin.constants.js";
 import { getAdminCollections } from "./admin.collections.js";
 import { migrateLegacyAdminRecoveryCodes } from "./admin.recovery.repository.js";
@@ -5,6 +6,29 @@ import { initializeAdminSecurityStates } from "./admin.security.repository.js";
 import { initializeAdminGovernanceState } from "./admin.governance.repository.js";
 
 let initializationPromise: Promise<void> | null = null;
+
+async function prepareAdminAuditRetention(): Promise<void> {
+  const { auditEvents } = await getAdminCollections();
+
+  await auditEvents.updateMany(
+    {
+      createdAt: { $type: "date" },
+      deleteAt: { $exists: false },
+    },
+    [
+      {
+        $set: {
+          deleteAt: {
+            $add: [
+              "$createdAt",
+              DATA_RETENTION_POLICY.adminAuditSeconds * 1_000,
+            ],
+          },
+        },
+      },
+    ],
+  );
+}
 
 async function createAdminIndexes(): Promise<void> {
   const {
@@ -17,6 +41,8 @@ async function createAdminIndexes(): Promise<void> {
     passkeyChallenges,
     securityStates,
   } = await getAdminCollections();
+
+  await prepareAdminAuditRetention();
 
   await sessions.updateMany(
     { schemaVersion: { $ne: ADMIN_SCHEMA_VERSION } },
@@ -69,6 +95,13 @@ async function createAdminIndexes(): Promise<void> {
     auditEvents.createIndex(
       { outcome: 1, createdAt: -1 },
       { name: "admin_audit_outcome_created_at" },
+    ),
+    auditEvents.createIndex(
+      { deleteAt: 1 },
+      {
+        name: "admin_audit_delete_at_ttl",
+        expireAfterSeconds: 0,
+      },
     ),
     mfaFactors.createIndex(
       { userId: 1 },

@@ -13,6 +13,7 @@ import type {
   ContactMessageStatus,
   ContactThreadMessageDocument,
 } from "../contact/contact.types.js";
+import { createContactDeleteAt } from "../contact/contact.retention.js";
 import type { AdminSupportListQuery } from "./admin.support.types.js";
 
 function escapeRegularExpression(value: string): string {
@@ -185,6 +186,7 @@ export async function appendAdminSupportMessage(
         lastMessageAt: input.createdAt,
         updatedAt: input.createdAt,
         resolvedAt: null,
+        deleteAt: null,
       },
       $inc: { messageCount: 1 },
     },
@@ -194,6 +196,12 @@ export async function appendAdminSupportMessage(
   if (result.matchedCount !== 1) {
     return false;
   }
+
+  await messages.updateMany(
+    { conversationId: input.conversationId },
+    { $set: { deleteAt: null } },
+    { session },
+  );
 
   await messages.insertOne(input.message, { session });
   return true;
@@ -209,6 +217,11 @@ export async function updateAdminSupportStatus(
   session: ClientSession,
 ): Promise<boolean> {
   const collection = await getContactMessagesCollection();
+  const messages = await getContactThreadMessagesCollection();
+  const deleteAt = createContactDeleteAt(
+    input.nextStatus,
+    input.updatedAt,
+  );
 
   const result = await collection.updateOne(
     {
@@ -221,10 +234,21 @@ export async function updateAdminSupportStatus(
         updatedAt: input.updatedAt,
         resolvedAt:
           input.nextStatus === "resolved" ? input.updatedAt : null,
+        deleteAt,
       },
     },
     { session },
   );
 
-  return result.matchedCount === 1;
+  if (result.matchedCount !== 1) {
+    return false;
+  }
+
+  await messages.updateMany(
+    { conversationId: input.conversationId },
+    { $set: { deleteAt } },
+    { session },
+  );
+
+  return true;
 }

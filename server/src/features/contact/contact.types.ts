@@ -37,6 +37,7 @@ export interface ContactMessageDocument {
   createdAt: Date;
   updatedAt: Date;
   resolvedAt: Date | null;
+  deleteAt: Date | null;
 }
 
 export interface ContactThreadMessageDocument {
@@ -47,6 +48,7 @@ export interface ContactThreadMessageDocument {
   senderId?: ObjectId;
   body: string;
   createdAt: Date;
+  deleteAt: Date | null;
 }
 
 export interface ContactSubmissionResult {
