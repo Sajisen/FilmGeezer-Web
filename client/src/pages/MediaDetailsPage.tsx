@@ -11,7 +11,9 @@ import type { MediaDetails, MediaItem } from "../types/media";
 import type { ProviderLinksPayload } from "../types/providerLink";
 import { getLanguageName } from "../utils/language";
 import MediaDetailsContainer from "../components/details/MediaDetailsContainer";
-import MediaDetailsMetadata from "../components/details/MediaDetailsMetadata";
+import MediaDetailsMetadata, {
+  MediaDetailsNotFoundMetadata,
+} from "../components/details/MediaDetailsMetadata";
 import MediaTrailerSection from "../components/details/MediaTrailerSection";
 import WatchAvailabilitySection from "../components/details/WatchAvailabilitySection";
 import FeaturedCharactersSection from "../components/details/FeaturedCharactersSection";
@@ -422,8 +424,19 @@ function MediaDetailsPage() {
   }
 
   if (!selectedMedia) {
+    const confirmedMediaType =
+      mediaType === "movie" || mediaType === "tv" ? mediaType : null;
+
     return (
-      <main className="min-h-[calc(100vh-5rem)] bg-slate-950 py-8 text-white sm:py-12 lg:py-16">
+      <>
+        {confirmedMediaType && tmdbId ? (
+          <MediaDetailsNotFoundMetadata
+            mediaType={confirmedMediaType}
+            tmdbId={tmdbId}
+          />
+        ) : null}
+
+        <main className="min-h-[calc(100vh-5rem)] bg-slate-950 py-8 text-white sm:py-12 lg:py-16">
         <ContentContainer>
           <section
             role="status"
@@ -481,7 +494,8 @@ function MediaDetailsPage() {
             </div>
           </section>
         </ContentContainer>
-      </main>
+        </main>
+      </>
     );
   }
 

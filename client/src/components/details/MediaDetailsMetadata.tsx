@@ -143,4 +143,29 @@ function MediaDetailsMetadata({ media }: { media: MediaDetails }) {
   return null;
 }
 
+export function MediaDetailsNotFoundMetadata({
+  mediaType,
+  tmdbId,
+}: {
+  mediaType: "movie" | "tv";
+  tmdbId: string;
+}) {
+  const metadata = useMemo<DocumentMetadataOverride>(() => {
+    const pathname = `/media/${mediaType}/${tmdbId}`;
+
+    return {
+      key: `media-not-found:${mediaType}:${tmdbId}`,
+      pathname,
+      title: "Title not found | FilmGeezer",
+      description: "The requested FilmGeezer title could not be found.",
+      indexable: false,
+      canonicalPath: null,
+    };
+  }, [mediaType, tmdbId]);
+
+  useDocumentMetadataOverride(metadata);
+
+  return null;
+}
+
 export default MediaDetailsMetadata;
