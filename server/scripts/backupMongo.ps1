@@ -49,6 +49,11 @@ if (-not $mongodumpCommand) {
     throw "mongodump was not found. Install MongoDB Database Tools and make sure mongodump is available in PATH."
 }
 
+$mongorestoreCommand = Get-Command mongorestore -ErrorAction SilentlyContinue
+if (-not $mongorestoreCommand) {
+    throw "mongorestore was not found. Install MongoDB Database Tools and make sure mongorestore is available in PATH."
+}
+
 $mongoUri = Get-MongoUriFromEnvFile -Path $EnvironmentFile
 
 New-Item -ItemType Directory -Path $BackupDirectory -Force | Out-Null
@@ -84,9 +89,23 @@ try {
     $sizeMb = [Math]::Round($backupFile.Length / 1MB, 2)
 
     Write-Host ""
-    Write-Host "Backup completed successfully."
+    Write-Host "Verifying backup archive with mongorestore --dryRun..."
+
+    & $mongorestoreCommand.Source `
+        "--config=$tempConfigPath" `
+        "--archive=$backupPath" `
+        --gzip `
+        --dryRun
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Backup file was created, but mongorestore dry-run verification failed with exit code $LASTEXITCODE. Keep the archive for investigation and do not treat it as a verified backup yet."
+    }
+
+    Write-Host ""
+    Write-Host "Backup completed and verified successfully."
     Write-Host "File: $($backupFile.FullName)"
     Write-Host "Size: $sizeMb MB"
+    Write-Host "Verification: mongorestore dry-run passed; no data was imported."
     Write-Host ""
     Write-Host "Each run creates a new timestamped full backup. Existing backups are not deleted or overwritten."
 }
