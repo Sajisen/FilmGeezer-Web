@@ -34,6 +34,8 @@ import resendWebhookRoutes from "./routes/resendWebhook.routes.js";
 
 import { handleHttpError } from "./middleware/httpError.middleware.js";
 import { attachRequestContext } from "./middleware/requestContext.middleware.js";
+import { rejectUntrustedBrowserOrigin } from "./middleware/browserOrigin.middleware.js";
+import { publicApiReadRateLimit } from "./middleware/publicApiRateLimit.middleware.js";
 import {
   applyFilmGeezerApiPolicyHeaders,
   applyStandardSecurityHeaders,
@@ -82,6 +84,14 @@ app.use(
     credentials: true,
   }),
 );
+
+/*
+ * CORS prevents untrusted browser origins from reading API responses. Reject
+ * those browser requests as well so they do not consume FilmGeezer/TMDB work.
+ * Requests without Origin are intentionally allowed; Origin is not a reliable
+ * authentication mechanism for direct or server-to-server HTTP clients.
+ */
+app.use(rejectUntrustedBrowserOrigin);
 
 /*
  * Authentication mounts before the general JSON parser because its
@@ -158,6 +168,16 @@ app.use(
 );
 
 app.use("/api", healthRoutes);
+
+/*
+ * Public discovery endpoints cannot be made secret because they are called by
+ * the browser. Bound abuse at the API itself rather than relying on frontend
+ * throttling, which a scripted client could bypass completely. Health checks
+ * remain outside this limiter so Railway readiness/liveness probes are never
+ * affected.
+ */
+app.use("/api", publicApiReadRateLimit);
+
 app.use("/api", searchRoutes);
 app.use("/api", mediaRoutes);
 app.use("/api", providerLinkRoutes);
