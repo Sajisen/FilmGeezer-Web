@@ -31,6 +31,8 @@ interface GoogleAuthPanelProps {
   ) => void;
   onBusyChange: (isBusy: boolean) => void;
   onDirtyChange: (isDirty: boolean) => void;
+  onLinkConfirmationChange: (isActive: boolean) => void;
+  onForgotPassword?: () => void;
 }
 
 function GoogleAuthPanel({
@@ -39,6 +41,8 @@ function GoogleAuthPanel({
   onVerificationRequired,
   onBusyChange,
   onDirtyChange,
+  onLinkConfirmationChange,
+  onForgotPassword,
 }: GoogleAuthPanelProps) {
   const [isSubmitting, setIsSubmitting] =
     useState(false);
@@ -90,6 +94,7 @@ function GoogleAuthPanel({
           setPendingCredential(null);
           setPassword("");
           onDirtyChange(false);
+          onLinkConfirmationChange(false);
           onVerificationRequired(
             response.verification,
             response.email,
@@ -100,6 +105,7 @@ function GoogleAuthPanel({
         setPendingCredential(null);
         setPassword("");
         onDirtyChange(false);
+        onLinkConfirmationChange(false);
         await onAuthenticated();
       } catch (error) {
         if (
@@ -109,6 +115,7 @@ function GoogleAuthPanel({
         ) {
           setPendingCredential(credential);
           onDirtyChange(true);
+          onLinkConfirmationChange(true);
 
           const nextPasswordErrors =
             getAuthFieldErrors(
@@ -120,11 +127,7 @@ function GoogleAuthPanel({
             nextPasswordErrors,
           );
 
-          setErrorMessage(
-            nextPasswordErrors.length > 0
-              ? null
-              : "This Google account uses the same email as an existing FilmGeezer account. Enter your FilmGeezer password once to connect them securely.",
-          );
+          setErrorMessage(null);
           return;
         }
 
@@ -142,6 +145,7 @@ function GoogleAuthPanel({
       isSubmitting,
       onAuthenticated,
       onDirtyChange,
+      onLinkConfirmationChange,
       onVerificationRequired,
     ],
   );
@@ -159,17 +163,29 @@ function GoogleAuthPanel({
 
   if (pendingCredential) {
     return (
-      <div className="space-y-4 rounded-2xl border border-sky-300/15 bg-sky-400/[0.045] p-4">
+      <div className="space-y-4 rounded-2xl border border-sky-300/15 bg-sky-400/[0.045] p-4 sm:p-5">
+        <div
+          role="status"
+          className="rounded-xl border border-sky-300/15 bg-sky-400/[0.07] px-4 py-3"
+        >
+          <p className="text-sm font-bold text-sky-100">
+            One security check
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-300">
+            Google matches an existing FilmGeezer account. Confirm that account&apos;s FilmGeezer password once to connect Google securely. You do not need to enter your email again.
+          </p>
+        </div>
+
         <AuthFormMessage
           message={errorMessage}
         />
 
         <div>
-          <p className="text-sm font-bold text-white">
-            Connect your existing account
+          <p className="text-base font-bold text-white">
+            Connect Google to FilmGeezer
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-400">
-            This extra check prevents someone from linking a Google account to FilmGeezer using only a matching email address.
+            This prevents someone from linking a Google account using only a matching email address.
           </p>
         </div>
 
@@ -205,6 +221,19 @@ function GoogleAuthPanel({
             }}
           />
 
+          {onForgotPassword ? (
+            <div className="-mt-1 flex justify-end">
+              <button
+                type="button"
+                disabled={isSubmitting || disabled}
+                onClick={onForgotPassword}
+                className="text-xs font-semibold text-sky-300 transition hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Forgot your FilmGeezer password?
+              </button>
+            </div>
+          ) : null}
+
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <button
               type="button"
@@ -215,10 +244,11 @@ function GoogleAuthPanel({
                 setPasswordErrors([]);
                 setErrorMessage(null);
                 onDirtyChange(false);
+                onLinkConfirmationChange(false);
               }}
               className="min-h-11 rounded-xl border border-white/10 px-4 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cancel
+              Back
             </button>
 
             <div className="sm:w-56">

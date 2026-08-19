@@ -41,6 +41,7 @@ interface RegisterFormProps {
     email: string,
   ) => void;
   onSwitchToLogin: () => void;
+  onForgotPassword: (email?: string) => void;
   onBusyChange: (
     isBusy: boolean,
   ) => void;
@@ -54,6 +55,7 @@ function RegisterForm({
   onVerificationRequired,
   onRegistrationSubmitted,
   onSwitchToLogin,
+  onForgotPassword,
   onBusyChange,
   onDirtyChange,
 }: RegisterFormProps) {
@@ -89,6 +91,11 @@ function RegisterForm({
   const [
     isGoogleDirty,
     setIsGoogleDirty,
+  ] = useState(false);
+
+  const [
+    isGoogleLinkConfirmationActive,
+    setIsGoogleLinkConfirmationActive,
   ] = useState(false);
 
   const isBusy =
@@ -281,8 +288,14 @@ function RegisterForm({
         onVerificationRequired={onVerificationRequired}
         onBusyChange={setIsGoogleSubmitting}
         onDirtyChange={setIsGoogleDirty}
+        onLinkConfirmationChange={setIsGoogleLinkConfirmationActive}
+        onForgotPassword={() => {
+          onForgotPassword(email.trim());
+        }}
       />
 
+      {!isGoogleLinkConfirmationActive ? (
+        <>
       <AuthFormMessage
         message={submissionError}
       />
@@ -442,6 +455,8 @@ function RegisterForm({
           Sign in
         </button>
       </p>
+        </>
+      ) : null}
     </form>
   );
 }

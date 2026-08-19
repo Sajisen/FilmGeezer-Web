@@ -73,6 +73,11 @@ function LoginForm({
     setIsGoogleDirty,
   ] = useState(false);
 
+  const [
+    isGoogleLinkConfirmationActive,
+    setIsGoogleLinkConfirmationActive,
+  ] = useState(false);
+
   const isBusy =
     isSubmitting || isGoogleSubmitting;
 
@@ -228,7 +233,7 @@ function LoginForm({
       className="space-y-3.5"
       noValidate
     >
-      {notice ? (
+      {!isGoogleLinkConfirmationActive && notice ? (
         <div
           role="status"
           className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-50"
@@ -243,8 +248,14 @@ function LoginForm({
         onVerificationRequired={onVerificationRequired}
         onBusyChange={setIsGoogleSubmitting}
         onDirtyChange={setIsGoogleDirty}
+        onLinkConfirmationChange={setIsGoogleLinkConfirmationActive}
+        onForgotPassword={() => {
+          onForgotPassword(email.trim());
+        }}
       />
 
+      {!isGoogleLinkConfirmationActive ? (
+        <>
       <AuthFormMessage
         message={submissionError}
       />
@@ -364,6 +375,8 @@ function LoginForm({
           Create an account
         </button>
       </p>
+        </>
+      ) : null}
     </form>
   );
 }

@@ -456,6 +456,16 @@ function AuthRoute({
               ),
             });
           }}
+          onForgotPassword={(email) => {
+            navigateWithinAuth(
+              "/forgot-password",
+              {
+                email:
+                  email || undefined,
+                markDirty: Boolean(email),
+              },
+            );
+          }}
         />
       )}
 
